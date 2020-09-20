@@ -1,3 +1,5 @@
+// Package semver provides functionalities for working with semantic versions.
+// For more information about semantic versioning, visit https://semver.org.
 package semver
 
 import (
