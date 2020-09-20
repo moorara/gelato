@@ -1,0 +1,18 @@
+# Compiled files
+/main
+/gelato
+
+# Build directories
+/bin/**
+/build/**
+
+# Test files
+*.log
+*.out
+*.test
+
+# Misc files
+*.html
+
+# Exceptions
+!Dockerfile.test
