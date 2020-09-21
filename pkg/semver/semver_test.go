@@ -173,7 +173,7 @@ func TestParse(t *testing.T) {
 	}
 }
 
-func TestAddPrerelease(t *testing.T) {
+func TestSemVer_AddPrerelease(t *testing.T) {
 	tests := []struct {
 		name           string
 		semver         SemVer
@@ -256,7 +256,7 @@ func TestAddPrerelease(t *testing.T) {
 	}
 }
 
-func TestAddMetadata(t *testing.T) {
+func TestSemVer_AddMetadata(t *testing.T) {
 	tests := []struct {
 		name           string
 		semver         SemVer
@@ -339,7 +339,7 @@ func TestAddMetadata(t *testing.T) {
 	}
 }
 
-func TestNext(t *testing.T) {
+func TestSemVer_Next(t *testing.T) {
 	tests := []struct {
 		semver       SemVer
 		expectedNext SemVer
@@ -363,7 +363,7 @@ func TestNext(t *testing.T) {
 	}
 }
 
-func TestReleasePatch(t *testing.T) {
+func TestSemVer_ReleasePatch(t *testing.T) {
 	tests := []struct {
 		semver          SemVer
 		expectedRelease SemVer
@@ -389,7 +389,7 @@ func TestReleasePatch(t *testing.T) {
 	}
 }
 
-func TestReleaseMinor(t *testing.T) {
+func TestSemVer_ReleaseMinor(t *testing.T) {
 	tests := []struct {
 		semver          SemVer
 		expectedRelease SemVer
@@ -415,7 +415,7 @@ func TestReleaseMinor(t *testing.T) {
 	}
 }
 
-func TestReleaseMajor(t *testing.T) {
+func TestSemVer_ReleaseMajor(t *testing.T) {
 	tests := []struct {
 		semver          SemVer
 		expectedRelease SemVer
@@ -441,7 +441,7 @@ func TestReleaseMajor(t *testing.T) {
 	}
 }
 
-func TestString(t *testing.T) {
+func TestSemVer_String(t *testing.T) {
 	tests := []struct {
 		name            string
 		semver          SemVer

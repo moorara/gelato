@@ -234,7 +234,7 @@ func TestRunnerWith(t *testing.T) {
 	}
 }
 
-func TestRunnerFuncWithArgs(t *testing.T) {
+func TestRunnerFunc_WithArgs(t *testing.T) {
 	tests := []struct {
 		name             string
 		runnerFunc       RunnerFunc
