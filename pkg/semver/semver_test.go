@@ -117,12 +117,12 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "WithMetadata",
-			semver: "0.1.0+20200820",
+			semver: "0.1.0+20200920",
 			expectedSemver: SemVer{
 				Major:    0,
 				Minor:    1,
 				Patch:    0,
-				Metadata: []string{"20200820"},
+				Metadata: []string{"20200920"},
 			},
 			expectedOK: true,
 		},
@@ -139,25 +139,25 @@ func TestParse(t *testing.T) {
 		},
 		{
 			name:   "WithPrereleaseAndMetadata",
-			semver: "0.1.0-beta+20200820",
+			semver: "0.1.0-beta+20200920",
 			expectedSemver: SemVer{
 				Major:      0,
 				Minor:      1,
 				Patch:      0,
 				Prerelease: []string{"beta"},
-				Metadata:   []string{"20200820"},
+				Metadata:   []string{"20200920"},
 			},
 			expectedOK: true,
 		},
 		{
 			name:   "WithPrereleaseAndMetadata",
-			semver: "v0.1.0-rc.1+sha.abcdeff.20200820",
+			semver: "v0.1.0-rc.1+sha.abcdeff.20200920",
 			expectedSemver: SemVer{
 				Major:      0,
 				Minor:      1,
 				Patch:      0,
 				Prerelease: []string{"rc", "1"},
-				Metadata:   []string{"sha", "abcdeff", "20200820"},
+				Metadata:   []string{"sha", "abcdeff", "20200920"},
 			},
 			expectedOK: true,
 		},
@@ -363,69 +363,80 @@ func TestNext(t *testing.T) {
 	}
 }
 
-func TestRelease(t *testing.T) {
+func TestReleasePatch(t *testing.T) {
 	tests := []struct {
 		semver          SemVer
-		version         Version
 		expectedRelease SemVer
-		expectedOK      bool
 	}{
 		{
 			SemVer{},
-			Patch,
-			SemVer{Major: 0, Minor: 0, Patch: 0}, true,
+			SemVer{Major: 0, Minor: 0, Patch: 0},
 		},
 		{
 			SemVer{Major: 0, Minor: 1, Patch: 0},
-			Patch,
-			SemVer{Major: 0, Minor: 1, Patch: 0}, true,
-		},
-		{
-			SemVer{Major: 1, Minor: 2, Patch: 0},
-			Patch,
-			SemVer{Major: 1, Minor: 2, Patch: 0}, true,
-		},
-		{
-			SemVer{},
-			Minor,
-			SemVer{Major: 0, Minor: 1, Patch: 0}, true,
-		},
-		{
 			SemVer{Major: 0, Minor: 1, Patch: 0},
-			Minor,
-			SemVer{Major: 0, Minor: 2, Patch: 0}, true,
 		},
 		{
 			SemVer{Major: 1, Minor: 2, Patch: 0},
-			Minor,
-			SemVer{Major: 1, Minor: 3, Patch: 0}, true,
-		},
-		{
-			SemVer{},
-			Major,
-			SemVer{Major: 1, Minor: 0, Patch: 0}, true,
-		},
-		{
-			SemVer{Major: 0, Minor: 1, Patch: 0},
-			Major,
-			SemVer{Major: 1, Minor: 0, Patch: 0}, true,
-		},
-		{
 			SemVer{Major: 1, Minor: 2, Patch: 0},
-			Major,
-			SemVer{Major: 2, Minor: 0, Patch: 0}, true,
-		},
-		{
-			SemVer{},
-			Version(-1),
-			SemVer{}, false,
 		},
 	}
 
 	for _, tc := range tests {
-		release, ok := tc.semver.Release(tc.version)
+		release := tc.semver.ReleasePatch()
 
-		assert.Equal(t, tc.expectedOK, ok)
+		assert.Equal(t, tc.expectedRelease, release)
+	}
+}
+
+func TestReleaseMinor(t *testing.T) {
+	tests := []struct {
+		semver          SemVer
+		expectedRelease SemVer
+	}{
+		{
+			SemVer{},
+			SemVer{Major: 0, Minor: 1, Patch: 0},
+		},
+		{
+			SemVer{Major: 0, Minor: 1, Patch: 0},
+			SemVer{Major: 0, Minor: 2, Patch: 0},
+		},
+		{
+			SemVer{Major: 1, Minor: 2, Patch: 0},
+			SemVer{Major: 1, Minor: 3, Patch: 0},
+		},
+	}
+
+	for _, tc := range tests {
+		release := tc.semver.ReleaseMinor()
+
+		assert.Equal(t, tc.expectedRelease, release)
+	}
+}
+
+func TestReleaseMajor(t *testing.T) {
+	tests := []struct {
+		semver          SemVer
+		expectedRelease SemVer
+	}{
+		{
+			SemVer{},
+			SemVer{Major: 1, Minor: 0, Patch: 0},
+		},
+		{
+			SemVer{Major: 0, Minor: 1, Patch: 0},
+			SemVer{Major: 1, Minor: 0, Patch: 0},
+		},
+		{
+			SemVer{Major: 1, Minor: 2, Patch: 0},
+			SemVer{Major: 2, Minor: 0, Patch: 0},
+		},
+	}
+
+	for _, tc := range tests {
+		release := tc.semver.ReleaseMajor()
+
 		assert.Equal(t, tc.expectedRelease, release)
 	}
 }

@@ -9,18 +9,6 @@ import (
 	"strings"
 )
 
-// Version is either patch, minor, or major.
-type Version int
-
-const (
-	// Patch is the patch number in a semantic version.
-	Patch Version = iota
-	// Minor is the minor number in a semantic version.
-	Minor
-	// Major is the major number in a semantic version.
-	Major
-)
-
 // SemVer represents a semantic version.
 type SemVer struct {
 	Major      uint
@@ -86,29 +74,30 @@ func (v SemVer) Next() SemVer {
 	}
 }
 
-// Release creates a new semantic version by releasing the current semantic version.
-func (v SemVer) Release(version Version) (SemVer, bool) {
-	switch version {
-	case Patch:
-		return SemVer{
-			Major: v.Major,
-			Minor: v.Minor,
-			Patch: v.Patch,
-		}, true
-	case Minor:
-		return SemVer{
-			Major: v.Major,
-			Minor: v.Minor + 1,
-			Patch: 0,
-		}, true
-	case Major:
-		return SemVer{
-			Major: v.Major + 1,
-			Minor: 0,
-			Patch: 0,
-		}, true
-	default:
-		return SemVer{}, false
+// ReleasePatch creates a new semantic version for a patch release.
+func (v SemVer) ReleasePatch() SemVer {
+	return SemVer{
+		Major: v.Major,
+		Minor: v.Minor,
+		Patch: v.Patch,
+	}
+}
+
+// ReleaseMinor creates a new semantic version for a minor release.
+func (v SemVer) ReleaseMinor() SemVer {
+	return SemVer{
+		Major: v.Major,
+		Minor: v.Minor + 1,
+		Patch: 0,
+	}
+}
+
+// ReleaseMajor creates a new semantic version for a major release.
+func (v SemVer) ReleaseMajor() SemVer {
+	return SemVer{
+		Major: v.Major + 1,
+		Minor: 0,
+		Patch: 0,
 	}
 }
 
