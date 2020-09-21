@@ -3,12 +3,12 @@ package version
 import "fmt"
 
 const template = `
-	version:    %s
-	commit:     %s
-	branch:     %s
-	goVersion:  %s
-	buildTool:  %s
-	buildTime:  %s
+  version:    %s
+  commit:     %s
+  branch:     %s
+  goVersion:  %s
+  buildTool:  %s
+  buildTime:  %s
 `
 
 var (

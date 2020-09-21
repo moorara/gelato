@@ -24,12 +24,12 @@ func TestString(t *testing.T) {
 			BuildTool: "gelato",
 			BuildTime: "2020-09-20T15:00:00",
 			expectedString: `
-	version:    0.1.0
-	commit:     aaaaaaa
-	branch:     master
-	goVersion:  go1.15
-	buildTool:  gelato
-	buildTime:  2020-09-20T15:00:00
+  version:    0.1.0
+  commit:     aaaaaaa
+  branch:     master
+  goVersion:  go1.15
+  buildTool:  gelato
+  buildTime:  2020-09-20T15:00:00
 `,
 		},
 	}
