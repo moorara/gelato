@@ -54,8 +54,10 @@ type PreflightChecklist struct {
 // The current working directory is always available on the context via workingDirectoryKey.
 // If preflightChecklist.GitHubToken set to true, GitHub token will be available on the context via gitHubTokenKey.
 func CheckAndCreateContext(checklist PreflightChecklist, timeout time.Duration) (context.Context, context.CancelFunc, error) {
-	ctx := context.Background()
-	group, groupCtx := errgroup.WithContext(ctx)
+	var workingDirectory, githubToken string
+	group := new(errgroup.Group)
+
+	// RUN PREFLIGHT CHECKS
 
 	// Get the current working directory and add it to the context
 	group.Go(func() error {
@@ -63,20 +65,20 @@ func CheckAndCreateContext(checklist PreflightChecklist, timeout time.Duration) 
 		if err != nil {
 			return fmt.Errorf("error on getting the current working directory: %s", err)
 		}
-		ctx = context.WithValue(ctx, WorkingDirectoryKey, wd)
+		workingDirectory = wd
 		return nil
 	})
 
 	if checklist.Go {
 		group.Go(func() error {
-			_, _, err := shell.Run(groupCtx, "go", "version")
+			_, _, err := shell.Run(context.Background(), "go", "version")
 			return err
 		})
 	}
 
 	if checklist.Git {
 		group.Go(func() error {
-			_, _, err := shell.Run(groupCtx, "git", "version")
+			_, _, err := shell.Run(context.Background(), "git", "version")
 			return err
 		})
 	}
@@ -88,7 +90,7 @@ func CheckAndCreateContext(checklist PreflightChecklist, timeout time.Duration) 
 			if val == "" {
 				return errors.New("GELATO_GITHUB_TOKEN environment variable not set")
 			}
-			ctx = context.WithValue(ctx, GitHubTokenKey, val)
+			githubToken = val
 			return nil
 		})
 	}
@@ -97,7 +99,18 @@ func CheckAndCreateContext(checklist PreflightChecklist, timeout time.Duration) 
 		return nil, nil, err
 	}
 
+	// CREATE CONTEXT
+
+	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
+
+	if workingDirectory != "" {
+		ctx = context.WithValue(ctx, WorkingDirectoryKey, workingDirectory)
+	}
+
+	if githubToken != "" {
+		ctx = context.WithValue(ctx, GitHubTokenKey, githubToken)
+	}
 
 	return ctx, cancel, nil
 }
