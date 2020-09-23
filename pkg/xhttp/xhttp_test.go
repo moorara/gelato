@@ -3,7 +3,6 @@ package xhttp
 import (
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -11,6 +10,9 @@ import (
 )
 
 func TestNewClientError(t *testing.T) {
+	req, err := http.NewRequest("GET", "/item", nil)
+	assert.NoError(t, err)
+
 	tests := []struct {
 		name               string
 		resp               *http.Response
@@ -22,7 +24,7 @@ func TestNewClientError(t *testing.T) {
 			resp: &http.Response{
 				StatusCode: 500,
 				Body:       ioutil.NopCloser(strings.NewReader("internal server error")),
-				Request:    httptest.NewRequest("GET", "/item", nil),
+				Request:    req,
 			},
 			expectedError:      "GET /item 500: internal server error",
 			expectedStatusCode: 500,
