@@ -1,52 +1,59 @@
 package command
 
 import (
+	"context"
 	"errors"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCheckAndCreateContext(t *testing.T) {
+func TestRunPreflightChecks(t *testing.T) {
 	tests := []struct {
-		name          string
-		environment   map[string]string
-		checklist     PreflightChecklist
-		timeout       time.Duration
-		expectedError error
+		name                   string
+		environment            map[string]string
+		ctx                    context.Context
+		checklist              PreflightChecklist
+		expectedError          error
+		expectWorkingDirectory bool
+		expectGoVersion        bool
+		expectGitVersion       bool
+		expectGitHubToken      bool
 	}{
 		{
-			name:          "DefaultChecks",
-			environment:   map[string]string{},
-			checklist:     PreflightChecklist{},
-			timeout:       2 * time.Second,
-			expectedError: nil,
+			name:                   "NoCheck",
+			environment:            map[string]string{},
+			ctx:                    context.Background(),
+			checklist:              PreflightChecklist{},
+			expectedError:          nil,
+			expectWorkingDirectory: true,
+		},
+		{
+			name:        "GitHubTokenCheckFails",
+			environment: map[string]string{},
+			ctx:         context.Background(),
+			checklist: PreflightChecklist{
+				GitHubToken: true,
+			},
+			expectedError: errors.New("GELATO_GITHUB_TOKEN environment variable not set"),
 		},
 		{
 			name: "AllChecks",
 			environment: map[string]string{
 				"GELATO_GITHUB_TOKEN": "github-token",
 			},
+			ctx: context.Background(),
 			checklist: PreflightChecklist{
 				Go:          true,
 				Git:         true,
 				GitHubToken: true,
 			},
-			timeout:       2 * time.Second,
-			expectedError: nil,
-		},
-		{
-			name:        "GitHubTokenCheckFails",
-			environment: map[string]string{},
-			checklist: PreflightChecklist{
-				Go:          true,
-				Git:         true,
-				GitHubToken: true,
-			},
-			timeout:       2 * time.Second,
-			expectedError: errors.New("GELATO_GITHUB_TOKEN environment variable not set"),
+			expectedError:          nil,
+			expectWorkingDirectory: true,
+			expectGoVersion:        true,
+			expectGitVersion:       true,
+			expectGitHubToken:      true,
 		},
 	}
 
@@ -58,19 +65,17 @@ func TestCheckAndCreateContext(t *testing.T) {
 				defer os.Unsetenv(key)
 			}
 
-			ctx, cancel, err := CheckAndCreateContext(tc.checklist, tc.timeout)
-			if err == nil {
-				defer cancel()
-			}
+			preflightInfo, err := RunPreflightChecks(tc.ctx, tc.checklist)
 
-			if tc.expectedError == nil {
-				assert.NotNil(t, ctx)
-				assert.NotNil(t, cancel)
-				assert.NoError(t, err)
-			} else {
-				assert.Nil(t, ctx)
-				assert.Nil(t, cancel)
+			if tc.expectedError != nil {
+				assert.Zero(t, preflightInfo)
 				assert.Equal(t, tc.expectedError, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectWorkingDirectory, preflightInfo.WorkingDirectory != "")
+				assert.Equal(t, tc.expectGoVersion, preflightInfo.GoVersion != "")
+				assert.Equal(t, tc.expectGitVersion, preflightInfo.GitVersion != "")
+				assert.Equal(t, tc.expectGitHubToken, preflightInfo.GitHubToken != "")
 			}
 		})
 	}

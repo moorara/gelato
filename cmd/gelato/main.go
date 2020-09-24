@@ -6,6 +6,7 @@ import (
 	"github.com/mitchellh/cli"
 
 	"github.com/moorara/gelato/internal/command/semver"
+	"github.com/moorara/gelato/internal/command/update"
 	"github.com/moorara/gelato/version"
 )
 
@@ -29,6 +30,9 @@ func main() {
 	c.Commands = map[string]cli.CommandFactory{
 		"semver": func() (cli.Command, error) {
 			return semver.NewCommand(ui)
+		},
+		"update": func() (cli.Command, error) {
+			return update.NewCommand(ui)
 		},
 	}
 
