@@ -1,6 +1,7 @@
 package semver
 
 import (
+	"context"
 	"flag"
 	"regexp"
 	"time"
@@ -59,18 +60,20 @@ func (c *cmd) Run(args []string) int {
 		return command.FlagError
 	}
 
-	// RUN PREFLIGHT CHECKS AND CREATE A CONTEXT
+	ctx, cancel := context.WithTimeout(context.Background(), semverTimeout)
+	defer cancel()
+
+	// RUN PREFLIGHT CHECKS
 
 	checklist := command.PreflightChecklist{
 		Git: true,
 	}
 
-	ctx, cancel, err := command.CheckAndCreateContext(checklist, semverTimeout)
+	_, err := command.RunPreflightChecks(ctx, checklist)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.PreflightError
 	}
-	defer cancel()
 
 	// GET GIT INFORMATION
 
