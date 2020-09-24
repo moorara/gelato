@@ -127,27 +127,38 @@ func createMockHTTPServer(mocks ...MockResponse) *httptest.Server {
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name        string
-		accessToken string
-		owner, repo string
+		name          string
+		accessToken   string
+		scopes        []Scope
+		expectedError string
 	}{
 		{
-			name:        "OK",
-			accessToken: "github-token",
-			owner:       "octocat",
-			repo:        "Hello-World",
+			name:          "NoScopeRequired",
+			accessToken:   "github-token",
+			scopes:        []Scope{},
+			expectedError: "",
+		},
+		{
+			name:          "ScopeRequired",
+			accessToken:   "github-token",
+			scopes:        []Scope{ScopeRepo},
+			expectedError: "HEAD /user 401: ",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			gh := New(tc.accessToken, tc.owner, tc.repo)
+			gh, err := New(tc.accessToken, tc.scopes...)
 
-			assert.NotNil(t, gh)
-			assert.Equal(t, githubAPIURL, gh.apiURL)
-			assert.Equal(t, tc.accessToken, gh.accessToken)
-			assert.Equal(t, tc.owner, gh.owner)
-			assert.Equal(t, tc.repo, gh.repo)
+			if tc.expectedError != "" {
+				assert.Nil(t, gh)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, gh)
+				assert.Equal(t, githubAPIURL, gh.apiURL)
+				assert.Equal(t, tc.accessToken, gh.accessToken)
+			}
 		})
 	}
 }
@@ -287,13 +298,74 @@ func TestGitHub_MakeRequest(t *testing.T) {
 	}
 }
 
+func TestGitHub_CheckScopes(t *testing.T) {
+	tests := []struct {
+		name          string
+		mockResponses []MockResponse
+		accessToken   string
+		scopes        []Scope
+		expectedError string
+	}{
+		{
+			name: "InvalidStatusCode",
+			mockResponses: []MockResponse{
+				{"HEAD", "/user", 401, `bad credentials`},
+			},
+			accessToken:   "github-token",
+			scopes:        []Scope{ScopeRepo, ScopeUser},
+			expectedError: "HEAD /user 401: ",
+		},
+		{
+			name: "MissingScope",
+			mockResponses: []MockResponse{
+				{"HEAD", "/user", 200, ``},
+			},
+			accessToken:   "github-token",
+			scopes:        []Scope{ScopeRepo, ScopeUser},
+			expectedError: "access token does not have the scope: repo",
+		},
+		{
+			name: "Success",
+			mockResponses: []MockResponse{
+				{"HEAD", "/user", 200, ``},
+			},
+			accessToken:   "github-token",
+			scopes:        []Scope{},
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gh := &GitHub{
+				client:      new(http.Client),
+				accessToken: tc.accessToken,
+			}
+
+			if len(tc.mockResponses) > 0 {
+				ts := createMockHTTPServer(tc.mockResponses...)
+				defer ts.Close()
+				gh.apiURL = ts.URL
+			}
+
+			err := gh.checkScopes(tc.scopes...)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestGitHub_GetLatestRelease(t *testing.T) {
 	tests := []struct {
 		name            string
 		mockResponses   []MockResponse
 		accessToken     string
-		owner, repo     string
 		ctx             context.Context
+		owner, repo     string
 		expectedRelease *Release
 		expectedError   string
 	}{
@@ -301,9 +373,9 @@ func TestGitHub_GetLatestRelease(t *testing.T) {
 			name:            "RequestError",
 			mockResponses:   []MockResponse{},
 			accessToken:     "github-token",
+			ctx:             nil,
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             nil,
 			expectedRelease: nil,
 			expectedError:   "net/http: nil Context",
 		},
@@ -313,9 +385,9 @@ func TestGitHub_GetLatestRelease(t *testing.T) {
 				{"GET", "/repos/{owner}/{repo}/releases/latest", 400, `bad request`},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			expectedRelease: nil,
 			expectedError:   "GET /repos/octocat/Hello-World/releases/latest 400: bad request",
 		},
@@ -325,9 +397,9 @@ func TestGitHub_GetLatestRelease(t *testing.T) {
 				{"GET", "/repos/{owner}/{repo}/releases/latest", 200, `{`},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			expectedRelease: nil,
 			expectedError:   "unexpected EOF",
 		},
@@ -337,9 +409,9 @@ func TestGitHub_GetLatestRelease(t *testing.T) {
 				{"GET", "/repos/{owner}/{repo}/releases/latest", 200, mockReleaseBody},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			expectedRelease: expectedRelease,
 			expectedError:   "",
 		},
@@ -350,8 +422,6 @@ func TestGitHub_GetLatestRelease(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
@@ -360,7 +430,7 @@ func TestGitHub_GetLatestRelease(t *testing.T) {
 				gh.apiURL = ts.URL
 			}
 
-			release, err := gh.GetLatestRelease(tc.ctx)
+			release, err := gh.GetLatestRelease(tc.ctx, tc.owner, tc.repo)
 
 			if tc.expectedError != "" {
 				assert.Nil(t, release)
@@ -387,8 +457,8 @@ func TestGitHub_CreateRelease(t *testing.T) {
 		name            string
 		mockResponses   []MockResponse
 		accessToken     string
-		owner, repo     string
 		ctx             context.Context
+		owner, repo     string
 		params          ReleaseData
 		expectedRelease *Release
 		expectedError   string
@@ -397,9 +467,9 @@ func TestGitHub_CreateRelease(t *testing.T) {
 			name:            "RequestError",
 			mockResponses:   []MockResponse{},
 			accessToken:     "github-token",
+			ctx:             nil,
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             nil,
 			params:          releaseData,
 			expectedRelease: nil,
 			expectedError:   "net/http: nil Context",
@@ -410,9 +480,9 @@ func TestGitHub_CreateRelease(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/releases", 400, `bad request`},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			params:          releaseData,
 			expectedRelease: nil,
 			expectedError:   "POST /repos/octocat/Hello-World/releases 400: bad request",
@@ -423,9 +493,9 @@ func TestGitHub_CreateRelease(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/releases", 201, `{`},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			params:          releaseData,
 			expectedRelease: nil,
 			expectedError:   "unexpected EOF",
@@ -436,9 +506,9 @@ func TestGitHub_CreateRelease(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/releases", 201, mockReleaseBody},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			params:          releaseData,
 			expectedRelease: expectedRelease,
 			expectedError:   "",
@@ -450,8 +520,6 @@ func TestGitHub_CreateRelease(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
@@ -460,7 +528,7 @@ func TestGitHub_CreateRelease(t *testing.T) {
 				gh.apiURL = ts.URL
 			}
 
-			release, err := gh.CreateRelease(tc.ctx, tc.params)
+			release, err := gh.CreateRelease(tc.ctx, tc.owner, tc.repo, tc.params)
 
 			if tc.expectedError != "" {
 				assert.Nil(t, release)
@@ -487,8 +555,8 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 		name            string
 		mockResponses   []MockResponse
 		accessToken     string
-		owner, repo     string
 		ctx             context.Context
+		owner, repo     string
 		releaseID       int
 		params          ReleaseData
 		expectedRelease *Release
@@ -498,9 +566,9 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 			name:            "RequestError",
 			mockResponses:   []MockResponse{},
 			accessToken:     "github-token",
+			ctx:             nil,
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             nil,
 			releaseID:       1,
 			params:          releaseData,
 			expectedRelease: nil,
@@ -512,9 +580,9 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 				{"PATCH", "/repos/{owner}/{repo}/releases/{release_id}", 400, `bad request`},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			releaseID:       1,
 			params:          releaseData,
 			expectedRelease: nil,
@@ -526,9 +594,9 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 				{"PATCH", "/repos/{owner}/{repo}/releases/{release_id}", 200, `{`},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			releaseID:       1,
 			params:          releaseData,
 			expectedRelease: nil,
@@ -540,9 +608,9 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 				{"PATCH", "/repos/{owner}/{repo}/releases/{release_id}", 200, mockReleaseBody},
 			},
 			accessToken:     "github-token",
+			ctx:             context.Background(),
 			owner:           "octocat",
 			repo:            "Hello-World",
-			ctx:             context.Background(),
 			releaseID:       1,
 			params:          releaseData,
 			expectedRelease: expectedRelease,
@@ -555,8 +623,6 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
@@ -565,7 +631,7 @@ func TestGitHub_UpdateRelease(t *testing.T) {
 				gh.apiURL = ts.URL
 			}
 
-			release, err := gh.UpdateRelease(tc.ctx, tc.releaseID, tc.params)
+			release, err := gh.UpdateRelease(tc.ctx, tc.owner, tc.repo, tc.releaseID, tc.params)
 
 			if tc.expectedError != "" {
 				assert.Nil(t, release)
@@ -583,8 +649,8 @@ func TestGitHub_EnableBranchProtection(t *testing.T) {
 		name          string
 		mockResponses []MockResponse
 		accessToken   string
-		owner, repo   string
 		ctx           context.Context
+		owner, repo   string
 		branch        string
 		expectedError string
 	}{
@@ -592,9 +658,9 @@ func TestGitHub_EnableBranchProtection(t *testing.T) {
 			name:          "RequestError",
 			mockResponses: []MockResponse{},
 			accessToken:   "github-token",
+			ctx:           nil,
 			owner:         "octocat",
 			repo:          "Hello-World",
-			ctx:           nil,
 			branch:        "master",
 			expectedError: "net/http: nil Context",
 		},
@@ -604,9 +670,9 @@ func TestGitHub_EnableBranchProtection(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins", 400, `bad request`},
 			},
 			accessToken:   "github-token",
+			ctx:           context.Background(),
 			owner:         "octocat",
 			repo:          "Hello-World",
-			ctx:           context.Background(),
 			branch:        "master",
 			expectedError: "POST /repos/octocat/Hello-World/branches/master/protection/enforce_admins 400: bad request",
 		},
@@ -616,9 +682,9 @@ func TestGitHub_EnableBranchProtection(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins", 200, ``},
 			},
 			accessToken:   "github-token",
+			ctx:           context.Background(),
 			owner:         "octocat",
 			repo:          "Hello-World",
-			ctx:           context.Background(),
 			branch:        "master",
 			expectedError: "",
 		},
@@ -629,8 +695,6 @@ func TestGitHub_EnableBranchProtection(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
@@ -639,7 +703,7 @@ func TestGitHub_EnableBranchProtection(t *testing.T) {
 				gh.apiURL = ts.URL
 			}
 
-			err := gh.EnableBranchProtection(tc.ctx, tc.branch)
+			err := gh.EnableBranchProtection(tc.ctx, tc.owner, tc.repo, tc.branch)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)
@@ -655,8 +719,8 @@ func TestGitHub_DisableBranchProtection(t *testing.T) {
 		name          string
 		mockResponses []MockResponse
 		accessToken   string
-		owner, repo   string
 		ctx           context.Context
+		owner, repo   string
 		branch        string
 		expectedError string
 	}{
@@ -664,9 +728,9 @@ func TestGitHub_DisableBranchProtection(t *testing.T) {
 			name:          "RequestError",
 			mockResponses: []MockResponse{},
 			accessToken:   "github-token",
+			ctx:           nil,
 			owner:         "octocat",
 			repo:          "Hello-World",
-			ctx:           nil,
 			branch:        "master",
 			expectedError: "net/http: nil Context",
 		},
@@ -676,9 +740,9 @@ func TestGitHub_DisableBranchProtection(t *testing.T) {
 				{"DELETE", "/repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins", 400, `bad request`},
 			},
 			accessToken:   "github-token",
+			ctx:           context.Background(),
 			owner:         "octocat",
 			repo:          "Hello-World",
-			ctx:           context.Background(),
 			branch:        "master",
 			expectedError: "DELETE /repos/octocat/Hello-World/branches/master/protection/enforce_admins 400: bad request",
 		},
@@ -688,9 +752,9 @@ func TestGitHub_DisableBranchProtection(t *testing.T) {
 				{"DELETE", "/repos/{owner}/{repo}/branches/{branch}/protection/enforce_admins", 204, ``},
 			},
 			accessToken:   "github-token",
+			ctx:           context.Background(),
 			owner:         "octocat",
 			repo:          "Hello-World",
-			ctx:           context.Background(),
 			branch:        "master",
 			expectedError: "",
 		},
@@ -701,8 +765,6 @@ func TestGitHub_DisableBranchProtection(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
@@ -711,7 +773,7 @@ func TestGitHub_DisableBranchProtection(t *testing.T) {
 				gh.apiURL = ts.URL
 			}
 
-			err := gh.DisableBranchProtection(tc.ctx, tc.branch)
+			err := gh.DisableBranchProtection(tc.ctx, tc.owner, tc.repo, tc.branch)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)
@@ -727,7 +789,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 		name                 string
 		mockResponses        []MockResponse
 		accessToken          string
-		owner, repo          string
 		ctx                  context.Context
 		uploadURL            string
 		file                 string
@@ -738,8 +799,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 			name:                 "NoFile",
 			mockResponses:        []MockResponse{},
 			accessToken:          "github-token",
-			owner:                "octocat",
-			repo:                 "Hello-World",
 			ctx:                  nil,
 			uploadURL:            "https://uploads.github.com/repos/octocat/Hello-World/releases/1/assets",
 			file:                 "unknown",
@@ -750,8 +809,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 			name:                 "BadFile",
 			mockResponses:        []MockResponse{},
 			accessToken:          "github-token",
-			owner:                "octocat",
-			repo:                 "Hello-World",
 			ctx:                  nil,
 			uploadURL:            "https://uploads.github.com/repos/octocat/Hello-World/releases/1/assets",
 			file:                 "/dev/null",
@@ -762,8 +819,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 			name:                 "RequestError",
 			mockResponses:        []MockResponse{},
 			accessToken:          "github-token",
-			owner:                "octocat",
-			repo:                 "Hello-World",
 			ctx:                  nil,
 			uploadURL:            "https://uploads.github.com/repos/octocat/Hello-World/releases/1/assets",
 			file:                 "github_test.go",
@@ -776,8 +831,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/releases/{release_id}/assets", 400, `bad request`},
 			},
 			accessToken:          "github-token",
-			owner:                "octocat",
-			repo:                 "Hello-World",
 			ctx:                  context.Background(),
 			uploadURL:            "https://uploads.github.com/repos/octocat/Hello-World/releases/1/assets",
 			file:                 "github_test.go",
@@ -790,8 +843,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/releases/{release_id}/assets", 201, `{`},
 			},
 			accessToken:          "github-token",
-			owner:                "octocat",
-			repo:                 "Hello-World",
 			ctx:                  context.Background(),
 			uploadURL:            "https://uploads.github.com/repos/octocat/Hello-World/releases/1/assets",
 			file:                 "github_test.go",
@@ -804,8 +855,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 				{"POST", "/repos/{owner}/{repo}/releases/{release_id}/assets", 201, mockReleaseAssetBody},
 			},
 			accessToken:          "github-token",
-			owner:                "octocat",
-			repo:                 "Hello-World",
 			ctx:                  context.Background(),
 			uploadURL:            "https://uploads.github.com/repos/octocat/Hello-World/releases/1/assets",
 			file:                 "github_test.go",
@@ -819,8 +868,6 @@ func TestGitHub_UploadReleaseAsset(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
@@ -847,7 +894,6 @@ func TestGitHub_DownloadReleaseAsset(t *testing.T) {
 		name          string
 		mockResponses []MockResponse
 		accessToken   string
-		owner, repo   string
 		ctx           context.Context
 		downloadURL   string
 		expectedError string
@@ -856,8 +902,6 @@ func TestGitHub_DownloadReleaseAsset(t *testing.T) {
 			name:          "RequestError",
 			mockResponses: []MockResponse{},
 			accessToken:   "github-token",
-			owner:         "octocat",
-			repo:          "Hello-World",
 			ctx:           nil,
 			downloadURL:   "https://github.com/octocat/Hello-World/releases/download/v1.0.0/example.zip",
 			expectedError: "net/http: nil Context",
@@ -868,8 +912,6 @@ func TestGitHub_DownloadReleaseAsset(t *testing.T) {
 				{"GET", "/{owner}/{repo}/releases/download/{release_name}/{asset_name}", 400, `bad request`},
 			},
 			accessToken:   "github-token",
-			owner:         "octocat",
-			repo:          "Hello-World",
 			ctx:           context.Background(),
 			downloadURL:   "https://github.com/octocat/Hello-World/releases/download/v1.0.0/example.zip",
 			expectedError: "GET /octocat/Hello-World/releases/download/v1.0.0/example.zip 400: bad request",
@@ -880,8 +922,6 @@ func TestGitHub_DownloadReleaseAsset(t *testing.T) {
 				{"GET", "/{owner}/{repo}/releases/download/{release_name}/{asset_name}", 200, ``},
 			},
 			accessToken:   "github-token",
-			owner:         "octocat",
-			repo:          "Hello-World",
 			ctx:           context.Background(),
 			downloadURL:   "https://github.com/octocat/Hello-World/releases/download/v1.0.0/example.zip",
 			expectedError: "",
@@ -893,8 +933,6 @@ func TestGitHub_DownloadReleaseAsset(t *testing.T) {
 			gh := &GitHub{
 				client:      new(http.Client),
 				accessToken: tc.accessToken,
-				owner:       tc.owner,
-				repo:        tc.repo,
 			}
 
 			if len(tc.mockResponses) > 0 {
