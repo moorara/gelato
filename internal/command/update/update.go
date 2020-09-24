@@ -1,12 +1,18 @@
 package update
 
 import (
+	"context"
 	"flag"
+	"fmt"
+	"os"
+	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/mitchellh/cli"
 
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/github"
 )
 
 const (
@@ -17,6 +23,11 @@ const (
 
   Examples:  gelato update
   `
+)
+
+const (
+	updateOwner = "moorara"
+	updateRepo  = "gelato"
 )
 
 // cmd implements the cli.Command interface.
@@ -53,26 +64,69 @@ func (c *cmd) Run(args []string) int {
 		return command.FlagError
 	}
 
-	// RUN PREFLIGHT CHECKS AND CREATE A CONTEXT
+	ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
+	defer cancel()
+
+	// RUN PREFLIGHT CHECKS
 
 	checklist := command.PreflightChecklist{
 		GitHubToken: true,
 	}
 
-	_, cancel, err := command.CheckAndCreateContext(checklist, updateTimeout)
+	info, err := command.RunPreflightChecks(ctx, checklist)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.PreflightError
 	}
-	defer cancel()
 
 	// CREATE A GITHUB CLIENT
 
+	github, err := github.New(info.GitHubToken)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
 	// GET THE LATEST RELEASE FROM GITHUB
 
-	// DOWNLOAD THE LATEST BINARY FROM GITHUB
+	c.ui.Output("⬇ Finding the latest release of Gelato ...")
 
-	// WRITE THE LATEST BINARY TO DISK
+	release, err := github.GetLatestRelease(ctx, updateOwner, updateRepo)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
+	// DOWNLOAD THE LATEST BINARY FROM GITHUB AND WRITE IT TO DISK
+
+	c.ui.Output(fmt.Sprintf("⬇ Downloading Gelato %s ...", release.TagName))
+
+	var downloadURL string
+	assetName := fmt.Sprintf("gelato-%s-%s", runtime.GOOS, runtime.GOARCH)
+	for _, asset := range release.Assets {
+		if asset.Name == assetName {
+			downloadURL = asset.DownloadURL
+		}
+	}
+
+	if downloadURL == "" {
+		c.ui.Error(fmt.Sprintf("Cannot find download URL for %s", assetName))
+		return command.GitHubError
+	}
+
+	binPath, err := exec.LookPath(os.Args[0])
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Cannot find binary path for Gelato: %s", err))
+		return command.OSError
+	}
+
+	err = github.DownloadReleaseAsset(ctx, downloadURL, binPath)
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Failed to download and update Gelato binary: %s", err))
+		return command.GitHubError
+	}
+
+	c.ui.Info(fmt.Sprintf("🍨 Gelato %s written to %s", release.Name, binPath))
 
 	return command.Success
 }

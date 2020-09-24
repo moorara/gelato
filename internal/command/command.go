@@ -14,18 +14,20 @@ import (
 const (
 	// Success is the exit code when a command execution is successful.
 	Success int = iota
-
 	// FlagError is the exit code when an undefined or invalid flag is provided to a command.
 	FlagError
-
 	// PreflightError is the exit code when a preflight check fails.
 	PreflightError
-
+	// OSError is the exit code when an OS operation fails.
+	OSError
 	// GoError is the exit code when a go command fails.
 	GoError
-
 	// GitError is the exit code when a git command fails.
 	GitError
+	// GitHubError is the exit code when a GitHub operation fails.
+	GitHubError
+	// MiscError is the exit code when a miscellaneous operation fails.
+	MiscError
 )
 
 type (
