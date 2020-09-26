@@ -16,6 +16,8 @@ import (
 const (
 	// Success is the exit code when a command execution is successful.
 	Success int = iota
+	// SpecError is the exit code when reading the spec file fails.
+	SpecError
 	// FlagError is the exit code when an undefined or invalid flag is provided to a command.
 	FlagError
 	// PreflightError is the exit code when a preflight check fails.
