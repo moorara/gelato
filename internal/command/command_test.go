@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/moorara/gelato/pkg/semver"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -76,6 +77,35 @@ func TestRunPreflightChecks(t *testing.T) {
 				assert.Equal(t, tc.expectGoVersion, preflightInfo.GoVersion != "")
 				assert.Equal(t, tc.expectGitVersion, preflightInfo.GitVersion != "")
 				assert.Equal(t, tc.expectGitHubToken, preflightInfo.GitHubToken != "")
+			}
+		})
+	}
+}
+
+func TestResolveSemanticVersion(t *testing.T) {
+	tests := []struct {
+		name           string
+		ctx            context.Context
+		expectedSemVer semver.SemVer
+		expectedError  error
+	}{
+		{
+			name:          "Success",
+			ctx:           context.Background(),
+			expectedError: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			semver, err := ResolveSemanticVersion(tc.ctx)
+
+			if tc.expectedError == nil {
+				assert.NotEmpty(t, semver)
+				assert.NoError(t, err)
+			} else {
+				assert.Empty(t, semver)
+				assert.Equal(t, tc.expectedError, err)
 			}
 		})
 	}

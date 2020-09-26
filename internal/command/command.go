@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/moorara/gelato/pkg/semver"
 	"github.com/moorara/gelato/pkg/shell"
 )
 
@@ -28,6 +30,11 @@ const (
 	GitHubError
 	// MiscError is the exit code when a miscellaneous operation fails.
 	MiscError
+)
+
+var (
+	releaseRE    = regexp.MustCompile(`^v?([0-9]+)\.([0-9]+)\.([0-9]+)$`)
+	prereleaseRE = regexp.MustCompile(`^(v?([0-9]+)\.([0-9]+)\.([0-9]+))-([0-9]+)-g([0-9a-f]+)$`)
 )
 
 type (
@@ -99,4 +106,84 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 		GitVersion:       gitVersion,
 		GitHubToken:      githubToken,
 	}, nil
+}
+
+// ResolveSemanticVersion returns the current semantic version.
+func ResolveSemanticVersion(ctx context.Context) (semver.SemVer, error) {
+	// GET GIT INFORMATION
+
+	var gitStatus, gitSHA, gitCommitCount, gitDescribe string
+	group, groupCtx := errgroup.WithContext(ctx)
+
+	group.Go(func() (err error) {
+		_, gitStatus, err = shell.Run(groupCtx, "git", "status", "--porcelain")
+		return err
+	})
+
+	group.Go(func() (err error) {
+		_, gitSHA, err = shell.Run(groupCtx, "git", "rev-parse", "HEAD")
+		return err
+	})
+
+	group.Go(func() (err error) {
+		_, gitCommitCount, err = shell.Run(groupCtx, "git", "rev-list", "--count", "HEAD")
+		return err
+	})
+
+	group.Go(func() (err error) {
+		var code int
+		code, gitDescribe, err = shell.Run(ctx, "git", "describe", "--tags", "HEAD")
+		if err != nil && code != 128 { // 128 is returned when there is no git tag
+			return err
+		}
+		return nil
+	})
+
+	if err := group.Wait(); err != nil {
+		return semver.SemVer{}, err
+	}
+
+	// RESOLVE THE CURRENT SEMANTIC VERSION
+
+	var sv semver.SemVer
+
+	if len(gitDescribe) == 0 {
+		// No git tag and no previous semantic version -> using the default initial semantic version
+
+		sv = semver.SemVer{
+			Major: 0, Minor: 1, Patch: 0,
+			Prerelease: []string{gitCommitCount},
+		}
+
+		if gitStatus == "" {
+			sv.AddPrerelease(gitSHA[:7])
+		} else {
+			sv.AddPrerelease("dev")
+		}
+	} else if subs := releaseRE.FindStringSubmatch(gitDescribe); len(subs) == 4 {
+		// The tag points to the HEAD commit
+		// Example: v0.2.7 --> subs = []string{"v0.2.7", "0", "2", "7"}
+
+		sv, _ = semver.Parse(subs[0])
+
+		if gitStatus != "" {
+			sv = sv.Next()
+			sv.AddPrerelease("0", "dev")
+		}
+	} else if subs := prereleaseRE.FindStringSubmatch(gitDescribe); len(subs) == 7 {
+		// The tag is the most recent tag reachable from the HEAD commit
+		// Example: v0.2.7-10-gabcdeff --> subs = []string{"v0.2.7-10-gabcdeff", "v0.2.7", "0", "2", "7", "10", "abcdeff"}
+
+		sv, _ = semver.Parse(subs[1])
+		sv = sv.Next()
+		sv.AddPrerelease(subs[5])
+
+		if gitStatus == "" {
+			sv.AddPrerelease(subs[6])
+		} else {
+			sv.AddPrerelease("dev")
+		}
+	}
+
+	return sv, nil
 }
