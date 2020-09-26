@@ -29,7 +29,6 @@ func run(ctx context.Context, opts RunOptions, command string, args ...string) (
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	cmd.Env = []string{}
 	for key, val := range opts.Environment {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, val))
 	}
