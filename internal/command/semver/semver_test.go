@@ -59,6 +59,12 @@ func TestCmd_Run(t *testing.T) {
 			exitCode := c.Run(tc.args)
 
 			assert.Equal(t, tc.expectedExitCode, exitCode)
+
+			if tc.expectedExitCode == command.Success {
+				assert.NotEmpty(t, c.outputs.semver)
+			} else {
+				assert.Empty(t, c.outputs.semver)
+			}
 		})
 	}
 }
