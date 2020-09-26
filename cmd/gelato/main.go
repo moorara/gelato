@@ -1,12 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/mitchellh/cli"
 
+	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/command/build"
+	"github.com/moorara/gelato/internal/command/release"
 	"github.com/moorara/gelato/internal/command/semver"
 	"github.com/moorara/gelato/internal/command/update"
+	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/version"
 )
 
@@ -25,11 +30,27 @@ func main() {
 		},
 	}
 
+	// Read the spec from file if any
+	spec, err := spec.FromFile()
+	if err != nil {
+		ui.Error(fmt.Sprintf("Cannot read the spec file: %s", err))
+		os.Exit(command.SpecError)
+	}
+
+	spec = spec.WithDefaults()
+	spec.GelatoVersion = version.Version
+
 	c := cli.NewCLI("gelato", version.String())
 	c.Args = os.Args[1:]
 	c.Commands = map[string]cli.CommandFactory{
 		"semver": func() (cli.Command, error) {
 			return semver.NewCommand(ui)
+		},
+		"build": func() (cli.Command, error) {
+			return build.NewCommand(ui, spec)
+		},
+		"release": func() (cli.Command, error) {
+			return release.NewCommand(ui, spec)
 		},
 		"update": func() (cli.Command, error) {
 			return update.NewCommand(ui)
