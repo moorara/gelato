@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -30,7 +31,7 @@ func run(ctx context.Context, opts RunOptions, command string, args ...string) (
 	cmd.Stderr = &stderr
 
 	for key, val := range opts.Environment {
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, val))
+		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", key, val))
 	}
 
 	err := cmd.Run()
