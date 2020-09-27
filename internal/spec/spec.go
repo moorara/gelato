@@ -3,6 +3,7 @@ package spec
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"os"
 	"path/filepath"
 
@@ -142,6 +143,14 @@ func (b Build) WithDefaults() Build {
 	return b
 }
 
+// FlagSet returns a flag set for the build command arguments.
+func (b *Build) FlagSet() *flag.FlagSet {
+	fs := flag.NewFlagSet("build", flag.ContinueOnError)
+	fs.BoolVar(&b.CrossCompile, "cross-compile", b.CrossCompile, "")
+
+	return fs
+}
+
 // Release has the specifications for the release command.
 type Release struct {
 	Artifacts bool `json:"artifacts" yaml:"artifacts"`
@@ -150,4 +159,12 @@ type Release struct {
 // WithDefaults returns a new object with default values.
 func (r Release) WithDefaults() Release {
 	return r
+}
+
+// FlagSet returns a flag set for the release command arguments.
+func (r *Release) FlagSet() *flag.FlagSet {
+	fs := flag.NewFlagSet("release", flag.ContinueOnError)
+	fs.BoolVar(&r.Artifacts, "artifacts", r.Artifacts, "")
+
+	return fs
 }

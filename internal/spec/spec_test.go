@@ -240,6 +240,29 @@ func TestBuildWithDefaults(t *testing.T) {
 	}
 }
 
+func TestBuildFlagSet(t *testing.T) {
+	tests := []struct {
+		build        Build
+		expectedName string
+	}{
+		{
+			build: Build{},
+		},
+		{
+			build: Build{
+				CrossCompile: true,
+				Platforms:    []string{"linux-amd64", "darwin-amd64", "windows-amd64"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		fs := tc.build.FlagSet()
+
+		assert.NotNil(t, fs)
+	}
+}
+
 func TestReleaseWithDefaults(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -268,5 +291,27 @@ func TestReleaseWithDefaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expectedRelease, tc.release.WithDefaults())
 		})
+	}
+}
+
+func TestReleaseFlagSet(t *testing.T) {
+	tests := []struct {
+		release      Release
+		expectedName string
+	}{
+		{
+			release: Release{},
+		},
+		{
+			release: Release{
+				Artifacts: true,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		fs := tc.release.FlagSet()
+
+		assert.NotNil(t, fs)
 	}
 }
