@@ -17,11 +17,14 @@ import (
 
 const (
 	updateTimeout  = time.Minute
-	updateSynopsis = `Updates Gelato`
+	updateSynopsis = `Update Gelato`
 	updateHelp     = `
   Use this command for updating gelato to the latest release.
 
-  Examples:  gelato update
+  Usage:  gelato update
+
+  Examples:
+    gelato update
   `
 )
 

@@ -44,6 +44,11 @@ func TestCmd_Run(t *testing.T) {
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
 		},
+		{
+			name:             "VersionPackageMissing",
+			args:             []string{},
+			expectedExitCode: command.VersionPkgError,
+		},
 	}
 
 	for _, tc := range tests {

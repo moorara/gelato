@@ -30,6 +30,8 @@ const (
 	GitError
 	// GitHubError is the exit code when a GitHub operation fails.
 	GitHubError
+	// VersionPkgError is the exit code when the version package is missing or invalid.
+	VersionPkgError
 	// MiscError is the exit code when a miscellaneous operation fails.
 	MiscError
 )
@@ -60,9 +62,10 @@ type (
 // It returns a list of preflight information.
 func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (PreflightInfo, error) {
 	var workingDirectory, goVersion, gitVersion, githubToken string
-	group := new(errgroup.Group)
 
 	// RUN PREFLIGHT CHECKS
+
+	group, ctx := errgroup.WithContext(ctx)
 
 	// Get the current working directory and add it to the context
 	group.Go(func() (err error) {

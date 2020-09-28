@@ -13,11 +13,14 @@ import (
 
 const (
 	semverTimeout  = 2 * time.Second
-	semverSynopsis = `Prints the current semantic version`
+	semverSynopsis = `Print the current semantic version`
 	semverHelp     = `
   Use this command for getting the current semantic version.
 
-  Examples:  gelato semver
+  Usage:  gelato semver
+
+  Examples:
+    gelato semver
   `
 )
 

@@ -13,14 +13,29 @@ import (
 
 const (
 	releaseTimeout  = 10 * time.Minute
-	releaseSynopsis = `Creates a new release`
+	releaseSynopsis = `Create a release`
 	releaseHelp     = `
-	Use this command for creating a new release.
-	The initial semantic version is always 0.1.0.
+  Use this command for creating a new release.
+  The initial semantic version is always 0.1.0.
 
-	Flags:
+  Usage:  gelato release [flags]
 
-  Examples:  gelato release
+  Flags:
+    -patch:      create a patch version release (default: true)
+    -minor:      create a minor version release (default: false)
+    -major:      create a major version release (default: false)
+    -comment:    add a description for the release
+    -artifacts:  build the artifacts and include them in the release (default: false)
+
+  Examples:
+    gelato release
+    gelato release -patch
+    gelato release -minor
+    gelato release -major
+    gelato release -artifacts
+    gelato release -comment="Fixing Bugs!"
+    gelato release -minor -comment "New Features!"
+    gelato release -major -comment "Breaking Changes!"
   `
 )
 
