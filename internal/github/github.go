@@ -106,6 +106,25 @@ const (
 	ScopeReadGPGKey Scope = "read:gpg_key"
 )
 
+// Permission represents a GitHub repository permission.
+// See https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/repository-permission-levels-for-an-organization
+type Permission string
+
+const (
+	// PermissionNone does not allow anything.
+	PermissionNone Permission = "none"
+	// PermissionRead allows a contributor to view or discuss a project.
+	PermissionRead Permission = "read"
+	// PermissionTriage allows a contributor to manage issues and pull requests without write access.
+	PermissionTriage Permission = "triage"
+	// PermissionWrite allows a contributor to push to a project.
+	PermissionWrite Permission = "write"
+	// PermissionMaintain allows a contributor to manage a repository without access to sensitive or destructive actions.
+	PermissionMaintain Permission = "maintain"
+	// PermissionAdmin gives a contributor full access to a project, including sensitive and destructive actions.
+	PermissionAdmin Permission = "admin"
+)
+
 type (
 	// User is a GitHub user.
 	User struct {
@@ -120,6 +139,8 @@ type (
 		HTMLURL    string    `json:"html_url"`
 		AvatarURL  string    `json:"avatar_url"`
 		GravatarID string    `json:"gravatar_id"`
+		ReposURL   string    `json:"repos_url"`
+		OrgsURL    string    `json:"organizations_url"`
 		CreatedAt  time.Time `json:"created_at"`
 		UpdatedAt  time.Time `json:"updated_at"`
 	}
@@ -181,24 +202,17 @@ type GitHub struct {
 }
 
 // New creates a new instance of GitHub.
-// If the access token does not have any of the given scope, an error will be returned.
-func New(accessToken string, scopes ...Scope) (*GitHub, error) {
+func New(accessToken string) (*GitHub, error) {
 	transport := &http.Transport{}
 	client := &http.Client{
 		Transport: transport,
 	}
 
-	g := &GitHub{
+	return &GitHub{
 		client:      client,
 		apiURL:      githubAPIURL,
 		accessToken: accessToken,
-	}
-
-	if err := g.checkScopes(scopes...); err != nil {
-		return nil, err
-	}
-
-	return g, nil
+	}, nil
 }
 
 func (g *GitHub) createRequest(ctx context.Context, method, url, contentType string, body io.Reader) (*http.Request, error) {
@@ -231,31 +245,84 @@ func (g *GitHub) makeRequest(req *http.Request, expectedStatusCode int) (*http.R
 	return resp, nil
 }
 
-func (g *GitHub) checkScopes(scopes ...Scope) error {
-	// Call an endpoint to get the OAuth scopes of the access token from the headers
-	// See https://docs.github.com/en/developers/apps/scopes-for-oauth-apps
+// GetScopes returns the scopes for the user authenticated by the given access token.
+// See https://docs.github.com/en/developers/apps/scopes-for-oauth-apps
+func (g *GitHub) GetScopes(ctx context.Context) ([]Scope, error) {
+	url := fmt.Sprintf("%s/user", g.apiURL)
 
-	if len(scopes) > 0 {
-		req, err := g.createRequest(context.Background(), "HEAD", g.apiURL+"/user", "", nil)
-		if err != nil {
-			return err
-		}
+	req, err := g.createRequest(ctx, "HEAD", url, "", nil)
+	if err != nil {
+		return nil, err
+	}
 
-		resp, err := g.makeRequest(req, 200)
-		if err != nil {
-			return err
-		}
+	resp, err := g.makeRequest(req, 200)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
 
-		// Ensure the access token has all the required OAuth scopes
-		oauthScopes := resp.Header.Get("X-OAuth-Scopes")
-		for _, scope := range scopes {
-			if !strings.Contains(oauthScopes, string(scope)) {
-				return fmt.Errorf("access token does not have the scope: %s", scope)
-			}
+	scopes := []Scope{}
+	for _, val := range resp.Header.Values("X-OAuth-Scopes") {
+		for _, s := range strings.Split(val, ", ") {
+			scopes = append(scopes, Scope(s))
 		}
 	}
 
-	return nil
+	return scopes, nil
+}
+
+// GetRepoPermission returns the repository permission for a collaborator (user).
+// See https://docs.github.com/en/rest/reference/repos#get-repository-permissions-for-a-user
+func (g *GitHub) GetRepoPermission(ctx context.Context, owner, repo, username string) (Permission, error) {
+	url := fmt.Sprintf("%s/repos/%s/%s/collaborators/%s/permission", g.apiURL, owner, repo, username)
+
+	req, err := g.createRequest(ctx, "GET", url, "", nil)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := g.makeRequest(req, 200)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body := new(struct {
+		Permission Permission `json:"permission"`
+		User       User       `json:"user"`
+	})
+
+	if err = json.NewDecoder(resp.Body).Decode(body); err != nil {
+		return "", err
+	}
+
+	return body.Permission, nil
+}
+
+// GetUser returns the user authenticated by the given access token.
+// If the access token does not have the user scope, then the response includes only the public information.
+// If the access token has the user scope, then the response includes the public and private information.
+// See https://docs.github.com/en/rest/reference/users#get-the-authenticated-user
+func (g *GitHub) GetUser(ctx context.Context) (*User, error) {
+	url := fmt.Sprintf("%s/user", g.apiURL)
+
+	req, err := g.createRequest(ctx, "GET", url, "", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := g.makeRequest(req, 200)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	user := new(User)
+	if err = json.NewDecoder(resp.Body).Decode(user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
 }
 
 // GetLatestRelease returns the latest GitHub release.
@@ -275,7 +342,7 @@ func (g *GitHub) GetLatestRelease(ctx context.Context, owner, repo string) (*Rel
 	}
 	defer resp.Body.Close()
 
-	release := &Release{}
+	release := new(Release)
 	if err = json.NewDecoder(resp.Body).Decode(release); err != nil {
 		return nil, err
 	}
@@ -302,7 +369,7 @@ func (g *GitHub) CreateRelease(ctx context.Context, owner, repo string, params R
 	}
 	defer resp.Body.Close()
 
-	release := &Release{}
+	release := new(Release)
 	if err = json.NewDecoder(resp.Body).Decode(release); err != nil {
 		return nil, err
 	}
@@ -329,7 +396,7 @@ func (g *GitHub) UpdateRelease(ctx context.Context, owner, repo string, releaseI
 	}
 	defer resp.Body.Close()
 
-	release := &Release{}
+	release := new(Release)
 	if err = json.NewDecoder(resp.Body).Decode(release); err != nil {
 		return nil, err
 	}
@@ -421,7 +488,7 @@ func (g *GitHub) UploadReleaseAsset(ctx context.Context, uploadURL, file string)
 	}
 	defer resp.Body.Close()
 
-	releaseAsset := &ReleaseAsset{}
+	releaseAsset := new(ReleaseAsset)
 	if err = json.NewDecoder(resp.Body).Decode(releaseAsset); err != nil {
 		return nil, err
 	}
