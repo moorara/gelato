@@ -2,7 +2,6 @@ package release
 
 import (
 	"context"
-	"flag"
 	"time"
 
 	"github.com/mitchellh/cli"
@@ -52,7 +51,7 @@ func (c *cmd) Help() string {
 
 // Run runs the actual command with the given command-line arguments.
 func (c *cmd) Run(args []string) int {
-	fs := flag.NewFlagSet("release", flag.ContinueOnError)
+	fs := c.spec.Release.FlagSet()
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
