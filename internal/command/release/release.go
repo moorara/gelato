@@ -3,6 +3,9 @@ package release
 import (
 	"bytes"
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 	"text/template"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/github"
 	"github.com/moorara/gelato/internal/spec"
+	"github.com/moorara/gelato/pkg/shell"
 )
 
 const (
@@ -42,6 +46,11 @@ const (
     gelato release -minor -comment "New Features!"
     gelato release -major -comment "Breaking Changes!"
   `
+)
+
+var (
+	sshRE   = regexp.MustCompile(`^git@([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z]\.[A-Za-z]{2,}):([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])(.git)?$`)
+	httpsRE = regexp.MustCompile(`^https://([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z]\.[A-Za-z]{2,})/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])(.git)?$`)
 )
 
 // cmd implements the cli.Command interface.
@@ -97,6 +106,8 @@ func (c *cmd) Run(args []string) int {
 
 	// RUN PREFLIGHT CHECKS
 
+	c.ui.Output("Running preflight checks ...")
+
 	checklist := command.PreflightChecklist{
 		Git:         true,
 		GitHubToken: true,
@@ -108,15 +119,108 @@ func (c *cmd) Run(args []string) int {
 		return command.PreflightError
 	}
 
-	// CREATE A GITHUB CLIENT
+	// CHECK THE GIT REPO
 
-	_, err = github.New(info.GitHubToken, github.ScopeRepo)
+	var domain, owner, repo string
+
+	_, gitRemoteURL, err := shell.Run(ctx, "git", "remote", "get-url", "--push", "origin")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	if subs := sshRE.FindStringSubmatch(gitRemoteURL); len(subs) == 4 || len(subs) == 5 {
+		// Git remote url is using SSH protocol
+		// Example: git@github.com:moorara/cherry.git --> subs = []string{"git@github.com:moorara/cherry.git", "github.com", "moorara", "cherry", ".git"}
+		domain, owner, repo = subs[1], subs[2], subs[3]
+	} else if subs := httpsRE.FindStringSubmatch(gitRemoteURL); len(subs) == 4 || len(subs) == 5 {
+		// Git remote url is using HTTPS protocol
+		// Example: https://github.com/moorara/cherry.git --> subs = []string{"https://github.com/moorara/cherry.git", "github.com", "moorara", "cherry", ".git"}
+		domain, owner, repo = subs[1], subs[2], subs[3]
+	} else {
+		c.ui.Error(fmt.Sprintf("Invalid git remote url: %s", gitRemoteURL))
+		return command.GitError
+	}
+
+	if strings.ToLower(domain) != "github.com" {
+		c.ui.Error(fmt.Sprintf("Unsupported remote repository: %s", domain))
+		return command.UnsupportedError
+	}
+
+	_, gitBranch, err := shell.Run(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	if gitBranch != "master" {
+		c.ui.Error("A repository can be released only from the master branch.")
+		return command.GitError
+	}
+
+	_, gitStatus, err := shell.Run(ctx, "git", "status", "--porcelain")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	if gitStatus != "" {
+		c.ui.Error("Working directory is not clean and has uncommitted changes.")
+		return command.GitError
+	}
+
+	// CREATE A GITHUB CLIENT AND CHECK PERMISSION
+
+	c.ui.Output("Checking GitHub permission ...")
+
+	gh, err := github.New(info.GitHubToken)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitHubError
 	}
 
-	// TODO:
+	user, err := gh.GetUser(ctx)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
+	perm, err := gh.GetRepoPermission(ctx, owner, repo, user.Login)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
+	if perm != github.PermissionAdmin {
+		c.ui.Error(fmt.Sprintf("The GitHub token does not have admin permission for releasing %s/%s/%s", domain, owner, repo))
+		return command.GitHubError
+	}
+
+	// UPDATE MASTER BRANCH
+
+	c.ui.Output("Pulling the latest changes on the master branch ...")
+
+	_, _, err = shell.Run(ctx, "git", "pull")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	// RESOLVE THE RELEASE SEMANTIC VERSION
+
+	// CREATE A DRAFT RELEASE
+
+	// GENERATE CHANGELOG
+
+	// CREATE RELEASE COMMIT & TAG
+
+	// BUILDING AND UPLOADING ARTIFACTS
+
+	// TEMPORARILY ENABLE PUSH TO MASTER
+
+	// PUSH RELEASE COMMIT & TAG
+
+	// PUBLISH THE DRAFT RELEASE
 
 	return command.Success
 }
