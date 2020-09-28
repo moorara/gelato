@@ -1,17 +1,20 @@
-package semver
+package release
 
 import (
+	"os"
 	"testing"
 
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/spec"
 )
 
 func TestNewCommand(t *testing.T) {
 	ui := new(cli.MockUi)
-	c, err := NewCommand(ui)
+	spec := spec.Spec{}
+	c, err := NewCommand(ui, spec)
 
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
@@ -34,23 +37,32 @@ func TestCmd_Help(t *testing.T) {
 func TestCmd_Run(t *testing.T) {
 	tests := []struct {
 		name             string
+		environment      map[string]string
 		args             []string
 		expectedExitCode int
 	}{
 		{
 			name:             "UndefinedFlag",
+			environment:      map[string]string{},
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
 		},
 		{
-			name:             "Success",
+			name:             "PreflightCheckFails",
+			environment:      map[string]string{},
 			args:             []string{},
-			expectedExitCode: command.Success,
+			expectedExitCode: command.PreflightError,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			for key, val := range tc.environment {
+				err := os.Setenv(key, val)
+				assert.NoError(t, err)
+				defer os.Unsetenv(key)
+			}
+
 			ui := new(cli.MockUi)
 			c := &cmd{
 				ui: ui,
@@ -59,12 +71,6 @@ func TestCmd_Run(t *testing.T) {
 			exitCode := c.Run(tc.args)
 
 			assert.Equal(t, tc.expectedExitCode, exitCode)
-
-			if tc.expectedExitCode == command.Success {
-				assert.NotEmpty(t, c.outputs.semver)
-			} else {
-				assert.Empty(t, c.outputs.semver)
-			}
 		})
 	}
 }

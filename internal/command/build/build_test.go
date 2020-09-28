@@ -1,4 +1,4 @@
-package semver
+package build
 
 import (
 	"testing"
@@ -7,11 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/spec"
 )
 
 func TestNewCommand(t *testing.T) {
 	ui := new(cli.MockUi)
-	c, err := NewCommand(ui)
+	spec := spec.Spec{}
+	c, err := NewCommand(ui, spec)
 
 	assert.NotNil(t, c)
 	assert.NoError(t, err)
@@ -43,9 +45,9 @@ func TestCmd_Run(t *testing.T) {
 			expectedExitCode: command.FlagError,
 		},
 		{
-			name:             "Success",
+			name:             "VersionPackageMissing",
 			args:             []string{},
-			expectedExitCode: command.Success,
+			expectedExitCode: command.VersionPkgError,
 		},
 	}
 
@@ -59,12 +61,6 @@ func TestCmd_Run(t *testing.T) {
 			exitCode := c.Run(tc.args)
 
 			assert.Equal(t, tc.expectedExitCode, exitCode)
-
-			if tc.expectedExitCode == command.Success {
-				assert.NotEmpty(t, c.outputs.semver)
-			} else {
-				assert.Empty(t, c.outputs.semver)
-			}
 		})
 	}
 }
