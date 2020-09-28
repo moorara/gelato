@@ -112,42 +112,31 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 
 // ResolveSemanticVersion returns the current semantic version.
 func ResolveSemanticVersion(ctx context.Context) (semver.SemVer, error) {
+	var sv semver.SemVer
+
 	// GET GIT INFORMATION
 
-	var gitStatus, gitSHA, gitCommitCount, gitDescribe string
-	group, groupCtx := errgroup.WithContext(ctx)
+	_, gitStatus, err := shell.Run(ctx, "git", "status", "--porcelain")
+	if err != nil {
+		return sv, err
+	}
 
-	group.Go(func() (err error) {
-		_, gitStatus, err = shell.Run(groupCtx, "git", "status", "--porcelain")
-		return err
-	})
+	_, gitSHA, err := shell.Run(ctx, "git", "rev-parse", "HEAD")
+	if err != nil {
+		return sv, err
+	}
 
-	group.Go(func() (err error) {
-		_, gitSHA, err = shell.Run(groupCtx, "git", "rev-parse", "HEAD")
-		return err
-	})
+	_, gitCommitCount, err := shell.Run(ctx, "git", "rev-list", "--count", "HEAD")
+	if err != nil {
+		return sv, err
+	}
 
-	group.Go(func() (err error) {
-		_, gitCommitCount, err = shell.Run(groupCtx, "git", "rev-list", "--count", "HEAD")
-		return err
-	})
-
-	group.Go(func() (err error) {
-		var code int
-		code, gitDescribe, err = shell.Run(ctx, "git", "describe", "--tags", "HEAD")
-		if err != nil && code != 128 { // 128 is returned when there is no git tag
-			return err
-		}
-		return nil
-	})
-
-	if err := group.Wait(); err != nil {
-		return semver.SemVer{}, err
+	code, gitDescribe, err := shell.Run(ctx, "git", "describe", "--tags", "HEAD")
+	if err != nil && code != 128 { // 128 is returned when there is no git tag
+		return sv, err
 	}
 
 	// RESOLVE THE CURRENT SEMANTIC VERSION
-
-	var sv semver.SemVer
 
 	if len(gitDescribe) == 0 {
 		// No git tag and no previous semantic version -> using the default initial semantic version
