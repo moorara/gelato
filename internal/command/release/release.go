@@ -1,7 +1,9 @@
 package release
 
 import (
+	"bytes"
 	"context"
+	"text/template"
 	"time"
 
 	"github.com/mitchellh/cli"
@@ -18,6 +20,9 @@ const (
   Use this command for creating a new release.
   The initial semantic version is always 0.1.0.
 
+  Currently, the release command only supports GitHub repositories.
+  It also assumes the remote repository is named origin.
+
   Usage:  gelato release [flags]
 
   Flags:
@@ -25,7 +30,7 @@ const (
     -minor:      create a minor version release (default: false)
     -major:      create a major version release (default: false)
     -comment:    add a description for the release
-    -artifacts:  build the artifacts and include them in the release (default: false)
+    -artifacts:  build the artifacts and include them in the release (default: {{.Release.Artifacts}})
 
   Examples:
     gelato release
@@ -61,12 +66,24 @@ func (c *cmd) Synopsis() string {
 
 // Help returns a long help text including usage, description, and list of flags for the command.
 func (c *cmd) Help() string {
-	return releaseHelp
+	var buf bytes.Buffer
+	t := template.Must(template.New("help").Parse(releaseHelp))
+	_ = t.Execute(&buf, c.spec)
+	return buf.String()
 }
 
 // Run runs the actual command with the given command-line arguments.
 func (c *cmd) Run(args []string) int {
+	params := struct {
+		patch, minor, major bool
+		comment             string
+	}{}
+
 	fs := c.spec.Release.FlagSet()
+	fs.BoolVar(&params.patch, "patch", true, "")
+	fs.BoolVar(&params.minor, "minor", false, "")
+	fs.BoolVar(&params.major, "major", false, "")
+	fs.StringVar(&params.comment, "comment", "", "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -98,6 +115,8 @@ func (c *cmd) Run(args []string) int {
 		c.ui.Error(err.Error())
 		return command.GitHubError
 	}
+
+	// TODO:
 
 	return command.Success
 }
