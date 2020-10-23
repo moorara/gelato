@@ -116,6 +116,7 @@ type MockResponse struct {
 func createMockHTTPServer(mocks ...MockResponse) *httptest.Server {
 	r := mux.NewRouter()
 	for _, m := range mocks {
+		m := m
 		r.Methods(m.Method).Path(m.Path).HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(m.StatusCode)
 			io.WriteString(w, m.ResponseBody)
