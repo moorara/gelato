@@ -153,6 +153,7 @@ func (c *cmd) Run(args []string) int {
 		return command.GitError
 	}
 
+	// TODO: find out default branch
 	if gitBranch != "master" {
 		c.ui.Error("A repository can be released only from the master branch.")
 		return command.GitError
@@ -196,7 +197,7 @@ func (c *cmd) Run(args []string) int {
 		return command.GitHubError
 	}
 
-	// UPDATE MASTER BRANCH
+	// UPDATE DEFAULT BRANCH (MASTER)
 
 	c.ui.Output("Pulling the latest changes on the master branch ...")
 
@@ -216,7 +217,7 @@ func (c *cmd) Run(args []string) int {
 
 	// BUILDING AND UPLOADING ARTIFACTS
 
-	// TEMPORARILY ENABLE PUSH TO MASTER
+	// TEMPORARILY ENABLE PUSH TO DEFAULT BRANCH (MASTER)
 
 	// PUSH RELEASE COMMIT & TAG
 
