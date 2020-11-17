@@ -33,7 +33,7 @@ const (
   Usage:  gelato build [flags]
 
   Flags:
-    -cross-compile:    build the binary for all platforms (default: {{.Build.CrossCompile}})
+    -cross-compile:  build the binary for all platforms (default: {{.Build.CrossCompile}})
 
   Examples:
     gelato build

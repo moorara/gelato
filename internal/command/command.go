@@ -32,6 +32,8 @@ const (
 	GitHubError
 	// VersionPkgError is the exit code when the version package is missing or invalid.
 	VersionPkgError
+	// UnsupportedError is the exit code when a capability is not supported.
+	UnsupportedError
 	// MiscError is the exit code when a miscellaneous operation fails.
 	MiscError
 )
