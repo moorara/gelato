@@ -63,7 +63,7 @@ func (c *cmd) Run(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), semverTimeout)
 	defer cancel()
 
-	// RUN PREFLIGHT CHECKS
+	// ==============================> RUN PREFLIGHT CHECKS <==============================
 
 	checklist := command.PreflightChecklist{
 		Git: true,
@@ -75,7 +75,7 @@ func (c *cmd) Run(args []string) int {
 		return command.PreflightError
 	}
 
-	// RESOLVE THE CURRENT SEMANTIC VERSION
+	// ==============================> RESOLVE THE CURRENT SEMANTIC VERSION <==============================
 
 	c.outputs.semver, err = command.ResolveSemanticVersion(ctx)
 	if err != nil {

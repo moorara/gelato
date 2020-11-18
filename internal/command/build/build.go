@@ -96,7 +96,7 @@ func (c *cmd) Run(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), buildTimeout)
 	defer cancel()
 
-	// RUN PREFLIGHT CHECKS
+	// ==============================> RUN PREFLIGHT CHECKS <==============================
 
 	checklist := command.PreflightChecklist{
 		Go:  true,
@@ -109,7 +109,7 @@ func (c *cmd) Run(args []string) int {
 		return command.PreflightError
 	}
 
-	// GET GO & GIT INFORMATION
+	// ==============================> GET GO & GIT INFORMATION <==============================
 
 	_, versionPkg, err := shell.Run(ctx, "go", "list", versionPath)
 	if err != nil {
@@ -135,7 +135,7 @@ func (c *cmd) Run(args []string) int {
 		return command.GitError
 	}
 
-	// GET THE CURRENT SEMANTIC VERSION
+	// ==============================> GET THE SEMANTIC VERSION <==============================
 
 	semver, err := command.ResolveSemanticVersion(ctx)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *cmd) Run(args []string) int {
 		return command.GitError
 	}
 
-	// CONSTRUCT LD FLAGS
+	// ==============================> CONSTRUCT LD FLAGS <==============================
 
 	goVersion = goVersionRE.FindString(goVersion)
 	buildTime := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
@@ -161,7 +161,7 @@ func (c *cmd) Run(args []string) int {
 		fmt.Sprintf(`-X "%s.BuildTime=%s"`, versionPkg, buildTime),
 	}, " ")
 
-	// BUILD BINARIES
+	// ==============================> BUILD BINARIES <==============================
 
 	// By convention, we assume every directory inside cmd is a main package for a binary with the same name as the directory name.
 	if _, err = os.Stat(cmdPath); err == nil {

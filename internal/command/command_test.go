@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"errors"
 	"os"
 	"testing"
 
@@ -31,30 +30,17 @@ func TestRunPreflightChecks(t *testing.T) {
 			expectWorkingDirectory: true,
 		},
 		{
-			name:        "GitHubTokenCheckFails",
+			name:        "AllChecks",
 			environment: map[string]string{},
 			ctx:         context.Background(),
 			checklist: PreflightChecklist{
-				GitHubToken: true,
-			},
-			expectedError: errors.New("GELATO_GITHUB_TOKEN environment variable not set"),
-		},
-		{
-			name: "AllChecks",
-			environment: map[string]string{
-				"GELATO_GITHUB_TOKEN": "github-token",
-			},
-			ctx: context.Background(),
-			checklist: PreflightChecklist{
-				Go:          true,
-				Git:         true,
-				GitHubToken: true,
+				Go:  true,
+				Git: true,
 			},
 			expectedError:          nil,
 			expectWorkingDirectory: true,
 			expectGoVersion:        true,
 			expectGitVersion:       true,
-			expectGitHubToken:      true,
 		},
 	}
 
@@ -76,7 +62,6 @@ func TestRunPreflightChecks(t *testing.T) {
 				assert.Equal(t, tc.expectWorkingDirectory, preflightInfo.WorkingDirectory != "")
 				assert.Equal(t, tc.expectGoVersion, preflightInfo.GoVersion != "")
 				assert.Equal(t, tc.expectGitVersion, preflightInfo.GitVersion != "")
-				assert.Equal(t, tc.expectGitHubToken, preflightInfo.GitHubToken != "")
 			}
 		})
 	}

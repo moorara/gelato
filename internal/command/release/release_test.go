@@ -1,6 +1,7 @@
 package release
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -9,15 +10,222 @@ import (
 
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/spec"
+	"github.com/moorara/go-github"
 )
 
-func TestNewCommand(t *testing.T) {
-	ui := new(cli.MockUi)
-	spec := spec.Spec{}
-	c, err := NewCommand(ui, spec)
+type (
+	GetRemoteInfoMock struct {
+		OutDomain string
+		OutPath   string
+		OutError  error
+	}
 
-	assert.NotNil(t, c)
-	assert.NoError(t, err)
+	MockGitService struct {
+		GetRemoteInfoIndex int
+		GetRemoteInfoMocks []GetRemoteInfoMock
+	}
+)
+
+func (m *MockGitService) GetRemoteInfo() (string, string, error) {
+	i := m.GetRemoteInfoIndex
+	m.GetRemoteInfoIndex++
+	return m.GetRemoteInfoMocks[i].OutDomain, m.GetRemoteInfoMocks[i].OutPath, m.GetRemoteInfoMocks[i].OutError
+}
+
+type (
+	UserMock struct {
+		InContext   context.Context
+		OutUser     *github.User
+		OutResponse *github.Response
+		OutError    error
+	}
+
+	MockUsersService struct {
+		UserIndex int
+		UserMocks []UserMock
+	}
+)
+
+func (m *MockUsersService) User(ctx context.Context) (*github.User, *github.Response, error) {
+	i := m.UserIndex
+	m.UserIndex++
+	m.UserMocks[i].InContext = ctx
+	return m.UserMocks[i].OutUser, m.UserMocks[i].OutResponse, m.UserMocks[i].OutError
+}
+
+type (
+	GetMock struct {
+		InContext     context.Context
+		OutRepository *github.Repository
+		OutResponse   *github.Response
+		OutError      error
+	}
+
+	PermissionMock struct {
+		InContext     context.Context
+		InUsername    string
+		OutPermission github.Permission
+		OutResponse   *github.Response
+		OutError      error
+	}
+
+	BranchProtectionMock struct {
+		InContext   context.Context
+		InBranch    string
+		InEnabled   bool
+		OutResponse *github.Response
+		OutError    error
+	}
+
+	CreateReleaseMock struct {
+		InContext   context.Context
+		InParams    github.ReleaseParams
+		OutRelease  *github.Release
+		OutResponse *github.Response
+		OutError    error
+	}
+
+	UpdateReleaseMock struct {
+		InContext   context.Context
+		InReleaseID int
+		InParams    github.ReleaseParams
+		OutRelease  *github.Release
+		OutResponse *github.Response
+		OutError    error
+	}
+
+	UploadReleaseAssetMock struct {
+		InContext       context.Context
+		InReleaseID     int
+		InAssetFile     string
+		InAssetLabel    string
+		OutReleaseAsset *github.ReleaseAsset
+		OutResponse     *github.Response
+		OutError        error
+	}
+
+	MockRepoService struct {
+		GetIndex int
+		GetMocks []GetMock
+
+		PermissionIndex int
+		PermissionMocks []PermissionMock
+
+		BranchProtectionIndex int
+		BranchProtectionMocks []BranchProtectionMock
+
+		CreateReleaseIndex int
+		CreateReleaseMocks []CreateReleaseMock
+
+		UpdateReleaseIndex int
+		UpdateReleaseMocks []UpdateReleaseMock
+
+		UploadReleaseAssetIndex int
+		UploadReleaseAssetMocks []UploadReleaseAssetMock
+	}
+)
+
+func (m *MockRepoService) Get(ctx context.Context) (*github.Repository, *github.Response, error) {
+	i := m.GetIndex
+	m.GetIndex++
+	m.GetMocks[i].InContext = ctx
+	return m.GetMocks[i].OutRepository, m.GetMocks[i].OutResponse, m.GetMocks[i].OutError
+}
+
+func (m *MockRepoService) Permission(ctx context.Context, username string) (github.Permission, *github.Response, error) {
+	i := m.PermissionIndex
+	m.PermissionIndex++
+	m.PermissionMocks[i].InContext = ctx
+	m.PermissionMocks[i].InUsername = username
+	return m.PermissionMocks[i].OutPermission, m.PermissionMocks[i].OutResponse, m.PermissionMocks[i].OutError
+}
+
+func (m *MockRepoService) BranchProtection(ctx context.Context, branch string, enabled bool) (*github.Response, error) {
+	i := m.BranchProtectionIndex
+	m.BranchProtectionIndex++
+	m.BranchProtectionMocks[i].InContext = ctx
+	m.BranchProtectionMocks[i].InBranch = branch
+	m.BranchProtectionMocks[i].InEnabled = enabled
+	return m.BranchProtectionMocks[i].OutResponse, m.BranchProtectionMocks[i].OutError
+}
+
+func (m *MockRepoService) CreateRelease(ctx context.Context, params github.ReleaseParams) (*github.Release, *github.Response, error) {
+	i := m.CreateReleaseIndex
+	m.CreateReleaseIndex++
+	m.CreateReleaseMocks[i].InContext = ctx
+	m.CreateReleaseMocks[i].InParams = params
+	return m.CreateReleaseMocks[i].OutRelease, m.CreateReleaseMocks[i].OutResponse, m.CreateReleaseMocks[i].OutError
+}
+
+func (m *MockRepoService) UpdateRelease(ctx context.Context, releaseID int, params github.ReleaseParams) (*github.Release, *github.Response, error) {
+	i := m.UpdateReleaseIndex
+	m.UpdateReleaseIndex++
+	m.UpdateReleaseMocks[i].InContext = ctx
+	m.UpdateReleaseMocks[i].InReleaseID = releaseID
+	m.UpdateReleaseMocks[i].InParams = params
+	return m.UpdateReleaseMocks[i].OutRelease, m.UpdateReleaseMocks[i].OutResponse, m.UpdateReleaseMocks[i].OutError
+}
+
+func (m *MockRepoService) UploadReleaseAsset(ctx context.Context, releaseID int, assetFile, assetLabel string) (*github.ReleaseAsset, *github.Response, error) {
+	i := m.UploadReleaseAssetIndex
+	m.UploadReleaseAssetIndex++
+	m.UploadReleaseAssetMocks[i].InContext = ctx
+	m.UploadReleaseAssetMocks[i].InReleaseID = releaseID
+	m.UploadReleaseAssetMocks[i].InAssetFile = assetFile
+	m.UploadReleaseAssetMocks[i].InAssetLabel = assetLabel
+	return m.UploadReleaseAssetMocks[i].OutReleaseAsset, m.UploadReleaseAssetMocks[i].OutResponse, m.UploadReleaseAssetMocks[i].OutError
+}
+
+func TestNewCommand(t *testing.T) {
+	tests := []struct {
+		name          string
+		environment   map[string]string
+		expectedError string
+	}{
+		{
+			name: "NoToken",
+			environment: map[string]string{
+				"GELATO_GITHUB_TOKEN": "",
+			},
+			expectedError: "GELATO_GITHUB_TOKEN environment variable not set",
+		},
+		{
+			name: "OK",
+			environment: map[string]string{
+				"GELATO_GITHUB_TOKEN": "github-access-token",
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for key, val := range tc.environment {
+				err := os.Setenv(key, val)
+				assert.NoError(t, err)
+				defer os.Unsetenv(key)
+			}
+
+			ui := new(cli.MockUi)
+			spec := spec.Spec{}
+			c, err := NewCommand(ui, spec)
+
+			if tc.expectedError != "" {
+				assert.Nil(t, c)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, c)
+
+				cmd, ok := c.(*cmd)
+				assert.True(t, ok)
+
+				assert.NotNil(t, cmd.services.git)
+				assert.NotNil(t, cmd.services.users)
+				assert.NotNil(t, cmd.services.repo)
+			}
+		})
+	}
 }
 
 func TestCmd_Synopsis(t *testing.T) {
@@ -37,36 +245,25 @@ func TestCmd_Help(t *testing.T) {
 func TestCmd_Run(t *testing.T) {
 	tests := []struct {
 		name             string
-		environment      map[string]string
+		git              *MockGitService
+		users            *MockUsersService
+		repo             *MockRepoService
 		args             []string
 		expectedExitCode int
 	}{
 		{
 			name:             "UndefinedFlag",
-			environment:      map[string]string{},
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
-		},
-		{
-			name:             "PreflightCheckFails",
-			environment:      map[string]string{},
-			args:             []string{},
-			expectedExitCode: command.PreflightError,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			for key, val := range tc.environment {
-				err := os.Setenv(key, val)
-				assert.NoError(t, err)
-				defer os.Unsetenv(key)
-			}
-
-			ui := new(cli.MockUi)
-			c := &cmd{
-				ui: ui,
-			}
+			c := &cmd{ui: new(cli.MockUi)}
+			c.services.git = tc.git
+			c.services.users = tc.users
+			c.services.repo = tc.repo
 
 			exitCode := c.Run(tc.args)
 

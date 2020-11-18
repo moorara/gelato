@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -46,9 +45,8 @@ var (
 type (
 	// PreflightChecklist is a list of preflight checks for commands.
 	PreflightChecklist struct {
-		Go          bool
-		Git         bool
-		GitHubToken bool
+		Go  bool
+		Git bool
 	}
 
 	// PreflightInfo is a list of preflight information for commands.
@@ -56,14 +54,13 @@ type (
 		WorkingDirectory string
 		GoVersion        string
 		GitVersion       string
-		GitHubToken      string
 	}
 )
 
 // RunPreflightChecks runs a list of preflight checks to ensure they are fulfilled.
 // It returns a list of preflight information.
 func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (PreflightInfo, error) {
-	var workingDirectory, goVersion, gitVersion, githubToken string
+	var workingDirectory, goVersion, gitVersion string
 
 	// RUN PREFLIGHT CHECKS
 
@@ -92,17 +89,6 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 		})
 	}
 
-	// Get the GitHub token and add it to the context
-	if checklist.GitHubToken {
-		group.Go(func() error {
-			githubToken = os.Getenv("GELATO_GITHUB_TOKEN")
-			if githubToken == "" {
-				return errors.New("GELATO_GITHUB_TOKEN environment variable not set")
-			}
-			return nil
-		})
-	}
-
 	if err := group.Wait(); err != nil {
 		return PreflightInfo{}, err
 	}
@@ -111,7 +97,6 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 		WorkingDirectory: workingDirectory,
 		GoVersion:        goVersion,
 		GitVersion:       gitVersion,
-		GitHubToken:      githubToken,
 	}, nil
 }
 

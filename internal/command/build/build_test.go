@@ -15,8 +15,8 @@ func TestNewCommand(t *testing.T) {
 	spec := spec.Spec{}
 	c, err := NewCommand(ui, spec)
 
-	assert.NotNil(t, c)
 	assert.NoError(t, err)
+	assert.NotNil(t, c)
 }
 
 func TestCmd_Synopsis(t *testing.T) {
@@ -53,10 +53,7 @@ func TestCmd_Run(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
-			c := &cmd{
-				ui: ui,
-			}
+			c := &cmd{ui: new(cli.MockUi)}
 
 			exitCode := c.Run(tc.args)
 

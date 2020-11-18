@@ -3,16 +3,19 @@ package release
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"text/template"
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/moorara/go-github"
 
 	"github.com/moorara/gelato/internal/command"
-	"github.com/moorara/gelato/internal/github"
+	"github.com/moorara/gelato/internal/git"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/shell"
 )
@@ -53,19 +56,80 @@ var (
 	httpsRE = regexp.MustCompile(`^https://([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z]\.[A-Za-z]{2,})/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])(.git)?$`)
 )
 
+type (
+	gitService interface {
+		GetRemoteInfo() (string, string, error)
+	}
+
+	usersService interface {
+		User(context.Context) (*github.User, *github.Response, error)
+	}
+
+	repoService interface {
+		Get(context.Context) (*github.Repository, *github.Response, error)
+		Permission(context.Context, string) (github.Permission, *github.Response, error)
+		BranchProtection(context.Context, string, bool) (*github.Response, error)
+		CreateRelease(context.Context, github.ReleaseParams) (*github.Release, *github.Response, error)
+		UpdateRelease(context.Context, int, github.ReleaseParams) (*github.Release, *github.Response, error)
+		UploadReleaseAsset(context.Context, int, string, string) (*github.ReleaseAsset, *github.Response, error)
+	}
+)
+
 // cmd implements the cli.Command interface.
 type cmd struct {
-	ui      cli.Ui
-	spec    spec.Spec
+	ui       cli.Ui
+	spec     spec.Spec
+	owner    string
+	repo     string
+	services struct {
+		git   gitService
+		users usersService
+		repo  repoService
+	}
 	outputs struct{}
 }
 
 // NewCommand creates a release command.
 func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
-	return &cmd{
-		ui:   ui,
-		spec: spec,
-	}, nil
+	g, err := git.New(".")
+	if err != nil {
+		return nil, err
+	}
+
+	domain, path, err := g.GetRemoteInfo()
+	if err != nil {
+		return nil, err
+	}
+
+	if domain != "github.com" {
+		return nil, fmt.Errorf("unsupported Git platform: %s", domain)
+	}
+
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 {
+		return nil, errors.New("unexpected GitHub repository: cannot parse owner and repo")
+	}
+
+	token := os.Getenv("GELATO_GITHUB_TOKEN")
+	if token == "" {
+		return nil, errors.New("GELATO_GITHUB_TOKEN environment variable not set")
+	}
+
+	client := github.NewClient(token)
+	repo := client.Repo(parts[0], parts[1])
+
+	c := &cmd{
+		ui:    ui,
+		spec:  spec,
+		owner: parts[0],
+		repo:  parts[1],
+	}
+
+	c.services.git = g
+	c.services.users = client.Users
+	c.services.repo = repo
+
+	return c, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -104,48 +168,21 @@ func (c *cmd) Run(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), releaseTimeout)
 	defer cancel()
 
-	// RUN PREFLIGHT CHECKS
+	// ==============================> RUN PREFLIGHT CHECKS <==============================
 
 	c.ui.Output("Running preflight checks ...")
 
 	checklist := command.PreflightChecklist{
-		Git:         true,
-		GitHubToken: true,
+		Git: true,
 	}
 
-	info, err := command.RunPreflightChecks(ctx, checklist)
+	_, err := command.RunPreflightChecks(ctx, checklist)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.PreflightError
 	}
 
-	// CHECK THE GIT REPO
-
-	var domain, owner, repo string
-
-	_, gitRemoteURL, err := shell.Run(ctx, "git", "remote", "get-url", "--push", "origin")
-	if err != nil {
-		c.ui.Error(err.Error())
-		return command.GitError
-	}
-
-	if subs := sshRE.FindStringSubmatch(gitRemoteURL); len(subs) == 4 || len(subs) == 5 {
-		// Git remote url is using SSH protocol
-		// Example: git@github.com:moorara/cherry.git --> subs = []string{"git@github.com:moorara/cherry.git", "github.com", "moorara", "cherry", ".git"}
-		domain, owner, repo = subs[1], subs[2], subs[3]
-	} else if subs := httpsRE.FindStringSubmatch(gitRemoteURL); len(subs) == 4 || len(subs) == 5 {
-		// Git remote url is using HTTPS protocol
-		// Example: https://github.com/moorara/cherry.git --> subs = []string{"https://github.com/moorara/cherry.git", "github.com", "moorara", "cherry", ".git"}
-		domain, owner, repo = subs[1], subs[2], subs[3]
-	} else {
-		c.ui.Error(fmt.Sprintf("Invalid git remote url: %s", gitRemoteURL))
-		return command.GitError
-	}
-
-	if strings.ToLower(domain) != "github.com" {
-		c.ui.Error(fmt.Sprintf("Unsupported remote repository: %s", domain))
-		return command.UnsupportedError
-	}
+	// ==============================> CHECK GIT REPO <==============================
 
 	_, gitBranch, err := shell.Run(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
 	if err != nil {
@@ -170,34 +207,28 @@ func (c *cmd) Run(args []string) int {
 		return command.GitError
 	}
 
-	// CREATE A GITHUB CLIENT AND CHECK PERMISSION
+	// ==============================> CHECK GITHUB PERMISSION <==============================
 
 	c.ui.Output("Checking GitHub permission ...")
 
-	gh, err := github.New(info.GitHubToken)
+	user, _, err := c.services.users.User(ctx)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitHubError
 	}
 
-	user, err := gh.GetUser(ctx)
-	if err != nil {
-		c.ui.Error(err.Error())
-		return command.GitHubError
-	}
-
-	perm, err := gh.GetRepoPermission(ctx, owner, repo, user.Login)
+	perm, _, err := c.services.repo.Permission(ctx, user.Login)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitHubError
 	}
 
 	if perm != github.PermissionAdmin {
-		c.ui.Error(fmt.Sprintf("The GitHub token does not have admin permission for releasing %s/%s/%s", domain, owner, repo))
+		c.ui.Error(fmt.Sprintf("The GitHub token does not have admin permission for releasing %s/%s", c.owner, c.repo))
 		return command.GitHubError
 	}
 
-	// UPDATE DEFAULT BRANCH (MASTER)
+	// ==============================> UPDATE DEFAULT BRANCH <==============================
 
 	c.ui.Output("Pulling the latest changes on the master branch ...")
 
