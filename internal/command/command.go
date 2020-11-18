@@ -45,22 +45,20 @@ var (
 type (
 	// PreflightChecklist is a list of preflight checks for commands.
 	PreflightChecklist struct {
-		Go  bool
-		Git bool
+		Go bool
 	}
 
 	// PreflightInfo is a list of preflight information for commands.
 	PreflightInfo struct {
 		WorkingDirectory string
 		GoVersion        string
-		GitVersion       string
 	}
 )
 
 // RunPreflightChecks runs a list of preflight checks to ensure they are fulfilled.
 // It returns a list of preflight information.
 func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (PreflightInfo, error) {
-	var workingDirectory, goVersion, gitVersion string
+	var workingDirectory, goVersion string
 
 	// RUN PREFLIGHT CHECKS
 
@@ -82,13 +80,6 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 		})
 	}
 
-	if checklist.Git {
-		group.Go(func() (err error) {
-			_, gitVersion, err = shell.Run(ctx, "git", "version")
-			return err
-		})
-	}
-
 	if err := group.Wait(); err != nil {
 		return PreflightInfo{}, err
 	}
@@ -96,7 +87,6 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 	return PreflightInfo{
 		WorkingDirectory: workingDirectory,
 		GoVersion:        goVersion,
-		GitVersion:       gitVersion,
 	}, nil
 }
 

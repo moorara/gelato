@@ -2,6 +2,7 @@ package release
 
 import (
 	"context"
+	"errors"
 	"os"
 	"testing"
 
@@ -14,22 +15,67 @@ import (
 )
 
 type (
-	GetRemoteInfoMock struct {
+	RemoteMock struct {
+		InName    string
 		OutDomain string
 		OutPath   string
 		OutError  error
 	}
 
+	HEADMock struct {
+		OutHash   string
+		OutBranch string
+		OutError  error
+	}
+
+	IsCleanMock struct {
+		OutBool  bool
+		OutError error
+	}
+
+	PullMock struct {
+		InContext context.Context
+		OutError  error
+	}
+
 	MockGitService struct {
-		GetRemoteInfoIndex int
-		GetRemoteInfoMocks []GetRemoteInfoMock
+		RemoteIndex int
+		RemoteMocks []RemoteMock
+
+		HEADIndex int
+		HEADMocks []HEADMock
+
+		IsCleanIndex int
+		IsCleanMocks []IsCleanMock
+
+		PullIndex int
+		PullMocks []PullMock
 	}
 )
 
-func (m *MockGitService) GetRemoteInfo() (string, string, error) {
-	i := m.GetRemoteInfoIndex
-	m.GetRemoteInfoIndex++
-	return m.GetRemoteInfoMocks[i].OutDomain, m.GetRemoteInfoMocks[i].OutPath, m.GetRemoteInfoMocks[i].OutError
+func (m *MockGitService) Remote(name string) (string, string, error) {
+	i := m.RemoteIndex
+	m.RemoteIndex++
+	m.RemoteMocks[i].InName = name
+	return m.RemoteMocks[i].OutDomain, m.RemoteMocks[i].OutPath, m.RemoteMocks[i].OutError
+}
+
+func (m *MockGitService) HEAD() (string, string, error) {
+	i := m.HEADIndex
+	m.HEADIndex++
+	return m.HEADMocks[i].OutHash, m.HEADMocks[i].OutBranch, m.HEADMocks[i].OutError
+}
+
+func (m *MockGitService) IsClean() (bool, error) {
+	i := m.IsCleanIndex
+	m.IsCleanIndex++
+	return m.IsCleanMocks[i].OutBool, m.IsCleanMocks[i].OutError
+}
+
+func (m *MockGitService) Pull(ctx context.Context) error {
+	i := m.PullIndex
+	m.PullIndex++
+	return m.PullMocks[i].OutError
 }
 
 type (
@@ -255,6 +301,52 @@ func TestCmd_Run(t *testing.T) {
 			name:             "UndefinedFlag",
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
+		},
+		{
+			name: "GitHEADFails",
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "NotOnDefaultBranch",
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "feature-branch"},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "GitIsCleanFails",
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "RepoNotClean",
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: false},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
 		},
 	}
 

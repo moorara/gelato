@@ -9,12 +9,19 @@ import (
 
 func TestNew(t *testing.T) {
 	tests := []struct {
-		name string
-		path string
+		name          string
+		path          string
+		expectedError string
 	}{
 		{
-			name: "OK",
-			path: ".",
+			name:          "Unknown",
+			path:          "/unknown",
+			expectedError: "repository does not exist",
+		},
+		{
+			name:          "Success",
+			path:          ".",
+			expectedError: "",
 		},
 	}
 
@@ -22,48 +29,154 @@ func TestNew(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			g, err := New(tc.path)
 
-			assert.NoError(t, err)
-			assert.NotNil(t, g)
-			assert.NotNil(t, g.repo)
+			if tc.expectedError != "" {
+				assert.Nil(t, g)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, g)
+				assert.NotNil(t, g.repo)
+			}
 		})
 	}
 }
 
-func TestGit_GetRemoteInfo(t *testing.T) {
-	repo, err := git.PlainOpen("../..")
-	assert.NoError(t, err)
-
+func TestParseRemoteURL(t *testing.T) {
 	tests := []struct {
 		name           string
+		url            string
 		expectedDomain string
 		expectedPath   string
 		expectedError  string
 	}{
 		{
-			name:           "OK",
+			name:          "Empty",
+			url:           "",
+			expectedError: "invalid git remote url: ",
+		},
+		{
+			name:          "Invalid",
+			url:           "octocat/Hello-World",
+			expectedError: "invalid git remote url: octocat/Hello-World",
+		},
+		{
+			name:           "SSH",
+			url:            "git@github.com:octocat/Hello-World",
 			expectedDomain: "github.com",
-			expectedPath:   "moorara/gelato",
-			expectedError:  "",
+			expectedPath:   "octocat/Hello-World",
+		},
+		{
+			name:           "SSH_git",
+			url:            "git@github.com:octocat/Hello-World.git",
+			expectedDomain: "github.com",
+			expectedPath:   "octocat/Hello-World",
+		},
+		{
+			name:           "HTTPS",
+			url:            "https://github.com/octocat/Hello-World",
+			expectedDomain: "github.com",
+			expectedPath:   "octocat/Hello-World",
+		},
+		{
+			name:           "HTTPS_git",
+			url:            "https://github.com/octocat/Hello-World.git",
+			expectedDomain: "github.com",
+			expectedPath:   "octocat/Hello-World",
+		},
+		{
+			name:          "SSHVariant",
+			url:           "ssh://git@github.com/octocat/Hello-World",
+			expectedError: "invalid git remote url: ssh://git@github.com/octocat/Hello-World",
+		},
+		{
+			name:          "SSHVariant_git",
+			url:           "ssh://git@github.com/octocat/Hello-World.git",
+			expectedError: "invalid git remote url: ssh://git@github.com/octocat/Hello-World.git",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			g := &Git{
-				repo: repo,
-			}
+			domain, path, err := parseRemoteURL(tc.url)
 
-			domain, path, err := g.GetRemoteInfo()
-
-			if tc.expectedError == "" {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedDomain, domain)
-				assert.Equal(t, tc.expectedPath, path)
-			} else {
+			if tc.expectedError != "" {
 				assert.Empty(t, domain)
 				assert.Empty(t, path)
 				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedDomain, domain)
+				assert.Equal(t, tc.expectedPath, path)
 			}
 		})
 	}
+}
+
+func TestGit_Remote(t *testing.T) {
+	repo, err := git.PlainOpen("../..")
+	assert.NoError(t, err)
+
+	tests := []struct {
+		name           string
+		remoteName     string
+		expectedDomain string
+		expectedPath   string
+		expectedError  string
+	}{
+		{
+			name:          "Unknown",
+			remoteName:    "unknown",
+			expectedError: "remote not found",
+		},
+		{
+			name:           "Success",
+			remoteName:     "origin",
+			expectedDomain: "github.com",
+			expectedPath:   "moorara/gelato",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &Git{repo: repo}
+
+			domain, path, err := g.Remote(tc.remoteName)
+
+			if tc.expectedError != "" {
+				assert.Empty(t, domain)
+				assert.Empty(t, path)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedDomain, domain)
+				assert.Equal(t, tc.expectedPath, path)
+			}
+		})
+	}
+}
+
+func TestGit_IsClean(t *testing.T) {
+	repo, err := git.PlainOpen("../..")
+	assert.NoError(t, err)
+
+	g := &Git{repo: repo}
+
+	_, err = g.IsClean()
+	assert.NoError(t, err)
+}
+
+func TestGit_HEAD(t *testing.T) {
+	repo, err := git.PlainOpen("../..")
+	assert.NoError(t, err)
+
+	g := &Git{repo: repo}
+
+	hash, branch, err := g.HEAD()
+	assert.NoError(t, err)
+	assert.NotEmpty(t, hash)
+	assert.NotEmpty(t, branch)
+}
+
+func TestGit_Pull(t *testing.T) {
+	// An actual Pull has side effects!
 }

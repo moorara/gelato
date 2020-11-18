@@ -1,6 +1,7 @@
 package build
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/mitchellh/cli"
@@ -10,6 +11,25 @@ import (
 	"github.com/moorara/gelato/internal/spec"
 )
 
+type (
+	HEADMock struct {
+		OutHash   string
+		OutBranch string
+		OutError  error
+	}
+
+	MockGitService struct {
+		HEADIndex int
+		HEADMocks []HEADMock
+	}
+)
+
+func (m *MockGitService) HEAD() (string, string, error) {
+	i := m.HEADIndex
+	m.HEADIndex++
+	return m.HEADMocks[i].OutHash, m.HEADMocks[i].OutBranch, m.HEADMocks[i].OutError
+}
+
 func TestNewCommand(t *testing.T) {
 	ui := new(cli.MockUi)
 	spec := spec.Spec{}
@@ -17,6 +37,11 @@ func TestNewCommand(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
+
+	cmd, ok := c.(*cmd)
+	assert.True(t, ok)
+
+	assert.NotNil(t, cmd.services.git)
 }
 
 func TestCmd_Synopsis(t *testing.T) {
@@ -36,6 +61,7 @@ func TestCmd_Help(t *testing.T) {
 func TestCmd_Run(t *testing.T) {
 	tests := []struct {
 		name             string
+		git              *MockGitService
 		args             []string
 		expectedExitCode int
 	}{
@@ -45,7 +71,22 @@ func TestCmd_Run(t *testing.T) {
 			expectedExitCode: command.FlagError,
 		},
 		{
-			name:             "VersionPackageMissing",
+			name: "GitHEADFails",
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "VersionPackageMissing",
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutHash: "3a1960ec0cec18d2dca14d270d11c5bc4138abf6", OutBranch: "main"},
+				},
+			},
 			args:             []string{},
 			expectedExitCode: command.VersionPkgError,
 		},
@@ -54,6 +95,7 @@ func TestCmd_Run(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &cmd{ui: new(cli.MockUi)}
+			c.services.git = tc.git
 
 			exitCode := c.Run(tc.args)
 

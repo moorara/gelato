@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/git"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/shell"
 )
@@ -50,10 +51,17 @@ var (
 	goVersionRE = regexp.MustCompile(`\d+\.\d+(\.\d+)?`)
 )
 
+type gitService interface {
+	HEAD() (string, string, error)
+}
+
 // cmd implements the cli.Command interface.
 type cmd struct {
-	ui      cli.Ui
-	spec    spec.Spec
+	ui       cli.Ui
+	spec     spec.Spec
+	services struct {
+		git gitService
+	}
 	outputs struct {
 		artifacts struct {
 			binaries []string
@@ -63,10 +71,19 @@ type cmd struct {
 
 // NewCommand creates a build command.
 func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
-	return &cmd{
+	g, err := git.New(".")
+	if err != nil {
+		return nil, err
+	}
+
+	c := &cmd{
 		ui:   ui,
 		spec: spec,
-	}, nil
+	}
+
+	c.services.git = g
+
+	return c, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -99,8 +116,7 @@ func (c *cmd) Run(args []string) int {
 	// ==============================> RUN PREFLIGHT CHECKS <==============================
 
 	checklist := command.PreflightChecklist{
-		Go:  true,
-		Git: true,
+		Go: true,
 	}
 
 	info, err := command.RunPreflightChecks(ctx, checklist)
@@ -109,12 +125,12 @@ func (c *cmd) Run(args []string) int {
 		return command.PreflightError
 	}
 
-	// ==============================> GET GO & GIT INFORMATION <==============================
+	// ==============================> GET GIT & GO INFORMATION <==============================
 
-	_, versionPkg, err := shell.Run(ctx, "go", "list", versionPath)
+	gitSHA, gitBranch, err := c.services.git.HEAD()
 	if err != nil {
 		c.ui.Error(err.Error())
-		return command.VersionPkgError
+		return command.GitError
 	}
 
 	_, goVersion, err := shell.Run(ctx, "go", "version")
@@ -123,16 +139,10 @@ func (c *cmd) Run(args []string) int {
 		return command.GoError
 	}
 
-	_, gitSHA, err := shell.Run(ctx, "git", "rev-parse", "HEAD")
+	_, versionPkg, err := shell.Run(ctx, "go", "list", versionPath)
 	if err != nil {
 		c.ui.Error(err.Error())
-		return command.GitError
-	}
-
-	_, gitBranch, err := shell.Run(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
-	if err != nil {
-		c.ui.Error(err.Error())
-		return command.GitError
+		return command.VersionPkgError
 	}
 
 	// ==============================> GET THE SEMANTIC VERSION <==============================

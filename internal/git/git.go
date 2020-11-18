@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
@@ -37,11 +38,27 @@ func New(path string) (*Git, error) {
 	}, nil
 }
 
-// GetRemoteInfo returns the domain part and path part of a Git remote repository URL.
+func parseRemoteURL(url string) (string, string, error) {
+	// Parse the origin remote URL into a domain part a path part
+	if m := httpsRE.FindStringSubmatch(url); len(m) == 6 { // HTTPS Git Remote URL
+		//  Example:
+		//    https://github.com/moorara/changelog.git
+		//    m = []string{"https://github.com/moorara/changelog.git", "github.com", "moorara/changelog", "moorara/", "changelog", ".git"}
+		return m[1], m[2], nil
+	} else if m := sshRE.FindStringSubmatch(url); len(m) == 6 { // SSH Git Remote URL
+		//  Example:
+		//    git@github.com:moorara/changelog.git
+		//    m = []string{"git@github.com:moorara/changelog.git", "github.com", "moorara/changelog, "moorara/", "changelog", ".git"}
+		return m[1], m[2], nil
+	}
+
+	return "", "", fmt.Errorf("invalid git remote url: %s", url)
+}
+
+// Remote returns the domain part and path part of a Git remote repository URL.
 // It assumes the remote repository is named origin.
-func (g *Git) GetRemoteInfo() (string, string, error) {
-	// TODO: Should we handle all remote names and not just the origin?
-	remote, err := g.repo.Remote("origin")
+func (g *Git) Remote(name string) (string, string, error) {
+	remote, err := g.repo.Remote(name)
 	if err != nil {
 		return "", "", err
 	}
@@ -52,16 +69,50 @@ func (g *Git) GetRemoteInfo() (string, string, error) {
 		remoteURL = config.URLs[0]
 	}
 
-	// Parse the origin remote URL into a domain part a path part
-	if matches := httpsRE.FindStringSubmatch(remoteURL); len(matches) == 6 {
-		// Git remote url is using HTTPS protocol
-		// Example: https://github.com/moorara/changelog.git --> matches = []string{"https://github.com/moorara/changelog.git", "github.com", "moorara/changelog", "moorara/", "changelog", ".git"}
-		return matches[1], matches[2], nil
-	} else if matches := sshRE.FindStringSubmatch(remoteURL); len(matches) == 6 {
-		// Git remote url is using SSH protocol
-		// Example: git@github.com:moorara/changelog.git --> matches = []string{"git@github.com:moorara/changelog.git", "github.com", "moorara/changelog, "moorara/", "changelog", ".git"}
-		return matches[1], matches[2], nil
+	return parseRemoteURL(remoteURL)
+}
+
+// IsClean determines whether or not the working directory is clean.
+func (g *Git) IsClean() (bool, error) {
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return false, err
 	}
 
-	return "", "", fmt.Errorf("invalid git remote url: %s", remoteURL)
+	status, err := worktree.Status()
+	if err != nil {
+		return false, err
+	}
+
+	return status.IsClean(), nil
+}
+
+// HEAD returns the hash and name (branch) of the HEAD reference.
+func (g *Git) HEAD() (string, string, error) {
+	head, err := g.repo.Head()
+	if err != nil {
+		return "", "", err
+	}
+
+	hash := head.Hash().String()
+	branch := head.Name().String()
+
+	return hash, branch, nil
+}
+
+// Pull is same as git pull. It brings the changes from a remote repository into the current branch.
+func (g *Git) Pull(ctx context.Context) error {
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	opts := &git.PullOptions{}
+
+	err = worktree.PullContext(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

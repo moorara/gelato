@@ -18,7 +18,6 @@ func TestRunPreflightChecks(t *testing.T) {
 		expectedError          error
 		expectWorkingDirectory bool
 		expectGoVersion        bool
-		expectGitVersion       bool
 		expectGitHubToken      bool
 	}{
 		{
@@ -34,13 +33,11 @@ func TestRunPreflightChecks(t *testing.T) {
 			environment: map[string]string{},
 			ctx:         context.Background(),
 			checklist: PreflightChecklist{
-				Go:  true,
-				Git: true,
+				Go: true,
 			},
 			expectedError:          nil,
 			expectWorkingDirectory: true,
 			expectGoVersion:        true,
-			expectGitVersion:       true,
 		},
 	}
 
@@ -61,7 +58,6 @@ func TestRunPreflightChecks(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectWorkingDirectory, preflightInfo.WorkingDirectory != "")
 				assert.Equal(t, tc.expectGoVersion, preflightInfo.GoVersion != "")
-				assert.Equal(t, tc.expectGitVersion, preflightInfo.GitVersion != "")
 			}
 		})
 	}
