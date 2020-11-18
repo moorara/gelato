@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/moorara/go-github"
 
 	"github.com/moorara/gelato/internal/command"
-	"github.com/moorara/gelato/internal/github"
 )
 
 const (
@@ -33,17 +33,35 @@ const (
 	updateRepo  = "gelato"
 )
 
+type repoService interface {
+	LatestRelease(context.Context) (*github.Release, *github.Response, error)
+	DownloadReleaseAsset(context.Context, string, string, string) (*github.Response, error)
+}
+
 // cmd implements the cli.Command interface.
 type cmd struct {
-	ui      cli.Ui
+	ui       cli.Ui
+	services struct {
+		repo repoService
+	}
 	outputs struct{}
 }
 
 // NewCommand creates an update command.
 func NewCommand(ui cli.Ui) (cli.Command, error) {
-	return &cmd{
+	// If no access token is provided, we try without it!
+	githubToken := os.Getenv("GELATO_GITHUB_TOKEN")
+
+	client := github.NewClient(githubToken)
+	repo := client.Repo(updateOwner, updateRepo)
+
+	c := &cmd{
 		ui: ui,
-	}, nil
+	}
+
+	c.services.repo = repo
+
+	return c, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -70,60 +88,39 @@ func (c *cmd) Run(args []string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), updateTimeout)
 	defer cancel()
 
-	// RUN PREFLIGHT CHECKS
+	// ==============================> RUN PREFLIGHT CHECKS <==============================
 
-	checklist := command.PreflightChecklist{
-		GitHubToken: true,
-	}
+	checklist := command.PreflightChecklist{}
 
-	info, err := command.RunPreflightChecks(ctx, checklist)
+	_, err := command.RunPreflightChecks(ctx, checklist)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.PreflightError
 	}
 
-	// CREATE A GITHUB CLIENT
-
-	github, err := github.New(info.GitHubToken)
-	if err != nil {
-		c.ui.Error(err.Error())
-		return command.GitHubError
-	}
-
-	// GET THE LATEST RELEASE FROM GITHUB
+	// ==============================> GET THE LATEST RELEASE <==============================
 
 	c.ui.Output("⬇ Finding the latest release of Gelato ...")
 
-	release, err := github.GetLatestRelease(ctx, updateOwner, updateRepo)
+	release, _, err := c.services.repo.LatestRelease(ctx)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitHubError
 	}
 
-	// DOWNLOAD THE LATEST BINARY FROM GITHUB AND WRITE IT TO DISK
+	// ==============================> DOWNLOAD THE LATEST BINARY <==============================
 
 	c.ui.Output(fmt.Sprintf("⬇ Downloading Gelato %s ...", release.TagName))
 
-	var downloadURL string
 	assetName := fmt.Sprintf("gelato-%s-%s", runtime.GOOS, runtime.GOARCH)
-	for _, asset := range release.Assets {
-		if asset.Name == assetName {
-			downloadURL = asset.DownloadURL
-		}
-	}
-
-	if downloadURL == "" {
-		c.ui.Error(fmt.Sprintf("Cannot find download URL for %s", assetName))
-		return command.GitHubError
-	}
 
 	binPath, err := exec.LookPath(os.Args[0])
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("Cannot find binary path for Gelato: %s", err))
+		c.ui.Error(fmt.Sprintf("Cannot find the path for Gelato binary: %s", err))
 		return command.OSError
 	}
 
-	err = github.DownloadReleaseAsset(ctx, downloadURL, binPath)
+	_, err = c.services.repo.DownloadReleaseAsset(ctx, release.TagName, assetName, binPath)
 	if err != nil {
 		c.ui.Error(fmt.Sprintf("Failed to download and update Gelato binary: %s", err))
 		return command.GitHubError
