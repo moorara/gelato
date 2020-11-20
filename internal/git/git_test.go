@@ -180,3 +180,27 @@ func TestGit_HEAD(t *testing.T) {
 func TestGit_Pull(t *testing.T) {
 	// An actual Pull has side effects!
 }
+
+func TestGit_Tag(t *testing.T) {
+	// TODO: uncomment after releasing
+	// repo, err := git.PlainOpen("../..")
+	// assert.NoError(t, err)
+
+	// g := &Git{repo: repo}
+
+	// tag, err := g.Tag("v0.1.0")
+	// assert.NoError(t, err)
+	// assert.NotEmpty(t, tag)
+}
+
+func TestGit_Tags(t *testing.T) {
+	// TODO: uncomment after releasing
+	// repo, err := git.PlainOpen("../..")
+	// assert.NoError(t, err)
+
+	// g := &Git{repo: repo}
+
+	// tags, err := g.Tags()
+	// assert.NoError(t, err)
+	// assert.NotEmpty(t, tags)
+}

@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sort"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 )
 
 var (
@@ -115,4 +117,88 @@ func (g *Git) Pull(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// Tag resolves a tag by its name.
+func (g *Git) Tag(name string) (Tag, error) {
+	ref, err := g.repo.Tag(name)
+	if err != nil {
+		return Tag{}, err
+	}
+
+	var tag Tag
+
+	tagObj, err := g.repo.TagObject(ref.Hash())
+	switch err {
+	// Annotated tag
+	case nil:
+		commitObj, err := g.repo.CommitObject(tagObj.Target)
+		if err != nil {
+			return Tag{}, err
+		}
+		tag = toAnnotatedTag(tagObj, commitObj)
+
+	// Lightweight tag
+	case plumbing.ErrObjectNotFound:
+		commitObj, err := g.repo.CommitObject(ref.Hash())
+		if err != nil {
+			return Tag{}, err
+		}
+		tag = toLightweightTag(ref, commitObj)
+
+	default:
+		return Tag{}, err
+	}
+
+	return tag, nil
+}
+
+// Tags returns the list of all tags.
+func (g *Git) Tags() ([]Tag, error) {
+	refs, err := g.repo.Tags()
+	if err != nil {
+		return nil, err
+	}
+
+	tags := []Tag{}
+
+	err = refs.ForEach(func(ref *plumbing.Reference) error {
+		tagObj, err := g.repo.TagObject(ref.Hash())
+		switch err {
+		// Annotated tag
+		case nil:
+			commitObj, err := g.repo.CommitObject(tagObj.Target)
+			if err != nil {
+				return err
+			}
+			tag := toAnnotatedTag(tagObj, commitObj)
+			tags = append(tags, tag)
+
+		// Lightweight tag
+		case plumbing.ErrObjectNotFound:
+			commitObj, err := g.repo.CommitObject(ref.Hash())
+			if err != nil {
+				return err
+			}
+			tag := toLightweightTag(ref, commitObj)
+			tags = append(tags, tag)
+
+		default:
+			return err
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort tags
+	sort.Slice(tags, func(i, j int) bool {
+		// The order of the tags should be from the most recent to the least recent
+		return tags[i].After(tags[j])
+	})
+
+	return tags, nil
 }
