@@ -6,6 +6,8 @@ import (
 	"regexp"
 	"sort"
 
+	"github.com/go-git/go-git/v5/plumbing/object"
+
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 )
@@ -128,23 +130,23 @@ func (g *Git) Tag(name string) (Tag, error) {
 
 	var tag Tag
 
-	tagObj, err := g.repo.TagObject(ref.Hash())
+	t, err := g.repo.TagObject(ref.Hash())
 	switch err {
 	// Annotated tag
 	case nil:
-		commitObj, err := g.repo.CommitObject(tagObj.Target)
+		c, err := g.repo.CommitObject(t.Target)
 		if err != nil {
 			return Tag{}, err
 		}
-		tag = toAnnotatedTag(tagObj, commitObj)
+		tag = toAnnotatedTag(t, c)
 
 	// Lightweight tag
 	case plumbing.ErrObjectNotFound:
-		commitObj, err := g.repo.CommitObject(ref.Hash())
+		c, err := g.repo.CommitObject(ref.Hash())
 		if err != nil {
 			return Tag{}, err
 		}
-		tag = toLightweightTag(ref, commitObj)
+		tag = toLightweightTag(ref, c)
 
 	default:
 		return Tag{}, err
@@ -163,25 +165,23 @@ func (g *Git) Tags() ([]Tag, error) {
 	tags := []Tag{}
 
 	err = refs.ForEach(func(ref *plumbing.Reference) error {
-		tagObj, err := g.repo.TagObject(ref.Hash())
+		t, err := g.repo.TagObject(ref.Hash())
 		switch err {
 		// Annotated tag
 		case nil:
-			commitObj, err := g.repo.CommitObject(tagObj.Target)
+			c, err := g.repo.CommitObject(t.Target)
 			if err != nil {
 				return err
 			}
-			tag := toAnnotatedTag(tagObj, commitObj)
-			tags = append(tags, tag)
+			tags = append(tags, toAnnotatedTag(t, c))
 
 		// Lightweight tag
 		case plumbing.ErrObjectNotFound:
-			commitObj, err := g.repo.CommitObject(ref.Hash())
+			c, err := g.repo.CommitObject(ref.Hash())
 			if err != nil {
 				return err
 			}
-			tag := toLightweightTag(ref, commitObj)
-			tags = append(tags, tag)
+			tags = append(tags, toLightweightTag(ref, c))
 
 		default:
 			return err
@@ -201,4 +201,52 @@ func (g *Git) Tags() ([]Tag, error) {
 	})
 
 	return tags, nil
+}
+
+// CommitsIn returns all commits reachable from a revision.
+func (g *Git) CommitsIn(rev string) ([]Commit, error) {
+	h, err := g.repo.ResolveRevision(plumbing.Revision(rev))
+	if err != nil {
+		return nil, err
+	}
+
+	commitsMap := make(map[plumbing.Hash]*object.Commit)
+	err = g.parentCommits(commitsMap, *h)
+	if err != nil {
+		return nil, err
+	}
+
+	commits := make([]Commit, 0)
+	for _, c := range commitsMap {
+		commits = append(commits, toCommit(c))
+	}
+
+	// Sort commits
+	sort.Slice(commits, func(i, j int) bool {
+		// The order of the commits should be from the most recent to the least recent
+		return commits[i].Committer.After(commits[j].Committer)
+	})
+
+	return commits, nil
+}
+
+func (g *Git) parentCommits(commitsMap map[plumbing.Hash]*object.Commit, h plumbing.Hash) error {
+	if _, ok := commitsMap[h]; ok {
+		return nil
+	}
+
+	c, err := g.repo.CommitObject(h)
+	if err != nil {
+		return err
+	}
+
+	commitsMap[c.Hash] = c
+
+	for _, h := range c.ParentHashes {
+		if err := g.parentCommits(commitsMap, h); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
