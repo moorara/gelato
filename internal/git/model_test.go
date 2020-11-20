@@ -427,3 +427,136 @@ func TestTag_Comparison(t *testing.T) {
 		})
 	}
 }
+
+func TestTags_First(t *testing.T) {
+	tests := []struct {
+		name        string
+		tags        Tags
+		f           func(Tag) bool
+		expectedTag Tag
+		expectedOK  bool
+	}{
+		{
+			name:        "NoTagNoPredicate",
+			tags:        nil,
+			f:           nil,
+			expectedTag: Tag{},
+			expectedOK:  false,
+		},
+		{
+			name:        "NoPredicate",
+			tags:        Tags{tag2, tag1},
+			f:           nil,
+			expectedTag: tag2,
+			expectedOK:  true,
+		},
+		{
+			name: "Found",
+			tags: Tags{tag2, tag1},
+			f: func(t Tag) bool {
+				return t.Name == "v0.1.0"
+			},
+			expectedTag: tag1,
+			expectedOK:  true,
+		},
+		{
+			name: "NotFound",
+			tags: Tags{tag2, tag1},
+			f: func(t Tag) bool {
+				return t.Name == "v0.3.0"
+			},
+			expectedTag: Tag{},
+			expectedOK:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tag, ok := tc.tags.First(tc.f)
+
+			assert.Equal(t, tc.expectedTag, tag)
+			assert.Equal(t, tc.expectedOK, ok)
+		})
+	}
+}
+
+func TestTags_Last(t *testing.T) {
+	tests := []struct {
+		name        string
+		tags        Tags
+		f           func(Tag) bool
+		expectedTag Tag
+		expectedOK  bool
+	}{
+		{
+			name:        "NoTagNoPredicate",
+			tags:        nil,
+			f:           nil,
+			expectedTag: Tag{},
+			expectedOK:  false,
+		},
+		{
+			name:        "NoPredicate",
+			tags:        Tags{tag2, tag1},
+			f:           nil,
+			expectedTag: tag1,
+			expectedOK:  true,
+		},
+		{
+			name: "Found",
+			tags: Tags{tag2, tag1},
+			f: func(t Tag) bool {
+				return t.Name == "v0.2.0"
+			},
+			expectedTag: tag2,
+			expectedOK:  true,
+		},
+		{
+			name: "NotFound",
+			tags: Tags{tag2, tag1},
+			f: func(t Tag) bool {
+				return t.Name == "v0.3.0"
+			},
+			expectedTag: Tag{},
+			expectedOK:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tag, ok := tc.tags.Last(tc.f)
+
+			assert.Equal(t, tc.expectedTag, tag)
+			assert.Equal(t, tc.expectedOK, ok)
+		})
+	}
+}
+
+func TestTags_Select(t *testing.T) {
+	tests := []struct {
+		name               string
+		tags               Tags
+		f                  func(Tag) bool
+		expectedSelected   Tags
+		expectedUnselected Tags
+	}{
+		{
+			name: "OK",
+			tags: Tags{tag2, tag1},
+			f: func(t Tag) bool {
+				return t.Type == Annotated
+			},
+			expectedSelected:   Tags{tag2},
+			expectedUnselected: Tags{tag1},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			selected, unselected := tc.tags.Select(tc.f)
+
+			assert.Equal(t, tc.expectedSelected, selected)
+			assert.Equal(t, tc.expectedUnselected, unselected)
+		})
+	}
+}

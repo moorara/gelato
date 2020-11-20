@@ -91,6 +91,9 @@ func (c Commit) Text() string {
 	return fmt.Sprintf("%s\nAuthor:    %s\nCommitter: %s\n%s", c.Hash, c.Author, c.Committer, c.Message)
 }
 
+// Commits is a map of Git commits.
+type Commits []Commit
+
 // TagType determines type a Git tag.
 type TagType int
 
@@ -177,4 +180,63 @@ func (t Tag) String() string {
 		return ""
 	}
 	return fmt.Sprintf("%s %s %s Commit[%s %s]", t.Type, t.Hash, t.Name, t.Commit.Hash, t.Commit.ShortMessage())
+}
+
+// Tags is a list of Git tags.
+type Tags []Tag
+
+// First returns the first tag that satisifies the given predicate.
+// If you pass a nil function, the first tag will be returned.
+func (t Tags) First(f func(Tag) bool) (Tag, bool) {
+	if f == nil {
+		if len(t) > 0 {
+			return t[0], true
+		}
+		return Tag{}, false
+	}
+
+	for _, tag := range t {
+		if f(tag) {
+			return tag, true
+		}
+	}
+
+	return Tag{}, false
+}
+
+// Last returns the last tag that satisifies the given predicate.
+// If you pass a nil function, the last tag will be returned.
+func (t Tags) Last(f func(Tag) bool) (Tag, bool) {
+	if f == nil {
+		if l := len(t); l > 0 {
+			return t[l-1], true
+		}
+		return Tag{}, false
+	}
+
+	for i := len(t) - 1; i >= 0; i-- {
+		if f(t[i]) {
+			return t[i], true
+		}
+	}
+
+	return Tag{}, false
+}
+
+// Select partitions a list of tags by a given predicate.
+// The first return value is the collection of selected tags (satisfying the predicate).
+// The second return value is the collection of unselected tags (not satisfying the predicate).
+func (t Tags) Select(f func(Tag) bool) (Tags, Tags) {
+	selected := Tags{}
+	unselected := Tags{}
+
+	for _, tag := range t {
+		if f(tag) {
+			selected = append(selected, tag)
+		} else {
+			unselected = append(unselected, tag)
+		}
+	}
+
+	return selected, unselected
 }

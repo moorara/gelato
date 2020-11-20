@@ -204,3 +204,14 @@ func TestGit_Tags(t *testing.T) {
 	// assert.NoError(t, err)
 	// assert.NotEmpty(t, tags)
 }
+
+func TestGit_Commits(t *testing.T) {
+	repo, err := git.PlainOpen("../..")
+	assert.NoError(t, err)
+
+	g := &Git{repo: repo}
+
+	commits, err := g.CommitsIn("HEAD")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, commits)
+}

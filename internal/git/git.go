@@ -156,7 +156,7 @@ func (g *Git) Tag(name string) (Tag, error) {
 }
 
 // Tags returns the list of all tags.
-func (g *Git) Tags() ([]Tag, error) {
+func (g *Git) Tags() (Tags, error) {
 	refs, err := g.repo.Tags()
 	if err != nil {
 		return nil, err
@@ -204,7 +204,7 @@ func (g *Git) Tags() ([]Tag, error) {
 }
 
 // CommitsIn returns all commits reachable from a revision.
-func (g *Git) CommitsIn(rev string) ([]Commit, error) {
+func (g *Git) CommitsIn(rev string) (Commits, error) {
 	h, err := g.repo.ResolveRevision(plumbing.Revision(rev))
 	if err != nil {
 		return nil, err
