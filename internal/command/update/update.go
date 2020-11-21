@@ -38,8 +38,8 @@ type repoService interface {
 	DownloadReleaseAsset(context.Context, string, string, string) (*github.Response, error)
 }
 
-// cmd implements the cli.Command interface.
-type cmd struct {
+// Command is the cli.Command implementation for update command.
+type Command struct {
 	ui       cli.Ui
 	services struct {
 		repo repoService
@@ -48,14 +48,14 @@ type cmd struct {
 }
 
 // NewCommand creates an update command.
-func NewCommand(ui cli.Ui) (cli.Command, error) {
+func NewCommand(ui cli.Ui) (*Command, error) {
 	// If no access token is provided, we try without it!
 	githubToken := os.Getenv("GELATO_GITHUB_TOKEN")
 
 	client := github.NewClient(githubToken)
 	repo := client.Repo(updateOwner, updateRepo)
 
-	c := &cmd{
+	c := &Command{
 		ui: ui,
 	}
 
@@ -65,17 +65,17 @@ func NewCommand(ui cli.Ui) (cli.Command, error) {
 }
 
 // Synopsis returns a short one-line synopsis of the command.
-func (c *cmd) Synopsis() string {
+func (c *Command) Synopsis() string {
 	return updateSynopsis
 }
 
 // Help returns a long help text including usage, description, and list of flags for the command.
-func (c *cmd) Help() string {
+func (c *Command) Help() string {
 	return updateHelp
 }
 
 // Run runs the actual command with the given command-line arguments.
-func (c *cmd) Run(args []string) int {
+func (c *Command) Run(args []string) int {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	fs.Usage = func() {
 		c.ui.Output(c.Help())

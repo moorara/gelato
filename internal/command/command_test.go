@@ -5,7 +5,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/moorara/gelato/pkg/semver"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -18,7 +17,6 @@ func TestRunPreflightChecks(t *testing.T) {
 		expectedError          error
 		expectWorkingDirectory bool
 		expectGoVersion        bool
-		expectGitVersion       bool
 		expectGitHubToken      bool
 	}{
 		{
@@ -34,13 +32,11 @@ func TestRunPreflightChecks(t *testing.T) {
 			environment: map[string]string{},
 			ctx:         context.Background(),
 			checklist: PreflightChecklist{
-				Go:  true,
-				Git: true,
+				Go: true,
 			},
 			expectedError:          nil,
 			expectWorkingDirectory: true,
 			expectGoVersion:        true,
-			expectGitVersion:       true,
 		},
 	}
 
@@ -61,36 +57,6 @@ func TestRunPreflightChecks(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, tc.expectWorkingDirectory, preflightInfo.WorkingDirectory != "")
 				assert.Equal(t, tc.expectGoVersion, preflightInfo.GoVersion != "")
-				assert.Equal(t, tc.expectGitVersion, preflightInfo.GitVersion != "")
-			}
-		})
-	}
-}
-
-func TestResolveSemanticVersion(t *testing.T) {
-	tests := []struct {
-		name           string
-		ctx            context.Context
-		expectedSemVer semver.SemVer
-		expectedError  error
-	}{
-		{
-			name:          "Success",
-			ctx:           context.Background(),
-			expectedError: nil,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			semver, err := ResolveSemanticVersion(tc.ctx)
-
-			if tc.expectedError == nil {
-				assert.NotEmpty(t, semver)
-				assert.NoError(t, err)
-			} else {
-				assert.Empty(t, semver)
-				assert.Equal(t, tc.expectedError, err)
 			}
 		})
 	}

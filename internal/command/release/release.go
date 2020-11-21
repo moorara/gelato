@@ -17,7 +17,6 @@ import (
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/git"
 	"github.com/moorara/gelato/internal/spec"
-	"github.com/moorara/gelato/pkg/shell"
 )
 
 const (
@@ -58,7 +57,10 @@ var (
 
 type (
 	gitService interface {
-		GetRemoteInfo() (string, string, error)
+		Remote(string) (string, string, error)
+		HEAD() (string, string, error)
+		IsClean() (bool, error)
+		Pull(ctx context.Context) error
 	}
 
 	usersService interface {
@@ -75,8 +77,8 @@ type (
 	}
 )
 
-// cmd implements the cli.Command interface.
-type cmd struct {
+// Command is the cli.Command implementation for release command.
+type Command struct {
 	ui       cli.Ui
 	spec     spec.Spec
 	owner    string
@@ -90,13 +92,14 @@ type cmd struct {
 }
 
 // NewCommand creates a release command.
-func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
+func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	g, err := git.New(".")
 	if err != nil {
 		return nil, err
 	}
 
-	domain, path, err := g.GetRemoteInfo()
+	// TODO: should we check for other remote names too?
+	domain, path, err := g.Remote("origin")
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +121,7 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
 	client := github.NewClient(token)
 	repo := client.Repo(parts[0], parts[1])
 
-	c := &cmd{
+	c := &Command{
 		ui:    ui,
 		spec:  spec,
 		owner: parts[0],
@@ -133,12 +136,12 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
 }
 
 // Synopsis returns a short one-line synopsis of the command.
-func (c *cmd) Synopsis() string {
+func (c *Command) Synopsis() string {
 	return releaseSynopsis
 }
 
 // Help returns a long help text including usage, description, and list of flags for the command.
-func (c *cmd) Help() string {
+func (c *Command) Help() string {
 	var buf bytes.Buffer
 	t := template.Must(template.New("help").Parse(releaseHelp))
 	_ = t.Execute(&buf, c.spec)
@@ -146,7 +149,7 @@ func (c *cmd) Help() string {
 }
 
 // Run runs the actual command with the given command-line arguments.
-func (c *cmd) Run(args []string) int {
+func (c *Command) Run(args []string) int {
 	params := struct {
 		patch, minor, major bool
 		comment             string
@@ -172,9 +175,7 @@ func (c *cmd) Run(args []string) int {
 
 	c.ui.Output("Running preflight checks ...")
 
-	checklist := command.PreflightChecklist{
-		Git: true,
-	}
+	checklist := command.PreflightChecklist{}
 
 	_, err := command.RunPreflightChecks(ctx, checklist)
 	if err != nil {
@@ -184,25 +185,25 @@ func (c *cmd) Run(args []string) int {
 
 	// ==============================> CHECK GIT REPO <==============================
 
-	_, gitBranch, err := shell.Run(ctx, "git", "rev-parse", "--abbrev-ref", "HEAD")
+	_, gitBranch, err := c.services.git.HEAD()
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitError
 	}
 
 	// TODO: find out default branch
-	if gitBranch != "master" {
+	if gitBranch != "main" {
 		c.ui.Error("A repository can be released only from the master branch.")
 		return command.GitError
 	}
 
-	_, gitStatus, err := shell.Run(ctx, "git", "status", "--porcelain")
+	isClean, err := c.services.git.IsClean()
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitError
 	}
 
-	if gitStatus != "" {
+	if !isClean {
 		c.ui.Error("Working directory is not clean and has uncommitted changes.")
 		return command.GitError
 	}
@@ -232,7 +233,7 @@ func (c *cmd) Run(args []string) int {
 
 	c.ui.Output("Pulling the latest changes on the master branch ...")
 
-	_, _, err = shell.Run(ctx, "git", "pull")
+	err = c.services.git.Pull(ctx)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitError
