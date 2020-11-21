@@ -262,33 +262,29 @@ func TestNewCommand(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, c)
-
-				cmd, ok := c.(*cmd)
-				assert.True(t, ok)
-
-				assert.NotNil(t, cmd.services.git)
-				assert.NotNil(t, cmd.services.users)
-				assert.NotNil(t, cmd.services.repo)
+				assert.NotNil(t, c.services.git)
+				assert.NotNil(t, c.services.users)
+				assert.NotNil(t, c.services.repo)
 			}
 		})
 	}
 }
 
-func TestCmd_Synopsis(t *testing.T) {
-	c := &cmd{}
+func TestCommand_Synopsis(t *testing.T) {
+	c := &Command{}
 	synopsis := c.Synopsis()
 
 	assert.NotEmpty(t, synopsis)
 }
 
-func TestCmd_Help(t *testing.T) {
-	c := &cmd{}
+func TestCommand_Help(t *testing.T) {
+	c := &Command{}
 	help := c.Help()
 
 	assert.NotEmpty(t, help)
 }
 
-func TestCmd_Run(t *testing.T) {
+func TestCommand_Run(t *testing.T) {
 	tests := []struct {
 		name             string
 		git              *MockGitService
@@ -352,7 +348,7 @@ func TestCmd_Run(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &cmd{ui: new(cli.MockUi)}
+			c := &Command{ui: new(cli.MockUi)}
 			c.services.git = tc.git
 			c.services.users = tc.users
 			c.services.repo = tc.repo

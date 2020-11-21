@@ -77,8 +77,8 @@ type (
 	}
 )
 
-// cmd implements the cli.Command interface.
-type cmd struct {
+// Command is the cli.Command implementation for release command.
+type Command struct {
 	ui       cli.Ui
 	spec     spec.Spec
 	owner    string
@@ -92,7 +92,7 @@ type cmd struct {
 }
 
 // NewCommand creates a release command.
-func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
+func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	g, err := git.New(".")
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
 	client := github.NewClient(token)
 	repo := client.Repo(parts[0], parts[1])
 
-	c := &cmd{
+	c := &Command{
 		ui:    ui,
 		spec:  spec,
 		owner: parts[0],
@@ -136,12 +136,12 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
 }
 
 // Synopsis returns a short one-line synopsis of the command.
-func (c *cmd) Synopsis() string {
+func (c *Command) Synopsis() string {
 	return releaseSynopsis
 }
 
 // Help returns a long help text including usage, description, and list of flags for the command.
-func (c *cmd) Help() string {
+func (c *Command) Help() string {
 	var buf bytes.Buffer
 	t := template.Must(template.New("help").Parse(releaseHelp))
 	_ = t.Execute(&buf, c.spec)
@@ -149,7 +149,7 @@ func (c *cmd) Help() string {
 }
 
 // Run runs the actual command with the given command-line arguments.
-func (c *cmd) Run(args []string) int {
+func (c *Command) Run(args []string) int {
 	params := struct {
 		patch, minor, major bool
 		comment             string

@@ -16,8 +16,10 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/moorara/gelato/internal/command"
+	semvercmd "github.com/moorara/gelato/internal/command/semver"
 	"github.com/moorara/gelato/internal/git"
 	"github.com/moorara/gelato/internal/spec"
+	"github.com/moorara/gelato/pkg/semver"
 	"github.com/moorara/gelato/pkg/shell"
 )
 
@@ -51,16 +53,26 @@ var (
 	goVersionRE = regexp.MustCompile(`\d+\.\d+(\.\d+)?`)
 )
 
-type gitService interface {
-	HEAD() (string, string, error)
-}
+type (
+	gitService interface {
+		HEAD() (string, string, error)
+	}
 
-// cmd implements the cli.Command interface.
-type cmd struct {
+	semverCommand interface {
+		Run([]string) int
+		SemVer() semver.SemVer
+	}
+)
+
+// Command is the cli.Command implementation for build command.
+type Command struct {
 	ui       cli.Ui
 	spec     spec.Spec
 	services struct {
 		git gitService
+	}
+	commands struct {
+		semver semverCommand
 	}
 	outputs struct {
 		artifacts struct {
@@ -70,29 +82,35 @@ type cmd struct {
 }
 
 // NewCommand creates a build command.
-func NewCommand(ui cli.Ui, spec spec.Spec) (cli.Command, error) {
+func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	g, err := git.New(".")
 	if err != nil {
 		return nil, err
 	}
 
-	c := &cmd{
+	s, err := semvercmd.NewCommand(ui)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &Command{
 		ui:   ui,
 		spec: spec,
 	}
 
 	c.services.git = g
+	c.commands.semver = s
 
 	return c, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
-func (c *cmd) Synopsis() string {
+func (c *Command) Synopsis() string {
 	return buildSynopsis
 }
 
 // Help returns a long help text including usage, description, and list of flags for the command.
-func (c *cmd) Help() string {
+func (c *Command) Help() string {
 	var buf bytes.Buffer
 	t := template.Must(template.New("help").Parse(buildHelp))
 	_ = t.Execute(&buf, c.spec)
@@ -100,7 +118,7 @@ func (c *cmd) Help() string {
 }
 
 // Run runs the actual command with the given command-line arguments.
-func (c *cmd) Run(args []string) int {
+func (c *Command) Run(args []string) int {
 	fs := c.spec.Build.FlagSet()
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
@@ -141,35 +159,41 @@ func (c *cmd) Run(args []string) int {
 
 	_, versionPkg, err := shell.Run(ctx, "go", "list", versionPath)
 	if err != nil {
-		c.ui.Error(err.Error())
-		return command.VersionPkgError
+		c.ui.Warn(err.Error())
 	}
 
 	// ==============================> GET THE SEMANTIC VERSION <==============================
 
-	semver, err := command.ResolveSemanticVersion(ctx)
-	if err != nil {
-		c.ui.Error(err.Error())
-		return command.GitError
+	// Run semver command
+	code := c.commands.semver.Run(nil)
+	if code != command.Success {
+		return code
 	}
+
+	semver := c.commands.semver.SemVer()
 
 	// ==============================> CONSTRUCT LD FLAGS <==============================
 
-	goVersion = goVersionRE.FindString(goVersion)
-	buildTime := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
-	buildTool := "Gelato"
-	if c.spec.GelatoVersion != "" {
-		buildTool += " " + c.spec.GelatoVersion
-	}
+	var ldFlags string
 
-	ldFlags := strings.Join([]string{
-		fmt.Sprintf(`-X "%s.Version=%s"`, versionPkg, semver),
-		fmt.Sprintf(`-X "%s.Commit=%s"`, versionPkg, gitSHA[:7]),
-		fmt.Sprintf(`-X "%s.Branch=%s"`, versionPkg, gitBranch),
-		fmt.Sprintf(`-X "%s.GoVersion=%s"`, versionPkg, goVersion),
-		fmt.Sprintf(`-X "%s.BuildTool=%s"`, versionPkg, buildTool),
-		fmt.Sprintf(`-X "%s.BuildTime=%s"`, versionPkg, buildTime),
-	}, " ")
+	// Construct the LD flags only if the version package exist
+	if versionPkg != "" {
+		goVersion = goVersionRE.FindString(goVersion)
+		buildTime := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+		buildTool := "Gelato"
+		if c.spec.GelatoVersion != "" {
+			buildTool += " " + c.spec.GelatoVersion
+		}
+
+		ldFlags = strings.Join([]string{
+			fmt.Sprintf(`-X "%s.Version=%s"`, versionPkg, semver),
+			fmt.Sprintf(`-X "%s.Commit=%s"`, versionPkg, gitSHA[:7]),
+			fmt.Sprintf(`-X "%s.Branch=%s"`, versionPkg, gitBranch),
+			fmt.Sprintf(`-X "%s.GoVersion=%s"`, versionPkg, goVersion),
+			fmt.Sprintf(`-X "%s.BuildTool=%s"`, versionPkg, buildTool),
+			fmt.Sprintf(`-X "%s.BuildTime=%s"`, versionPkg, buildTime),
+		}, " ")
+	}
 
 	// ==============================> BUILD BINARIES <==============================
 
@@ -215,7 +239,7 @@ func (c *cmd) Run(args []string) int {
 	return command.Success
 }
 
-func (c *cmd) buildAll(ctx context.Context, ldFlags, mainPkg, output string) error {
+func (c *Command) buildAll(ctx context.Context, ldFlags, mainPkg, output string) error {
 	if !c.spec.Build.CrossCompile {
 		return c.build(ctx, "", "", ldFlags, mainPkg, output)
 	}
@@ -234,7 +258,7 @@ func (c *cmd) buildAll(ctx context.Context, ldFlags, mainPkg, output string) err
 	return group.Wait()
 }
 
-func (c *cmd) build(ctx context.Context, os, arch, ldFlags, mainPkg, output string) error {
+func (c *Command) build(ctx context.Context, os, arch, ldFlags, mainPkg, output string) error {
 	opts := shell.RunOptions{
 		Environment: map[string]string{
 			"GOOS":   os,
