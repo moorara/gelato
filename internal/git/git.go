@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
-
-	"github.com/go-git/go-git/v5/plumbing/object"
+	"strings"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
 var (
@@ -99,26 +100,9 @@ func (g *Git) HEAD() (string, string, error) {
 	}
 
 	hash := head.Hash().String()
-	branch := head.Name().String()
+	branch := strings.TrimPrefix(head.Name().String(), "refs/heads/")
 
 	return hash, branch, nil
-}
-
-// Pull is same as git pull. It brings the changes from a remote repository into the current branch.
-func (g *Git) Pull(ctx context.Context) error {
-	worktree, err := g.repo.Worktree()
-	if err != nil {
-		return err
-	}
-
-	opts := &git.PullOptions{}
-
-	err = worktree.PullContext(ctx, opts)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Tag resolves a tag by its name.
@@ -203,6 +187,40 @@ func (g *Git) Tags() (Tags, error) {
 	return tags, nil
 }
 
+// CreateTag creates a new annotated tag with a message.
+// If successful, it returns the hash of the newly created tag.
+func (g *Git) CreateTag(commit, name, message string) (string, error) {
+	opts := &git.CreateTagOptions{Message: message}
+	hash := plumbing.NewHash(commit)
+	ref, err := g.repo.CreateTag(name, hash, opts)
+	if err != nil {
+		return "", err
+	}
+
+	return ref.Hash().String(), nil
+}
+
+func (g *Git) parentCommits(commitsMap map[plumbing.Hash]*object.Commit, h plumbing.Hash) error {
+	if _, ok := commitsMap[h]; ok {
+		return nil
+	}
+
+	c, err := g.repo.CommitObject(h)
+	if err != nil {
+		return err
+	}
+
+	commitsMap[c.Hash] = c
+
+	for _, h := range c.ParentHashes {
+		if err := g.parentCommits(commitsMap, h); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // CommitsIn returns all commits reachable from a revision.
 func (g *Git) CommitsIn(rev string) (Commits, error) {
 	h, err := g.repo.ResolveRevision(plumbing.Revision(rev))
@@ -230,23 +248,60 @@ func (g *Git) CommitsIn(rev string) (Commits, error) {
 	return commits, nil
 }
 
-func (g *Git) parentCommits(commitsMap map[plumbing.Hash]*object.Commit, h plumbing.Hash) error {
-	if _, ok := commitsMap[h]; ok {
-		return nil
+// CreateCommit stages a list of files in the working tree and then creates a new commit with a give message.
+// If successful, it returns the hash of the newly created commit.
+func (g *Git) CreateCommit(message string, files ...string) (string, error) {
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return "", err
 	}
 
-	c, err := g.repo.CommitObject(h)
+	for _, file := range files {
+		if _, err := worktree.Add(file); err != nil {
+			return "", err
+		}
+	}
+
+	hash, err := worktree.Commit(message, &git.CommitOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return hash.String(), nil
+}
+
+// Pull is same as git pull. It brings the changes from a remote repository into the current branch.
+func (g *Git) Pull(ctx context.Context) error {
+	worktree, err := g.repo.Worktree()
 	if err != nil {
 		return err
 	}
 
-	commitsMap[c.Hash] = c
+	opts := &git.PullOptions{}
 
-	for _, h := range c.ParentHashes {
-		if err := g.parentCommits(commitsMap, h); err != nil {
-			return err
+	if err = worktree.PullContext(ctx, opts); err != nil {
+		if err == git.NoErrAlreadyUpToDate {
+			return nil
 		}
+		return err
 	}
 
 	return nil
+}
+
+// Push performs a push to a remote repository.
+func (g *Git) Push(ctx context.Context, remoteName string) error {
+	return g.repo.PushContext(ctx, &git.PushOptions{
+		RemoteName: remoteName,
+	})
+}
+
+// PushTag pushes a tag a remote repository.
+func (g *Git) PushTag(ctx context.Context, remoteName, tagName string) error {
+	return g.repo.PushContext(ctx, &git.PushOptions{
+		RemoteName: remoteName,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec("+refs/tags/" + tagName + ":refs/tags/" + tagName),
+		},
+	})
 }

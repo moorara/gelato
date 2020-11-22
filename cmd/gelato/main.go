@@ -25,8 +25,8 @@ func main() {
 			},
 			OutputColor: cli.UiColorNone,
 			InfoColor:   cli.UiColorGreen,
-			ErrorColor:  cli.UiColorRed,
 			WarnColor:   cli.UiColorYellow,
+			ErrorColor:  cli.UiColorRed,
 		},
 	}
 

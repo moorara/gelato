@@ -1,7 +1,6 @@
 package release
 
 import (
-	"context"
 	"errors"
 	"os"
 	"testing"
@@ -9,218 +8,14 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 
+	changelogSpec "github.com/moorara/changelog/spec"
+
 	"github.com/moorara/gelato/internal/command"
+	buildcmd "github.com/moorara/gelato/internal/command/build"
 	"github.com/moorara/gelato/internal/spec"
+	"github.com/moorara/gelato/pkg/semver"
 	"github.com/moorara/go-github"
 )
-
-type (
-	RemoteMock struct {
-		InName    string
-		OutDomain string
-		OutPath   string
-		OutError  error
-	}
-
-	HEADMock struct {
-		OutHash   string
-		OutBranch string
-		OutError  error
-	}
-
-	IsCleanMock struct {
-		OutBool  bool
-		OutError error
-	}
-
-	PullMock struct {
-		InContext context.Context
-		OutError  error
-	}
-
-	MockGitService struct {
-		RemoteIndex int
-		RemoteMocks []RemoteMock
-
-		HEADIndex int
-		HEADMocks []HEADMock
-
-		IsCleanIndex int
-		IsCleanMocks []IsCleanMock
-
-		PullIndex int
-		PullMocks []PullMock
-	}
-)
-
-func (m *MockGitService) Remote(name string) (string, string, error) {
-	i := m.RemoteIndex
-	m.RemoteIndex++
-	m.RemoteMocks[i].InName = name
-	return m.RemoteMocks[i].OutDomain, m.RemoteMocks[i].OutPath, m.RemoteMocks[i].OutError
-}
-
-func (m *MockGitService) HEAD() (string, string, error) {
-	i := m.HEADIndex
-	m.HEADIndex++
-	return m.HEADMocks[i].OutHash, m.HEADMocks[i].OutBranch, m.HEADMocks[i].OutError
-}
-
-func (m *MockGitService) IsClean() (bool, error) {
-	i := m.IsCleanIndex
-	m.IsCleanIndex++
-	return m.IsCleanMocks[i].OutBool, m.IsCleanMocks[i].OutError
-}
-
-func (m *MockGitService) Pull(ctx context.Context) error {
-	i := m.PullIndex
-	m.PullIndex++
-	return m.PullMocks[i].OutError
-}
-
-type (
-	UserMock struct {
-		InContext   context.Context
-		OutUser     *github.User
-		OutResponse *github.Response
-		OutError    error
-	}
-
-	MockUsersService struct {
-		UserIndex int
-		UserMocks []UserMock
-	}
-)
-
-func (m *MockUsersService) User(ctx context.Context) (*github.User, *github.Response, error) {
-	i := m.UserIndex
-	m.UserIndex++
-	m.UserMocks[i].InContext = ctx
-	return m.UserMocks[i].OutUser, m.UserMocks[i].OutResponse, m.UserMocks[i].OutError
-}
-
-type (
-	GetMock struct {
-		InContext     context.Context
-		OutRepository *github.Repository
-		OutResponse   *github.Response
-		OutError      error
-	}
-
-	PermissionMock struct {
-		InContext     context.Context
-		InUsername    string
-		OutPermission github.Permission
-		OutResponse   *github.Response
-		OutError      error
-	}
-
-	BranchProtectionMock struct {
-		InContext   context.Context
-		InBranch    string
-		InEnabled   bool
-		OutResponse *github.Response
-		OutError    error
-	}
-
-	CreateReleaseMock struct {
-		InContext   context.Context
-		InParams    github.ReleaseParams
-		OutRelease  *github.Release
-		OutResponse *github.Response
-		OutError    error
-	}
-
-	UpdateReleaseMock struct {
-		InContext   context.Context
-		InReleaseID int
-		InParams    github.ReleaseParams
-		OutRelease  *github.Release
-		OutResponse *github.Response
-		OutError    error
-	}
-
-	UploadReleaseAssetMock struct {
-		InContext       context.Context
-		InReleaseID     int
-		InAssetFile     string
-		InAssetLabel    string
-		OutReleaseAsset *github.ReleaseAsset
-		OutResponse     *github.Response
-		OutError        error
-	}
-
-	MockRepoService struct {
-		GetIndex int
-		GetMocks []GetMock
-
-		PermissionIndex int
-		PermissionMocks []PermissionMock
-
-		BranchProtectionIndex int
-		BranchProtectionMocks []BranchProtectionMock
-
-		CreateReleaseIndex int
-		CreateReleaseMocks []CreateReleaseMock
-
-		UpdateReleaseIndex int
-		UpdateReleaseMocks []UpdateReleaseMock
-
-		UploadReleaseAssetIndex int
-		UploadReleaseAssetMocks []UploadReleaseAssetMock
-	}
-)
-
-func (m *MockRepoService) Get(ctx context.Context) (*github.Repository, *github.Response, error) {
-	i := m.GetIndex
-	m.GetIndex++
-	m.GetMocks[i].InContext = ctx
-	return m.GetMocks[i].OutRepository, m.GetMocks[i].OutResponse, m.GetMocks[i].OutError
-}
-
-func (m *MockRepoService) Permission(ctx context.Context, username string) (github.Permission, *github.Response, error) {
-	i := m.PermissionIndex
-	m.PermissionIndex++
-	m.PermissionMocks[i].InContext = ctx
-	m.PermissionMocks[i].InUsername = username
-	return m.PermissionMocks[i].OutPermission, m.PermissionMocks[i].OutResponse, m.PermissionMocks[i].OutError
-}
-
-func (m *MockRepoService) BranchProtection(ctx context.Context, branch string, enabled bool) (*github.Response, error) {
-	i := m.BranchProtectionIndex
-	m.BranchProtectionIndex++
-	m.BranchProtectionMocks[i].InContext = ctx
-	m.BranchProtectionMocks[i].InBranch = branch
-	m.BranchProtectionMocks[i].InEnabled = enabled
-	return m.BranchProtectionMocks[i].OutResponse, m.BranchProtectionMocks[i].OutError
-}
-
-func (m *MockRepoService) CreateRelease(ctx context.Context, params github.ReleaseParams) (*github.Release, *github.Response, error) {
-	i := m.CreateReleaseIndex
-	m.CreateReleaseIndex++
-	m.CreateReleaseMocks[i].InContext = ctx
-	m.CreateReleaseMocks[i].InParams = params
-	return m.CreateReleaseMocks[i].OutRelease, m.CreateReleaseMocks[i].OutResponse, m.CreateReleaseMocks[i].OutError
-}
-
-func (m *MockRepoService) UpdateRelease(ctx context.Context, releaseID int, params github.ReleaseParams) (*github.Release, *github.Response, error) {
-	i := m.UpdateReleaseIndex
-	m.UpdateReleaseIndex++
-	m.UpdateReleaseMocks[i].InContext = ctx
-	m.UpdateReleaseMocks[i].InReleaseID = releaseID
-	m.UpdateReleaseMocks[i].InParams = params
-	return m.UpdateReleaseMocks[i].OutRelease, m.UpdateReleaseMocks[i].OutResponse, m.UpdateReleaseMocks[i].OutError
-}
-
-func (m *MockRepoService) UploadReleaseAsset(ctx context.Context, releaseID int, assetFile, assetLabel string) (*github.ReleaseAsset, *github.Response, error) {
-	i := m.UploadReleaseAssetIndex
-	m.UploadReleaseAssetIndex++
-	m.UploadReleaseAssetMocks[i].InContext = ctx
-	m.UploadReleaseAssetMocks[i].InReleaseID = releaseID
-	m.UploadReleaseAssetMocks[i].InAssetFile = assetFile
-	m.UploadReleaseAssetMocks[i].InAssetLabel = assetLabel
-	return m.UploadReleaseAssetMocks[i].OutReleaseAsset, m.UploadReleaseAssetMocks[i].OutResponse, m.UploadReleaseAssetMocks[i].OutError
-}
 
 func TestNewCommand(t *testing.T) {
 	tests := []struct {
@@ -262,9 +57,15 @@ func TestNewCommand(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, c)
+				assert.Equal(t, "moorara", c.data.owner)
+				assert.Equal(t, "gelato", c.data.repo)
+				assert.NotEmpty(t, c.data.changelogSpec)
 				assert.NotNil(t, c.services.git)
 				assert.NotNil(t, c.services.users)
 				assert.NotNil(t, c.services.repo)
+				assert.NotNil(t, c.services.changelog)
+				assert.NotNil(t, c.commands.semver)
+				assert.NotNil(t, c.commands.build)
 			}
 		})
 	}
@@ -285,11 +86,58 @@ func TestCommand_Help(t *testing.T) {
 }
 
 func TestCommand_Run(t *testing.T) {
+	user := github.User{
+		Login: "octocat",
+	}
+
+	repo := github.Repository{
+		Name:          "Hello-World",
+		FullName:      "octocat/Hello-World",
+		DefaultBranch: "main",
+	}
+
+	version := semver.SemVer{
+		Major: 0, Minor: 1, Patch: 0,
+		Prerelease: []string{"2", "605a46c"},
+	}
+
+	draftRelease := github.Release{
+		Name:       "0.1.0",
+		TagName:    "v0.1.0",
+		Target:     "main",
+		Draft:      true,
+		Prerelease: false,
+	}
+
+	artifacts := []buildcmd.Artifact{
+		{
+			Path:  "bin/app",
+			Label: "linux",
+		},
+	}
+
+	asset := github.ReleaseAsset{
+		Name:  "bin/app",
+		Label: "linux",
+	}
+
+	release := github.Release{
+		Name:       "0.1.0",
+		TagName:    "v0.1.0",
+		Target:     "main",
+		Draft:      false,
+		Prerelease: false,
+	}
+
 	tests := []struct {
 		name             string
+		spec             spec.Spec
 		git              *MockGitService
 		users            *MockUsersService
 		repo             *MockRepoService
+		changelog        *MockChangelogService
+		semver           *MockSemverCommand
+		build            *MockBuildCommand
 		args             []string
 		expectedExitCode int
 	}{
@@ -299,10 +147,27 @@ func TestCommand_Run(t *testing.T) {
 			expectedExitCode: command.FlagError,
 		},
 		{
+			name: "RepoGetFails",
+			spec: spec.Spec{},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
 			name: "GitHEADFails",
+			spec: spec.Spec{},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutError: errors.New("git error")},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
 				},
 			},
 			args:             []string{},
@@ -310,9 +175,15 @@ func TestCommand_Run(t *testing.T) {
 		},
 		{
 			name: "NotOnDefaultBranch",
+			spec: spec.Spec{},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutBranch: "feature-branch"},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
 				},
 			},
 			args:             []string{},
@@ -320,6 +191,7 @@ func TestCommand_Run(t *testing.T) {
 		},
 		{
 			name: "GitIsCleanFails",
+			spec: spec.Spec{},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutBranch: "main"},
@@ -328,11 +200,17 @@ func TestCommand_Run(t *testing.T) {
 					{OutError: errors.New("git error")},
 				},
 			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+			},
 			args:             []string{},
 			expectedExitCode: command.GitError,
 		},
 		{
 			name: "RepoNotClean",
+			spec: spec.Spec{},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutBranch: "main"},
@@ -341,17 +219,1037 @@ func TestCommand_Run(t *testing.T) {
 					{OutBool: false},
 				},
 			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+			},
 			args:             []string{},
 			expectedExitCode: command.GitError,
+		},
+		{
+			name: "UsersUserFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "RepoPermissionFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "InvalidUserPermission",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionWrite, OutResponse: &github.Response{}},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "GitPullFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "SemverRunFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.GitError},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "CreateReleaseFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "ChangelogGenerateFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutError: errors.New("changelog error")},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.ChangelogError,
+		},
+		{
+			name: "CreateCommitFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "CreateTagFails",
+			spec: spec.Spec{},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "BuildRunFails",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.GoError},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GoError,
+		},
+		{
+			name: "UploadReleaseAssetFails",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "EnableBranchProtectionFails",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "PushFails",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+				PushMocks: []PushMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutResponse: &github.Response{}},
+					{OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "PushTagFails",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+				PushMocks: []PushMock{
+					{OutError: nil},
+				},
+				PushTagMocks: []PushTagMock{
+					{OutError: errors.New("git error")},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutResponse: &github.Response{}},
+					{OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitError,
+		},
+		{
+			name: "UpdateReleaseFails",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+				PushMocks: []PushMock{
+					{OutError: nil},
+				},
+				PushTagMocks: []PushTagMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutResponse: &github.Response{}},
+					{OutResponse: &github.Response{}},
+				},
+				UpdateReleaseMocks: []UpdateReleaseMock{
+					{OutError: errors.New("github error")},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "Success_PatchRelease",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+				PushMocks: []PushMock{
+					{OutError: nil},
+				},
+				PushTagMocks: []PushTagMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutResponse: &github.Response{}},
+					{OutResponse: &github.Response{}},
+				},
+				UpdateReleaseMocks: []UpdateReleaseMock{
+					{OutRelease: &release, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "Success_MinorRelease",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+				PushMocks: []PushMock{
+					{OutError: nil},
+				},
+				PushTagMocks: []PushTagMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutResponse: &github.Response{}},
+					{OutResponse: &github.Response{}},
+				},
+				UpdateReleaseMocks: []UpdateReleaseMock{
+					{OutRelease: &release, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{"-minor"},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "Success_MajorRelease",
+			spec: spec.Spec{
+				Release: spec.Release{
+					Artifacts: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutBranch: "main"},
+				},
+				IsCleanMocks: []IsCleanMock{
+					{OutBool: true},
+				},
+				PullMocks: []PullMock{
+					{OutError: nil},
+				},
+				CreateCommitMocks: []CreateCommitMock{
+					{OutHash: "6e8c7d217faab1d88905d4c75b4e7995a42c81d5"},
+				},
+				CreateTagMocks: []CreateTagMock{
+					{OutHash: "a3580a0f64b08ba6085d530c828c40b8aa082c1e"},
+				},
+				PushMocks: []PushMock{
+					{OutError: nil},
+				},
+				PushTagMocks: []PushTagMock{
+					{OutError: nil},
+				},
+			},
+			users: &MockUsersService{
+				UserMocks: []UserMock{
+					{OutUser: &user, OutResponse: &github.Response{}},
+				},
+			},
+			repo: &MockRepoService{
+				GetMocks: []GetMock{
+					{OutRepository: &repo, OutResponse: &github.Response{}},
+				},
+				PermissionMocks: []PermissionMock{
+					{OutPermission: github.PermissionAdmin, OutResponse: &github.Response{}},
+				},
+				CreateReleaseMocks: []CreateReleaseMock{
+					{OutRelease: &draftRelease, OutResponse: &github.Response{}},
+				},
+				UploadReleaseAssetMocks: []UploadReleaseAssetMock{
+					{OutReleaseAsset: &asset, OutResponse: &github.Response{}},
+				},
+				BranchProtectionMocks: []BranchProtectionMock{
+					{OutResponse: &github.Response{}},
+					{OutResponse: &github.Response{}},
+				},
+				UpdateReleaseMocks: []UpdateReleaseMock{
+					{OutRelease: &release, OutResponse: &github.Response{}},
+				},
+			},
+			changelog: &MockChangelogService{
+				GenerateMocks: []GenerateMock{
+					{OutContent: "changelog content"},
+				},
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []SemverRunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{OutSemVer: version},
+				},
+			},
+			build: &MockBuildCommand{
+				RunMocks: []BuildRunMock{
+					{OutCode: command.Success},
+				},
+				ArtifactsMocks: []ArtifactsMock{
+					{OutArtifacts: artifacts},
+				},
+			},
+			args:             []string{"-major"},
+			expectedExitCode: command.Success,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &Command{ui: new(cli.MockUi)}
+			c := &Command{
+				ui:   new(cli.MockUi),
+				spec: tc.spec,
+			}
+
+			c.data.owner = "octocat"
+			c.data.repo = "Hello-World"
+			c.data.changelogSpec = changelogSpec.Spec{
+				General: changelogSpec.General{
+					File: "CHANGELOG.md",
+				},
+			}
+
 			c.services.git = tc.git
 			c.services.users = tc.users
 			c.services.repo = tc.repo
+			c.services.changelog = tc.changelog
+			c.commands.semver = tc.semver
+			c.commands.build = tc.build
 
 			exitCode := c.Run(tc.args)
 
