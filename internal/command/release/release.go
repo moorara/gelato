@@ -397,17 +397,17 @@ func (c *Command) Run(args []string) int {
 
 		c.ui.Output(fmt.Sprintf("Uploading artifacts to release %s ...", release.Name))
 
-		g1, ctx1 := errgroup.WithContext(ctx)
+		group, groupCtx := errgroup.WithContext(ctx)
 
 		for _, artifact := range c.commands.build.Artifacts() {
 			artifact := artifact // https://golang.org/doc/faq#closures_and_goroutines
-			g1.Go(func() error {
-				_, _, err := c.services.repo.UploadReleaseAsset(ctx1, release.ID, artifact.Path, artifact.Label)
+			group.Go(func() error {
+				_, _, err := c.services.repo.UploadReleaseAsset(groupCtx, release.ID, artifact.Path, artifact.Label)
 				return err
 			})
 		}
 
-		if err := g1.Wait(); err != nil {
+		if err := group.Wait(); err != nil {
 			c.ui.Error(err.Error())
 			return command.GitHubError
 		}

@@ -179,6 +179,8 @@ func (c *Command) Run(args []string) int {
 
 	c.ui.Output(sv.String())
 
+	// ==============================> DONE <==============================
+
 	return command.Success
 }
 

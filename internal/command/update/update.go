@@ -128,5 +128,7 @@ func (c *Command) Run(args []string) int {
 
 	c.ui.Info(fmt.Sprintf("🍨 Gelato %s written to %s", release.Name, binPath))
 
+	// ==============================> DONE <==============================
+
 	return command.Success
 }

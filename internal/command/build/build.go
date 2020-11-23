@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mitchellh/cli"
@@ -72,6 +73,7 @@ type Artifact struct {
 
 // Command is the cli.Command implementation for build command.
 type Command struct {
+	sync.Mutex
 	ui       cli.Ui
 	spec     spec.Spec
 	services struct {
@@ -240,6 +242,8 @@ func (c *Command) Run(args []string) int {
 		c.ui.Warn("Run gelato build -help for more information.")
 	}
 
+	// ==============================> DONE <==============================
+
 	return command.Success
 }
 
@@ -251,7 +255,7 @@ func (c *Command) buildAll(ctx context.Context, ldFlags, mainPkg, output string)
 	// Cross-compiling
 	group, groupCtx := errgroup.WithContext(ctx)
 	for _, platform := range c.spec.Build.Platforms {
-		output += "-" + platform
+		output := output + "-" + platform
 		vals := strings.Split(platform, "-")
 
 		group.Go(func() error {
@@ -284,10 +288,12 @@ func (c *Command) build(ctx context.Context, os, arch, ldFlags, mainPkg, output 
 		return err
 	}
 
+	c.Mutex.Lock()
 	c.outputs.artifacts = append(c.outputs.artifacts, Artifact{
 		Path:  output,
 		Label: os,
 	})
+	c.Mutex.Unlock()
 
 	c.ui.Output("🍨 " + output)
 

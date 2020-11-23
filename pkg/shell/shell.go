@@ -30,17 +30,15 @@ func run(ctx context.Context, opts RunOptions, command string, args ...string) (
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
+	cmd.Env = os.Environ()
 	for key, val := range opts.Environment {
-		cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", key, val))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", key, val))
 	}
 
 	err := cmd.Run()
 	if err != nil {
 		cmdError = fmt.Errorf("error on running %s: %s: %s",
-			strings.Join(
-				append([]string{command}, args...),
-				" ",
-			),
+			strings.Join(append([]string{command}, args...), " "),
 			err,
 			strings.Trim(stderr.String(), "\n"),
 		)
