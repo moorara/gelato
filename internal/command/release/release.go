@@ -395,7 +395,7 @@ func (c *Command) Run(args []string) int {
 			return code
 		}
 
-		c.ui.Output(fmt.Sprintf("Uploading artifacts to release %s ...", release.Name))
+		c.ui.Info(fmt.Sprintf("Uploading artifacts to release %s ...", release.Name))
 
 		group, groupCtx := errgroup.WithContext(ctx)
 
