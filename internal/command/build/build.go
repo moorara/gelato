@@ -48,6 +48,7 @@ const (
 const (
 	cmdPath     = "./cmd"
 	versionPath = "./version"
+	timeFormat  = "2006-01-02 15:04:05 MST"
 )
 
 var (
@@ -185,7 +186,7 @@ func (c *Command) Run(args []string) int {
 	// Construct the LD flags only if the version package exist
 	if versionPkg != "" {
 		goVersion = goVersionRE.FindString(goVersion)
-		buildTime := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+		buildTime := time.Now().UTC().Format(timeFormat)
 		buildTool := "Gelato"
 		if c.spec.GelatoVersion != "" {
 			buildTool += " " + c.spec.GelatoVersion
@@ -290,8 +291,7 @@ func (c *Command) build(ctx context.Context, os, arch, ldFlags, mainPkg, output 
 
 	c.Mutex.Lock()
 	c.outputs.artifacts = append(c.outputs.artifacts, Artifact{
-		Path:  output,
-		Label: os,
+		Path: output,
 	})
 	c.Mutex.Unlock()
 
