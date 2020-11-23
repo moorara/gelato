@@ -11,13 +11,23 @@ import (
 	"text/template"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/mitchellh/cli"
 	"github.com/moorara/go-github"
 
+	changelog "github.com/moorara/changelog/generate"
+	changelogSpec "github.com/moorara/changelog/spec"
+
 	"github.com/moorara/gelato/internal/command"
+	buildcmd "github.com/moorara/gelato/internal/command/build"
+	semvercmd "github.com/moorara/gelato/internal/command/semver"
 	"github.com/moorara/gelato/internal/git"
 	"github.com/moorara/gelato/internal/spec"
+	"github.com/moorara/gelato/pkg/semver"
 )
+
+const remoteName = "origin"
 
 const (
 	releaseTimeout  = 10 * time.Minute
@@ -60,7 +70,11 @@ type (
 		Remote(string) (string, string, error)
 		HEAD() (string, string, error)
 		IsClean() (bool, error)
-		Pull(ctx context.Context) error
+		CreateCommit(string, ...string) (string, error)
+		CreateTag(string, string, string) (string, error)
+		Pull(context.Context) error
+		Push(context.Context, string) error
+		PushTag(context.Context, string, string) error
 	}
 
 	usersService interface {
@@ -75,31 +89,53 @@ type (
 		UpdateRelease(context.Context, int, github.ReleaseParams) (*github.Release, *github.Response, error)
 		UploadReleaseAsset(context.Context, int, string, string) (*github.ReleaseAsset, *github.Response, error)
 	}
+
+	changelogService interface {
+		Generate(context.Context, changelogSpec.Spec) (string, error)
+	}
+
+	semverCommand interface {
+		Run([]string) int
+		SemVer() semver.SemVer
+	}
+
+	buildCommand interface {
+		Run([]string) int
+		Artifacts() []buildcmd.Artifact
+	}
 )
 
 // Command is the cli.Command implementation for release command.
 type Command struct {
-	ui       cli.Ui
-	spec     spec.Spec
-	owner    string
-	repo     string
+	ui   cli.Ui
+	spec spec.Spec
+	data struct {
+		owner         string
+		repo          string
+		changelogSpec changelogSpec.Spec
+	}
 	services struct {
-		git   gitService
-		users usersService
-		repo  repoService
+		git       gitService
+		users     usersService
+		repo      repoService
+		changelog changelogService
+	}
+	commands struct {
+		semver semverCommand
+		build  buildCommand
 	}
 	outputs struct{}
 }
 
 // NewCommand creates a release command.
 func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
-	g, err := git.New(".")
+	git, err := git.New(".")
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO: should we check for other remote names too?
-	domain, path, err := g.Remote("origin")
+	domain, path, err := git.Remote(remoteName)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +148,7 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	if len(parts) != 2 {
 		return nil, errors.New("unexpected GitHub repository: cannot parse owner and repo")
 	}
+	ownerName, repoName := parts[0], parts[1]
 
 	token := os.Getenv("GELATO_GITHUB_TOKEN")
 	if token == "" {
@@ -119,18 +156,46 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	}
 
 	client := github.NewClient(token)
-	repo := client.Repo(parts[0], parts[1])
+	repo := client.Repo(ownerName, repoName)
 
-	c := &Command{
-		ui:    ui,
-		spec:  spec,
-		owner: parts[0],
-		repo:  parts[1],
+	chlogSpec := changelogSpec.Default(domain, path)
+	chlogSpec.Repo.AccessToken = token
+	if chlogSpec, err = changelogSpec.FromFile(chlogSpec); err != nil {
+		return nil, err
 	}
 
-	c.services.git = g
+	chlogLogger := newLogger(ui)
+
+	changelog, err := changelog.New(chlogSpec, chlogLogger)
+	if err != nil {
+		return nil, err
+	}
+
+	semver, err := semvercmd.NewCommand(&cli.MockUi{})
+	if err != nil {
+		return nil, err
+	}
+
+	build, err := buildcmd.NewCommand(ui, spec)
+	if err != nil {
+		return nil, err
+	}
+
+	c := &Command{
+		ui:   ui,
+		spec: spec,
+	}
+
+	c.data.owner = ownerName
+	c.data.repo = repoName
+	c.data.changelogSpec = chlogSpec
+
+	c.services.git = git
 	c.services.users = client.Users
 	c.services.repo = repo
+	c.services.changelog = changelog
+	c.commands.semver = semver
+	c.commands.build = build
 
 	return c, nil
 }
@@ -150,16 +215,16 @@ func (c *Command) Help() string {
 
 // Run runs the actual command with the given command-line arguments.
 func (c *Command) Run(args []string) int {
-	params := struct {
+	flags := struct {
 		patch, minor, major bool
 		comment             string
 	}{}
 
 	fs := c.spec.Release.FlagSet()
-	fs.BoolVar(&params.patch, "patch", true, "")
-	fs.BoolVar(&params.minor, "minor", false, "")
-	fs.BoolVar(&params.major, "major", false, "")
-	fs.StringVar(&params.comment, "comment", "", "")
+	fs.BoolVar(&flags.patch, "patch", true, "")
+	fs.BoolVar(&flags.minor, "minor", false, "")
+	fs.BoolVar(&flags.major, "major", false, "")
+	fs.StringVar(&flags.comment, "comment", "", "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -183,6 +248,14 @@ func (c *Command) Run(args []string) int {
 		return command.PreflightError
 	}
 
+	// ==============================> FIND OUT DEFAULT BRANCH <==============================
+
+	repo, _, err := c.services.repo.Get(ctx)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
 	// ==============================> CHECK GIT REPO <==============================
 
 	_, gitBranch, err := c.services.git.HEAD()
@@ -191,9 +264,10 @@ func (c *Command) Run(args []string) int {
 		return command.GitError
 	}
 
-	// TODO: find out default branch
-	if gitBranch != "main" {
-		c.ui.Error("A repository can be released only from the master branch.")
+	if gitBranch != repo.DefaultBranch {
+		c.ui.Error("The repository can only be released from the default branch.")
+		c.ui.Error(fmt.Sprintf("  Git Branch:      %s", gitBranch))
+		c.ui.Error(fmt.Sprintf("  Default Branch:  %s", repo.DefaultBranch))
 		return command.GitError
 	}
 
@@ -225,13 +299,13 @@ func (c *Command) Run(args []string) int {
 	}
 
 	if perm != github.PermissionAdmin {
-		c.ui.Error(fmt.Sprintf("The GitHub token does not have admin permission for releasing %s/%s", c.owner, c.repo))
+		c.ui.Error(fmt.Sprintf("The GitHub token does not have admin permission for releasing %s/%s", c.data.owner, c.data.repo))
 		return command.GitHubError
 	}
 
 	// ==============================> UPDATE DEFAULT BRANCH <==============================
 
-	c.ui.Output("Pulling the latest changes on the master branch ...")
+	c.ui.Info(fmt.Sprintf("Pulling the latest changes on the %s branch ...", gitBranch))
 
 	err = c.services.git.Pull(ctx)
 	if err != nil {
@@ -239,21 +313,164 @@ func (c *Command) Run(args []string) int {
 		return command.GitError
 	}
 
-	// RESOLVE THE RELEASE SEMANTIC VERSION
+	// ==============================> RESOLVE SEMANTIC VERSION <==============================
 
-	// CREATE A DRAFT RELEASE
+	// Run semver command
+	code := c.commands.semver.Run(nil)
+	if code != command.Success {
+		return code
+	}
 
-	// GENERATE CHANGELOG
+	var version semver.SemVer
 
-	// CREATE RELEASE COMMIT & TAG
+	switch {
+	case flags.major:
+		version = c.commands.semver.SemVer().ReleaseMajor()
+	case flags.minor:
+		version = c.commands.semver.SemVer().ReleaseMinor()
+	case flags.patch:
+		fallthrough
+	default:
+		version = c.commands.semver.SemVer().ReleasePatch()
+	}
 
-	// BUILDING AND UPLOADING ARTIFACTS
+	tagName := "v" + version.String()
 
-	// TEMPORARILY ENABLE PUSH TO DEFAULT BRANCH (MASTER)
+	// ==============================> CREATE A DRAFT RELEASE <==============================
 
-	// PUSH RELEASE COMMIT & TAG
+	c.ui.Info(fmt.Sprintf("Creating the draft release %s ...", version))
 
-	// PUBLISH THE DRAFT RELEASE
+	params := github.ReleaseParams{
+		Name:       version.String(),
+		TagName:    tagName,
+		Target:     gitBranch,
+		Draft:      true,
+		Prerelease: false,
+	}
+
+	release, _, err := c.services.repo.CreateRelease(ctx, params)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
+	// ==============================> GENERATE CHANGELOG <==============================
+
+	c.ui.Info(fmt.Sprintf("Creating/Updating the changelog (%s) ...", c.data.changelogSpec.General.File))
+
+	c.data.changelogSpec.Tags.Future = tagName
+
+	changelog, err := c.services.changelog.Generate(ctx, c.data.changelogSpec)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.ChangelogError
+	}
+
+	// ==============================> CREATE RELEASE COMMIT & TAG <==============================
+
+	c.ui.Info(fmt.Sprintf("Creating the release commit and tag %s ...", version))
+
+	message := fmt.Sprintf("Release %s", version)
+
+	commit, err := c.services.git.CreateCommit(message, c.data.changelogSpec.General.File)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	_, err = c.services.git.CreateTag(commit, tagName, message)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	// ==============================> BUILD AND UPLOAD ARTIFACTS  <==============================
+
+	if c.spec.Release.Artifacts {
+		c.ui.Output("Building artifacts ...")
+
+		// Run build command
+		code = c.commands.build.Run(nil)
+		if code != command.Success {
+			return code
+		}
+
+		c.ui.Output(fmt.Sprintf("Uploading artifacts to release %s ...", release.Name))
+
+		group, groupCtx := errgroup.WithContext(ctx)
+
+		for _, artifact := range c.commands.build.Artifacts() {
+			artifact := artifact // https://golang.org/doc/faq#closures_and_goroutines
+			group.Go(func() error {
+				_, _, err := c.services.repo.UploadReleaseAsset(groupCtx, release.ID, artifact.Path, artifact.Label)
+				return err
+			})
+		}
+
+		if err := group.Wait(); err != nil {
+			c.ui.Error(err.Error())
+			return command.GitHubError
+		}
+	}
+
+	// ==============================> ENABLE PUSH TO DEFAULT BRANCH <==============================
+
+	c.ui.Warn(fmt.Sprintf("Temporarily enabling push to %s branch ...", gitBranch))
+
+	_, err = c.services.repo.BranchProtection(ctx, gitBranch, true)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
+	// Make sure we re-enable the branch protection
+	defer func() {
+		c.ui.Warn(fmt.Sprintf("🔒 Re-disabling push to %s branch ...", gitBranch))
+		_, err := c.services.repo.BranchProtection(ctx, gitBranch, false)
+		if err != nil {
+			c.ui.Error(err.Error())
+			os.Exit(command.GitHubError)
+		}
+	}()
+
+	// ==============================> PUSH RELEASE COMMIT & TAG <==============================
+
+	c.ui.Info(fmt.Sprintf("Pushing release commit %s ...", version))
+
+	err = c.services.git.Push(ctx, remoteName)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	c.ui.Info(fmt.Sprintf("Pushing release tag %s ...", tagName))
+
+	err = c.services.git.PushTag(ctx, remoteName, tagName)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	// ==============================> PUBLISH THE RELEASE <==============================
+
+	c.ui.Info(fmt.Sprintf("Publishing release %s ...", release.Name))
+
+	params = github.ReleaseParams{
+		Name:       release.Name,
+		TagName:    release.TagName,
+		Target:     release.Target,
+		Draft:      false,
+		Prerelease: false,
+		Body:       fmt.Sprintf("%s\n\n%s", flags.comment, changelog),
+	}
+
+	release, _, err = c.services.repo.UpdateRelease(ctx, release.ID, params)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitHubError
+	}
+
+	// ==============================> DONE <==============================
 
 	return command.Success
 }

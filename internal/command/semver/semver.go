@@ -46,7 +46,7 @@ type Command struct {
 
 // NewCommand creates a semver command.
 func NewCommand(ui cli.Ui) (*Command, error) {
-	g, err := git.New(".")
+	git, err := git.New(".")
 	if err != nil {
 		return nil, err
 	}
@@ -55,7 +55,7 @@ func NewCommand(ui cli.Ui) (*Command, error) {
 		ui: ui,
 	}
 
-	c.services.git = g
+	c.services.git = git
 
 	return c, nil
 }
@@ -178,6 +178,8 @@ func (c *Command) Run(args []string) int {
 	c.outputs.semver = sv
 
 	c.ui.Output(sv.String())
+
+	// ==============================> DONE <==============================
 
 	return command.Success
 }

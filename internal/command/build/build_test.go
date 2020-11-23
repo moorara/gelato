@@ -159,3 +159,14 @@ func TestCommand_Run(t *testing.T) {
 		})
 	}
 }
+
+func TestCommand_Artifacts(t *testing.T) {
+	artifacts := []Artifact{
+		{"bin/app", "linux"},
+	}
+
+	c := &Command{}
+	c.outputs.artifacts = artifacts
+
+	assert.Equal(t, artifacts, c.Artifacts())
+}

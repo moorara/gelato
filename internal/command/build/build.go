@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mitchellh/cli"
@@ -47,6 +48,7 @@ const (
 const (
 	cmdPath     = "./cmd"
 	versionPath = "./version"
+	timeFormat  = "2006-01-02 15:04:05 MST"
 )
 
 var (
@@ -64,8 +66,15 @@ type (
 	}
 )
 
+// Artifact is a build artifacts.
+type Artifact struct {
+	Path  string
+	Label string
+}
+
 // Command is the cli.Command implementation for build command.
 type Command struct {
+	sync.Mutex
 	ui       cli.Ui
 	spec     spec.Spec
 	services struct {
@@ -75,20 +84,18 @@ type Command struct {
 		semver semverCommand
 	}
 	outputs struct {
-		artifacts struct {
-			binaries []string
-		}
+		artifacts []Artifact
 	}
 }
 
 // NewCommand creates a build command.
 func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
-	g, err := git.New(".")
+	git, err := git.New(".")
 	if err != nil {
 		return nil, err
 	}
 
-	s, err := semvercmd.NewCommand(ui)
+	semver, err := semvercmd.NewCommand(&cli.MockUi{})
 	if err != nil {
 		return nil, err
 	}
@@ -98,8 +105,8 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 		spec: spec,
 	}
 
-	c.services.git = g
-	c.commands.semver = s
+	c.services.git = git
+	c.commands.semver = semver
 
 	return c, nil
 }
@@ -179,7 +186,7 @@ func (c *Command) Run(args []string) int {
 	// Construct the LD flags only if the version package exist
 	if versionPkg != "" {
 		goVersion = goVersionRE.FindString(goVersion)
-		buildTime := time.Now().UTC().Format("2006-01-02 15:04:05 MST")
+		buildTime := time.Now().UTC().Format(timeFormat)
 		buildTool := "Gelato"
 		if c.spec.GelatoVersion != "" {
 			buildTool += " " + c.spec.GelatoVersion
@@ -231,10 +238,12 @@ func (c *Command) Run(args []string) int {
 		}
 	}
 
-	if len(c.outputs.artifacts.binaries) == 0 {
+	if len(c.outputs.artifacts) == 0 {
 		c.ui.Warn("No main package found.")
 		c.ui.Warn("Run gelato build -help for more information.")
 	}
+
+	// ==============================> DONE <==============================
 
 	return command.Success
 }
@@ -247,7 +256,7 @@ func (c *Command) buildAll(ctx context.Context, ldFlags, mainPkg, output string)
 	// Cross-compiling
 	group, groupCtx := errgroup.WithContext(ctx)
 	for _, platform := range c.spec.Build.Platforms {
-		output += "-" + platform
+		output := output + "-" + platform
 		vals := strings.Split(platform, "-")
 
 		group.Go(func() error {
@@ -280,8 +289,18 @@ func (c *Command) build(ctx context.Context, os, arch, ldFlags, mainPkg, output 
 		return err
 	}
 
-	c.outputs.artifacts.binaries = append(c.outputs.artifacts.binaries, output)
+	c.Mutex.Lock()
+	c.outputs.artifacts = append(c.outputs.artifacts, Artifact{
+		Path: output,
+	})
+	c.Mutex.Unlock()
+
 	c.ui.Output("🍨 " + output)
 
 	return nil
+}
+
+// Artifacts returns the build artifacts after the command is run.
+func (c *Command) Artifacts() []Artifact {
+	return c.outputs.artifacts
 }

@@ -177,10 +177,6 @@ func TestGit_HEAD(t *testing.T) {
 	assert.NotEmpty(t, branch)
 }
 
-func TestGit_Pull(t *testing.T) {
-	// An actual Pull has side effects!
-}
-
 func TestGit_Tag(t *testing.T) {
 	// TODO: uncomment after releasing
 	// repo, err := git.PlainOpen("../..")
@@ -205,7 +201,11 @@ func TestGit_Tags(t *testing.T) {
 	// assert.NotEmpty(t, tags)
 }
 
-func TestGit_Commits(t *testing.T) {
+func TestGit_CreateTag(t *testing.T) {
+	// CreateTag has side effects!
+}
+
+func TestGit_CommitsIn(t *testing.T) {
 	repo, err := git.PlainOpen("../..")
 	assert.NoError(t, err)
 
@@ -214,4 +214,20 @@ func TestGit_Commits(t *testing.T) {
 	commits, err := g.CommitsIn("HEAD")
 	assert.NoError(t, err)
 	assert.NotEmpty(t, commits)
+}
+
+func TestGit_CreateCommit(t *testing.T) {
+	// CreateCommit has side effects!
+}
+
+func TestGit_Pull(t *testing.T) {
+	// Pull has side effects!
+}
+
+func TestGit_Push(t *testing.T) {
+	// Push has side effects!
+}
+
+func TestGit_PushTag(t *testing.T) {
+	// PushTag has side effects!
 }
