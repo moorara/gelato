@@ -417,7 +417,7 @@ func (c *Command) Run(args []string) int {
 
 	c.ui.Warn(fmt.Sprintf("Temporarily enabling push to %s branch ...", gitBranch))
 
-	_, err = c.services.repo.BranchProtection(ctx, gitBranch, true)
+	_, err = c.services.repo.BranchProtection(ctx, gitBranch, false)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitHubError
@@ -426,7 +426,7 @@ func (c *Command) Run(args []string) int {
 	// Make sure we re-enable the branch protection
 	defer func() {
 		c.ui.Warn(fmt.Sprintf("🔒 Re-disabling push to %s branch ...", gitBranch))
-		_, err := c.services.repo.BranchProtection(ctx, gitBranch, false)
+		_, err := c.services.repo.BranchProtection(ctx, gitBranch, true)
 		if err != nil {
 			c.ui.Error(err.Error())
 			os.Exit(command.GitHubError)

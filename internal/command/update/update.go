@@ -50,9 +50,9 @@ type Command struct {
 // NewCommand creates an update command.
 func NewCommand(ui cli.Ui) (*Command, error) {
 	// If no access token is provided, we try without it!
-	githubToken := os.Getenv("GELATO_GITHUB_TOKEN")
+	token := os.Getenv("GELATO_GITHUB_TOKEN")
 
-	client := github.NewClient(githubToken)
+	client := github.NewClient(token)
 	repo := client.Repo(updateOwner, updateRepo)
 
 	c := &Command{
@@ -100,7 +100,7 @@ func (c *Command) Run(args []string) int {
 
 	// ==============================> GET THE LATEST RELEASE <==============================
 
-	c.ui.Output("⬇ Finding the latest release of Gelato ...")
+	c.ui.Output("Finding the latest release of Gelato ...")
 
 	release, _, err := c.services.repo.LatestRelease(ctx)
 	if err != nil {
@@ -110,7 +110,7 @@ func (c *Command) Run(args []string) int {
 
 	// ==============================> DOWNLOAD THE LATEST BINARY <==============================
 
-	c.ui.Output(fmt.Sprintf("⬇ Downloading Gelato %s ...", release.TagName))
+	c.ui.Output(fmt.Sprintf("Downloading Gelato %s ...", release.TagName))
 
 	assetName := fmt.Sprintf("gelato-%s-%s", runtime.GOOS, runtime.GOARCH)
 
