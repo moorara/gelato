@@ -158,12 +158,13 @@ func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	client := github.NewClient(token)
 	repo := client.Repo(ownerName, repoName)
 
-	chlogSpec := changelogSpec.Default(domain, path)
-	chlogSpec.Repo.AccessToken = token
-	if chlogSpec, err = changelogSpec.FromFile(chlogSpec); err != nil {
+	chlogSpec, err := changelogSpec.Default().FromFile()
+	if err != nil {
 		return nil, err
 	}
 
+	chlogSpec = chlogSpec.WithRepo(domain, path)
+	chlogSpec.Repo.AccessToken = token
 	chlogLogger := newLogger(ui)
 
 	changelog, err := changelog.New(chlogSpec, chlogLogger)
