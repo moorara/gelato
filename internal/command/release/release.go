@@ -3,7 +3,6 @@ package release
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -129,76 +128,10 @@ type Command struct {
 
 // NewCommand creates a release command.
 func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
-	git, err := git.New(".")
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: should we check for other remote names too?
-	domain, path, err := git.Remote(remoteName)
-	if err != nil {
-		return nil, err
-	}
-
-	if domain != "github.com" {
-		return nil, fmt.Errorf("unsupported Git platform: %s", domain)
-	}
-
-	parts := strings.Split(path, "/")
-	if len(parts) != 2 {
-		return nil, errors.New("unexpected GitHub repository: cannot parse owner and repo")
-	}
-	ownerName, repoName := parts[0], parts[1]
-
-	token := os.Getenv("GELATO_GITHUB_TOKEN")
-	if token == "" {
-		return nil, errors.New("GELATO_GITHUB_TOKEN environment variable not set")
-	}
-
-	client := github.NewClient(token)
-	repo := client.Repo(ownerName, repoName)
-
-	chlogSpec, err := changelogSpec.Default().FromFile()
-	if err != nil {
-		return nil, err
-	}
-
-	chlogSpec = chlogSpec.WithRepo(domain, path)
-	chlogSpec.Repo.AccessToken = token
-	chlogLogger := newLogger(ui)
-
-	changelog, err := changelog.New(chlogSpec, chlogLogger)
-	if err != nil {
-		return nil, err
-	}
-
-	semver, err := semvercmd.NewCommand(&cli.MockUi{})
-	if err != nil {
-		return nil, err
-	}
-
-	build, err := buildcmd.NewCommand(ui, spec)
-	if err != nil {
-		return nil, err
-	}
-
-	c := &Command{
+	return &Command{
 		ui:   ui,
 		spec: spec,
-	}
-
-	c.data.owner = ownerName
-	c.data.repo = repoName
-	c.data.changelogSpec = chlogSpec
-
-	c.services.git = git
-	c.services.users = client.Users
-	c.services.repo = repo
-	c.services.changelog = changelog
-	c.commands.semver = semver
-	c.commands.build = build
-
-	return c, nil
+	}, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -216,6 +149,75 @@ func (c *Command) Help() string {
 
 // Run runs the actual command with the given command-line arguments.
 func (c *Command) Run(args []string) int {
+	git, err := git.New(".")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	// TODO: should we check for other remote names too?
+	domain, path, err := git.Remote(remoteName)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	if domain != "github.com" {
+		c.ui.Error(fmt.Sprintf("unsupported Git platform: %s", domain))
+		return command.GitHubError
+	}
+
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 {
+		c.ui.Error("unexpected GitHub repository: cannot parse owner and repo")
+		return command.GitHubError
+	}
+	ownerName, repoName := parts[0], parts[1]
+
+	token := os.Getenv("GELATO_GITHUB_TOKEN")
+	if token == "" {
+		c.ui.Error("GELATO_GITHUB_TOKEN environment variable not set")
+		return command.GitHubError
+	}
+
+	client := github.NewClient(token)
+	repo := client.Repo(ownerName, repoName)
+
+	chlogSpec, err := changelogSpec.Default().FromFile()
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.ChangelogError
+	}
+
+	chlogSpec = chlogSpec.WithRepo(domain, path)
+	chlogSpec.Repo.AccessToken = token
+	chlogLogger := newLogger(c.ui)
+
+	changelog, err := changelog.New(chlogSpec, chlogLogger)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.ChangelogError
+	}
+
+	semver, _ := semvercmd.NewCommand(&cli.MockUi{})
+	build, _ := buildcmd.NewCommand(c.ui, c.spec)
+
+	c.data.owner = ownerName
+	c.data.repo = repoName
+	c.data.changelogSpec = chlogSpec
+
+	c.services.git = git
+	c.services.users = client.Users
+	c.services.repo = repo
+	c.services.changelog = changelog
+	c.commands.semver = semver
+	c.commands.build = build
+
+	return c.run(args)
+}
+
+// run in an auxiliary method, so we can test the business logic with mock dependencies.
+func (c *Command) run(args []string) int {
 	flags := struct {
 		patch, minor, major bool
 		comment             string

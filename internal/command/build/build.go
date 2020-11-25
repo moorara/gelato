@@ -90,25 +90,10 @@ type Command struct {
 
 // NewCommand creates a build command.
 func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
-	git, err := git.New(".")
-	if err != nil {
-		return nil, err
-	}
-
-	semver, err := semvercmd.NewCommand(&cli.MockUi{})
-	if err != nil {
-		return nil, err
-	}
-
-	c := &Command{
+	return &Command{
 		ui:   ui,
 		spec: spec,
-	}
-
-	c.services.git = git
-	c.commands.semver = semver
-
-	return c, nil
+	}, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -126,6 +111,22 @@ func (c *Command) Help() string {
 
 // Run runs the actual command with the given command-line arguments.
 func (c *Command) Run(args []string) int {
+	git, err := git.New(".")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	semver, _ := semvercmd.NewCommand(&cli.MockUi{})
+
+	c.services.git = git
+	c.commands.semver = semver
+
+	return c.run(args)
+}
+
+// run in an auxiliary method, so we can test the business logic with mock dependencies.
+func (c *Command) run(args []string) int {
 	fs := c.spec.Build.FlagSet()
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
@@ -158,12 +159,6 @@ func (c *Command) Run(args []string) int {
 		return command.GitError
 	}
 
-	_, goVersion, err := shell.Run(ctx, "go", "version")
-	if err != nil {
-		c.ui.Error(err.Error())
-		return command.GoError
-	}
-
 	_, versionPkg, err := shell.Run(ctx, "go", "list", versionPath)
 	if err != nil {
 		c.ui.Warn(err.Error())
@@ -185,9 +180,10 @@ func (c *Command) Run(args []string) int {
 
 	// Construct the LD flags only if the version package exist
 	if versionPkg != "" {
-		goVersion = goVersionRE.FindString(goVersion)
+		goVersion := goVersionRE.FindString(info.GoVersion)
 		buildTime := time.Now().UTC().Format(timeFormat)
 		buildTool := "Gelato"
+
 		if c.spec.GelatoVersion != "" {
 			buildTool += " " + c.spec.GelatoVersion
 		}

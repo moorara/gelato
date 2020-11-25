@@ -76,7 +76,6 @@ github.com/mitchellh/reflectwalk v1.0.0 h1:9D+8oIskB4VJBN5SFlmc27fSlIBZaov1Wpk/I
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/moorara/changelog v0.0.0-20201124170551-67fa37ed80ed h1:ZQ7dB/6maD0iS9d2J34BoQFBbVqajhvwzAB70A0l5sg=
 github.com/moorara/changelog v0.0.0-20201124170551-67fa37ed80ed/go.mod h1:iPE3uzmXjiNV1jAttlrDu0FgeMmeDjqGoVZjH2g+86g=
-github.com/moorara/changelog v0.1.0 h1:oXd+szGKjWPoxgbLU7uGXfQeiu1Z4md8oofirZYBkLA=
 github.com/moorara/color v1.10.0 h1:I+ygBTlGal2TNOPppta6gIJwA7nTgM6+KwDEoW7rBxM=
 github.com/moorara/color v1.10.0/go.mod h1:3aubW6/BmR4jFTNcHLfMSu7nGReKuiJ6yOGpvNCDZZc=
 github.com/moorara/flagit v0.1.3/go.mod h1:LPC8mAkHC1DtENHIifNfsup6E9yrcGJdx2WFtlPA6Sk=

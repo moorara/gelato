@@ -49,19 +49,9 @@ type Command struct {
 
 // NewCommand creates an update command.
 func NewCommand(ui cli.Ui) (*Command, error) {
-	// If no access token is provided, we try without it!
-	token := os.Getenv("GELATO_GITHUB_TOKEN")
-
-	client := github.NewClient(token)
-	repo := client.Repo(updateOwner, updateRepo)
-
-	c := &Command{
+	return &Command{
 		ui: ui,
-	}
-
-	c.services.repo = repo
-
-	return c, nil
+	}, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -76,6 +66,19 @@ func (c *Command) Help() string {
 
 // Run runs the actual command with the given command-line arguments.
 func (c *Command) Run(args []string) int {
+	// If no access token is provided, we try without it!
+	token := os.Getenv("GELATO_GITHUB_TOKEN")
+
+	client := github.NewClient(token)
+	repo := client.Repo(updateOwner, updateRepo)
+
+	c.services.repo = repo
+
+	return c.run(args)
+}
+
+// run in an auxiliary method, so we can test the business logic with mock dependencies.
+func (c *Command) run(args []string) int {
 	fs := flag.NewFlagSet("update", flag.ContinueOnError)
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
