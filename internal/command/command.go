@@ -28,8 +28,6 @@ const (
 	GitError
 	// GitHubError is the exit code when a GitHub operation fails.
 	GitHubError
-	// VersionPkgError is the exit code when the version package is missing or invalid.
-	VersionPkgError
 	// ChangelogError is the exit code when generating the changelog fails.
 	ChangelogError
 	// UnsupportedError is the exit code when a capability is not supported.

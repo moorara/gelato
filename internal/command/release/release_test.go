@@ -18,57 +18,12 @@ import (
 )
 
 func TestNewCommand(t *testing.T) {
-	tests := []struct {
-		name          string
-		environment   map[string]string
-		expectedError string
-	}{
-		{
-			name: "NoToken",
-			environment: map[string]string{
-				"GELATO_GITHUB_TOKEN": "",
-			},
-			expectedError: "GELATO_GITHUB_TOKEN environment variable not set",
-		},
-		{
-			name: "OK",
-			environment: map[string]string{
-				"GELATO_GITHUB_TOKEN": "github-access-token",
-			},
-			expectedError: "",
-		},
-	}
+	ui := new(cli.MockUi)
+	spec := spec.Spec{}
+	c, err := NewCommand(ui, spec)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			for key, val := range tc.environment {
-				err := os.Setenv(key, val)
-				assert.NoError(t, err)
-				defer os.Unsetenv(key)
-			}
-
-			ui := new(cli.MockUi)
-			spec := spec.Spec{}
-			c, err := NewCommand(ui, spec)
-
-			if tc.expectedError != "" {
-				assert.Nil(t, c)
-				assert.EqualError(t, err, tc.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, c)
-				assert.Equal(t, "moorara", c.data.owner)
-				assert.Equal(t, "gelato", c.data.repo)
-				assert.NotEmpty(t, c.data.changelogSpec)
-				assert.NotNil(t, c.services.git)
-				assert.NotNil(t, c.services.users)
-				assert.NotNil(t, c.services.repo)
-				assert.NotNil(t, c.services.changelog)
-				assert.NotNil(t, c.commands.semver)
-				assert.NotNil(t, c.commands.build)
-			}
-		})
-	}
+	assert.NoError(t, err)
+	assert.NotNil(t, c)
 }
 
 func TestCommand_Synopsis(t *testing.T) {
@@ -86,6 +41,57 @@ func TestCommand_Help(t *testing.T) {
 }
 
 func TestCommand_Run(t *testing.T) {
+	tests := []struct {
+		name             string
+		environment      map[string]string
+		expectedExitCode int
+	}{
+		{
+			name: "NoToken",
+			environment: map[string]string{
+				"GELATO_GITHUB_TOKEN": "",
+			},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "OK",
+			environment: map[string]string{
+				"GELATO_GITHUB_TOKEN": "github-access-token",
+			},
+			expectedExitCode: command.FlagError,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			for key, val := range tc.environment {
+				err := os.Setenv(key, val)
+				assert.NoError(t, err)
+				defer os.Unsetenv(key)
+			}
+
+			c := &Command{ui: new(cli.MockUi)}
+
+			exitCode := c.Run([]string{"--undefined"})
+
+			assert.Equal(t, tc.expectedExitCode, exitCode)
+
+			if tc.expectedExitCode == command.Success {
+				assert.Equal(t, "moorara", c.data.owner)
+				assert.Equal(t, "gelato", c.data.repo)
+				assert.NotEmpty(t, c.data.changelogSpec)
+				assert.NotNil(t, c.services.git)
+				assert.NotNil(t, c.services.users)
+				assert.NotNil(t, c.services.repo)
+				assert.NotNil(t, c.services.changelog)
+				assert.NotNil(t, c.commands.semver)
+				assert.NotNil(t, c.commands.build)
+			}
+		})
+	}
+}
+
+func TestCommand_run(t *testing.T) {
 	user := github.User{
 		Login: "octocat",
 	}
@@ -1251,7 +1257,7 @@ func TestCommand_Run(t *testing.T) {
 			c.commands.semver = tc.semver
 			c.commands.build = tc.build
 
-			exitCode := c.Run(tc.args)
+			exitCode := c.run(tc.args)
 
 			assert.Equal(t, tc.expectedExitCode, exitCode)
 		})

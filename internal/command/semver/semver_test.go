@@ -82,7 +82,6 @@ func TestNewCommand(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotNil(t, c)
-	assert.NotNil(t, c.services.git)
 }
 
 func TestCommand_Synopsis(t *testing.T) {
@@ -100,6 +99,13 @@ func TestCommand_Help(t *testing.T) {
 }
 
 func TestCommand_Run(t *testing.T) {
+	c := &Command{ui: new(cli.MockUi)}
+	c.Run([]string{"--undefined"})
+
+	assert.NotNil(t, c.services.git)
+}
+
+func TestCommand_run(t *testing.T) {
 	tests := []struct {
 		name             string
 		git              *MockGitService
@@ -494,7 +500,7 @@ func TestCommand_Run(t *testing.T) {
 			c := &Command{ui: new(cli.MockUi)}
 			c.services.git = tc.git
 
-			exitCode := c.Run(tc.args)
+			exitCode := c.run(tc.args)
 
 			assert.Equal(t, tc.expectedExitCode, exitCode)
 

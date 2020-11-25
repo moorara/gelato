@@ -46,18 +46,9 @@ type Command struct {
 
 // NewCommand creates a semver command.
 func NewCommand(ui cli.Ui) (*Command, error) {
-	git, err := git.New(".")
-	if err != nil {
-		return nil, err
-	}
-
-	c := &Command{
+	return &Command{
 		ui: ui,
-	}
-
-	c.services.git = git
-
-	return c, nil
+	}, nil
 }
 
 // Synopsis returns a short one-line synopsis of the command.
@@ -72,6 +63,19 @@ func (c *Command) Help() string {
 
 // Run runs the actual command with the given command-line arguments.
 func (c *Command) Run(args []string) int {
+	git, err := git.New(".")
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.GitError
+	}
+
+	c.services.git = git
+
+	return c.run(args)
+}
+
+// run in an auxiliary method, so we can test the business logic with mock dependencies.
+func (c *Command) run(args []string) int {
 	fs := flag.NewFlagSet("semver", flag.ContinueOnError)
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
