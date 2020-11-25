@@ -18,6 +18,10 @@ _TBD_
 
 ### Install
 
+#### Dependencies
+
+  - [go](https://golang.org)
+
 ### Examples
 
 ```bash
