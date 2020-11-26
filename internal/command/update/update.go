@@ -65,6 +65,7 @@ func (c *Command) Help() string {
 }
 
 // Run runs the actual command with the given command-line arguments.
+// This method is used as a proxy for creating dependencies and the actual command execution is delegated to the run method for testing purposes.
 func (c *Command) Run(args []string) int {
 	// If no access token is provided, we try without it!
 	token := os.Getenv("GELATO_GITHUB_TOKEN")

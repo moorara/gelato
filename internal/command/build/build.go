@@ -46,7 +46,9 @@ const (
 )
 
 const (
-	cmdPath     = "./cmd"
+	remoteName  = "origin"
+	cmdPath     = "./cmd/"
+	binPath     = "./bin/"
 	versionPath = "./version"
 	timeFormat  = "2006-01-02 15:04:05 MST"
 )
@@ -58,6 +60,7 @@ var (
 type (
 	gitService interface {
 		HEAD() (string, string, error)
+		Remote(string) (string, string, error)
 	}
 
 	semverCommand interface {
@@ -110,6 +113,7 @@ func (c *Command) Help() string {
 }
 
 // Run runs the actual command with the given command-line arguments.
+// This method is used as a proxy for creating dependencies and the actual command execution is delegated to the run method for testing purposes.
 func (c *Command) Run(args []string) int {
 	git, err := git.New(".")
 	if err != nil {
@@ -210,11 +214,10 @@ func (c *Command) run(args []string) int {
 
 		for _, file := range files {
 			if file.IsDir() {
-				mainPkg := cmdPath + "/" + file.Name()
-				output := "bin/" + file.Name()
+				mainPkg := cmdPath + file.Name()
+				output := binPath + file.Name()
 
-				err := c.buildAll(ctx, ldFlags, mainPkg, output)
-				if err != nil {
+				if err := c.buildAll(ctx, ldFlags, mainPkg, output); err != nil {
 					c.ui.Error(err.Error())
 					return command.GoError
 				}
@@ -224,11 +227,17 @@ func (c *Command) run(args []string) int {
 
 	// We also assume the current directory is a main package if it contains a main.go file.
 	if _, err = os.Stat("./main.go"); err == nil {
-		mainPkg := "."
-		output := "bin/" + filepath.Base(info.WorkingDirectory)
-
-		err := c.buildAll(ctx, ldFlags, mainPkg, output)
+		_, path, err := c.services.git.Remote(remoteName)
 		if err != nil {
+			c.ui.Error(err.Error())
+			return command.GoError
+		}
+
+		mainPkg := "."
+		fileName := filepath.Base(path)
+		output := binPath + fileName
+
+		if err := c.buildAll(ctx, ldFlags, mainPkg, output); err != nil {
 			c.ui.Error(err.Error())
 			return command.GoError
 		}

@@ -148,6 +148,7 @@ func (c *Command) Help() string {
 }
 
 // Run runs the actual command with the given command-line arguments.
+// This method is used as a proxy for creating dependencies and the actual command execution is delegated to the run method for testing purposes.
 func (c *Command) Run(args []string) int {
 	git, err := git.New(".")
 	if err != nil {
@@ -155,7 +156,7 @@ func (c *Command) Run(args []string) int {
 		return command.GitError
 	}
 
-	// TODO: should we check for other remote names too?
+	// TODO: should we check for remote names other than origin?
 	domain, path, err := git.Remote(remoteName)
 	if err != nil {
 		c.ui.Error(err.Error())

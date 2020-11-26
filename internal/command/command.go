@@ -41,12 +41,12 @@ var (
 	prereleaseRE = regexp.MustCompile(`^(v?([0-9]+)\.([0-9]+)\.([0-9]+))-([0-9]+)-g([0-9a-f]+)$`)
 )
 
-// PreflightChecklist is a list of preflight checks for commands.
+// PreflightChecklist is a list of common preflight checks for commands.
 type PreflightChecklist struct {
 	Go bool
 }
 
-// PreflightInfo is a list of preflight information for commands.
+// PreflightInfo is a list of common preflight information for commands.
 type PreflightInfo struct {
 	WorkingDirectory string
 	GoVersion        string
