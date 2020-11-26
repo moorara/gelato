@@ -19,9 +19,19 @@ type (
 		OutError  error
 	}
 
+	RemoteMock struct {
+		InName    string
+		OutDomain string
+		OutPath   string
+		OutError  error
+	}
+
 	MockGitService struct {
 		HEADIndex int
 		HEADMocks []HEADMock
+
+		RemoteIndex int
+		RemoteMocks []RemoteMock
 	}
 )
 
@@ -29,6 +39,13 @@ func (m *MockGitService) HEAD() (string, string, error) {
 	i := m.HEADIndex
 	m.HEADIndex++
 	return m.HEADMocks[i].OutHash, m.HEADMocks[i].OutBranch, m.HEADMocks[i].OutError
+}
+
+func (m *MockGitService) Remote(name string) (string, string, error) {
+	i := m.RemoteIndex
+	m.RemoteIndex++
+	m.RemoteMocks[i].InName = name
+	return m.RemoteMocks[i].OutDomain, m.RemoteMocks[i].OutPath, m.RemoteMocks[i].OutError
 }
 
 type (
