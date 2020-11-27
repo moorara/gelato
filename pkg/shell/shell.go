@@ -75,16 +75,16 @@ type RunnerFunc func(context.Context, ...string) (int, string, error)
 // The returned function can be used for running the bounded command in the default shell.
 func Runner(command string, args ...string) RunnerFunc {
 	return func(ctx context.Context, a ...string) (int, string, error) {
-		args = append(args, a...)
-		return run(ctx, RunOptions{}, command, args...)
+		all := append(args, a...)
+		return run(ctx, RunOptions{}, command, all...)
 	}
 }
 
 // WithArgs binds more arguments to a Runner function and returns a new Runner function.
 func (f RunnerFunc) WithArgs(args ...string) RunnerFunc {
 	return func(ctx context.Context, a ...string) (int, string, error) {
-		args = append(args, a...)
-		return f(ctx, args...)
+		all := append(args, a...)
+		return f(ctx, all...)
 	}
 }
 
@@ -95,15 +95,15 @@ type RunnerWithFunc func(context.Context, RunOptions, ...string) (int, string, e
 // The returned function can be used for running the bounded command in the default shell.
 func RunnerWith(command string, args ...string) RunnerWithFunc {
 	return func(ctx context.Context, opts RunOptions, a ...string) (int, string, error) {
-		args = append(args, a...)
-		return run(ctx, opts, command, args...)
+		all := append(args, a...)
+		return run(ctx, opts, command, all...)
 	}
 }
 
 // WithArgs binds more arguments to a RunnerWith function and returns a new RunnerWith function.
 func (f RunnerWithFunc) WithArgs(args ...string) RunnerWithFunc {
 	return func(ctx context.Context, opts RunOptions, a ...string) (int, string, error) {
-		args = append(args, a...)
-		return f(ctx, opts, args...)
+		all := append(args, a...)
+		return f(ctx, opts, all...)
 	}
 }
