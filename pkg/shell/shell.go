@@ -36,6 +36,7 @@ func run(ctx context.Context, opts RunOptions, command string, args ...string) (
 	}
 
 	err := cmd.Run()
+
 	if err != nil {
 		cmdError = fmt.Errorf("error on running %s: %s: %s",
 			strings.Join(append([]string{command}, args...), " "),
@@ -61,37 +62,48 @@ func Run(ctx context.Context, command string, args ...string) (int, string, erro
 	return run(ctx, RunOptions{}, command, args...)
 }
 
-// RunWith executes a command in the default shell in a working directory with environment variables.
+// RunWith executes a command with given options in the default shell.
 // It returns the exit code, output, and error (if any).
 func RunWith(ctx context.Context, opts RunOptions, command string, args ...string) (int, string, error) {
 	return run(ctx, opts, command, args...)
 }
 
 // RunnerFunc is a function for running a bounded command.
-type RunnerFunc func(...string) (int, string, error)
+type RunnerFunc func(context.Context, ...string) (int, string, error)
 
-// Runner binds a command to arguments and returns a function.
-// The returned function can be used for running the bounded command in the default shell as many times as needed.
-func Runner(ctx context.Context, command string, args ...string) RunnerFunc {
-	return func(a ...string) (int, string, error) {
+// Runner binds a command to a list of arguments and returns a function.
+// The returned function can be used for running the bounded command in the default shell.
+func Runner(command string, args ...string) RunnerFunc {
+	return func(ctx context.Context, a ...string) (int, string, error) {
 		args = append(args, a...)
 		return run(ctx, RunOptions{}, command, args...)
 	}
 }
 
-// RunnerWith binds a command to arguments to be run in a working directory with environment variables and returns a function.
-// The returned function can be used for running the bounded command in the default shell as many times as needed.
-func RunnerWith(ctx context.Context, opts RunOptions, command string, args ...string) RunnerFunc {
-	return func(a ...string) (int, string, error) {
+// WithArgs binds more arguments to a Runner function and returns a new Runner function.
+func (f RunnerFunc) WithArgs(args ...string) RunnerFunc {
+	return func(ctx context.Context, a ...string) (int, string, error) {
+		args = append(args, a...)
+		return f(ctx, args...)
+	}
+}
+
+// RunnerWithFunc is a function for running a bounded command with given options.
+type RunnerWithFunc func(context.Context, RunOptions, ...string) (int, string, error)
+
+// RunnerWith binds a command to a list of arguments with given options and returns a function.
+// The returned function can be used for running the bounded command in the default shell.
+func RunnerWith(command string, args ...string) RunnerWithFunc {
+	return func(ctx context.Context, opts RunOptions, a ...string) (int, string, error) {
 		args = append(args, a...)
 		return run(ctx, opts, command, args...)
 	}
 }
 
-// WithArgs binds more arguments to a runner function and returns a new function for running the bounded command.
-func (f RunnerFunc) WithArgs(args ...string) RunnerFunc {
-	return func(a ...string) (int, string, error) {
+// WithArgs binds more arguments to a RunnerWith function and returns a new RunnerWith function.
+func (f RunnerWithFunc) WithArgs(args ...string) RunnerWithFunc {
+	return func(ctx context.Context, opts RunOptions, a ...string) (int, string, error) {
 		args = append(args, a...)
-		return f(args...)
+		return f(ctx, opts, args...)
 	}
 }
