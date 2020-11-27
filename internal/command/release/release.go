@@ -60,8 +60,7 @@ const (
 )
 
 var (
-	sshRE   = regexp.MustCompile(`^git@([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z]\.[A-Za-z]{2,}):([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])(.git)?$`)
-	httpsRE = regexp.MustCompile(`^https://([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z]\.[A-Za-z]{2,})/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])/([A-Za-z][0-9A-Za-z-]+[0-9A-Za-z])(.git)?$`)
+	h2Regex = regexp.MustCompile(`##[^\n]*\n`)
 )
 
 type (
@@ -370,6 +369,10 @@ func (c *Command) run(args []string) int {
 		return command.ChangelogError
 	}
 
+	// Remove the H2 title
+	changelog = h2Regex.ReplaceAllString(changelog, "")
+	changelog = strings.TrimLeft(changelog, "\n")
+
 	// ==============================> CREATE RELEASE COMMIT & TAG <==============================
 
 	c.ui.Info(fmt.Sprintf("Creating the release commit and tag %s ...", version))
@@ -459,13 +462,17 @@ func (c *Command) run(args []string) int {
 
 	c.ui.Info(fmt.Sprintf("Publishing release %s ...", release.Name))
 
+	if flags.comment != "" {
+		changelog = fmt.Sprintf("%s\n\n%s", flags.comment, changelog)
+	}
+
 	params = github.ReleaseParams{
 		Name:       release.Name,
 		TagName:    release.TagName,
 		Target:     release.Target,
 		Draft:      false,
 		Prerelease: false,
-		Body:       fmt.Sprintf("%s\n\n%s", flags.comment, changelog),
+		Body:       changelog,
 	}
 
 	release, _, err = c.services.repo.UpdateRelease(ctx, release.ID, params)
