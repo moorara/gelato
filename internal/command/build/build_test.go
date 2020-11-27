@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/semver"
+	"github.com/moorara/gelato/pkg/shell"
 )
 
 type (
@@ -114,6 +116,8 @@ func TestCommand_run(t *testing.T) {
 	tests := []struct {
 		name             string
 		git              *MockGitService
+		goList           shell.RunnerFunc
+		goBuild          shell.RunnerWithFunc
 		semver           *MockSemverCommand
 		args             []string
 		expectedExitCode int
@@ -140,6 +144,9 @@ func TestCommand_run(t *testing.T) {
 					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
 				},
 			},
+			goList: func(ctx context.Context, args ...string) (int, string, error) {
+				return 1, "", errors.New("directory not found")
+			},
 			semver: &MockSemverCommand{
 				RunMocks: []RunMock{
 					{OutCode: command.GitError},
@@ -154,6 +161,9 @@ func TestCommand_run(t *testing.T) {
 				HEADMocks: []HEADMock{
 					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
 				},
+			},
+			goList: func(ctx context.Context, args ...string) (int, string, error) {
+				return 1, "github.com/octocat/Hello-World/version", nil
 			},
 			semver: &MockSemverCommand{
 				RunMocks: []RunMock{
@@ -172,13 +182,114 @@ func TestCommand_run(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &Command{ui: new(cli.MockUi)}
+			c := &Command{
+				ui: new(cli.MockUi),
+				spec: spec.Spec{
+					GelatoVersion: "v0.1.0",
+				},
+			}
+
 			c.services.git = tc.git
+			c.funcs.goList = tc.goList
+			c.funcs.goBuild = tc.goBuild
 			c.commands.semver = tc.semver
 
 			exitCode := c.run(tc.args)
 
 			assert.Equal(t, tc.expectedExitCode, exitCode)
+		})
+	}
+}
+
+func TestCommand_buildAll(t *testing.T) {
+	tests := []struct {
+		name          string
+		buildSpec     spec.Build
+		goBuild       shell.RunnerWithFunc
+		ctx           context.Context
+		ldFlags       string
+		mainPkg       string
+		output        string
+		expectedError string
+	}{
+		{
+			name: "WithoutCrossCompile_BuildFails",
+			buildSpec: spec.Build{
+				CrossCompile: false,
+			},
+			goBuild: func(ctx context.Context, opts shell.RunOptions, args ...string) (int, string, error) {
+				return 1, "", errors.New("directory not found")
+			},
+			ctx:           context.Background(),
+			ldFlags:       `-X "github.com/octocat/Hello-World/version.Version=v0.1.0"`,
+			mainPkg:       "./cmd/app",
+			output:        "./bin/app",
+			expectedError: "directory not found",
+		},
+		{
+			name: "WithoutCrossCompile_BuildSucceeds",
+			buildSpec: spec.Build{
+				CrossCompile: false,
+			},
+			goBuild: func(ctx context.Context, opts shell.RunOptions, args ...string) (int, string, error) {
+				return 0, "", nil
+			},
+			ctx:           context.Background(),
+			ldFlags:       `-X "github.com/octocat/Hello-World/version.Version=v0.1.0"`,
+			mainPkg:       "./cmd/app",
+			output:        "./bin/app",
+			expectedError: "",
+		},
+		{
+			name: "WithCrossCompile_BuildFails",
+			buildSpec: spec.Build{
+				CrossCompile: true,
+				Platforms:    []string{"linux-amd64", "darwin-amd64"},
+			},
+			goBuild: func(ctx context.Context, opts shell.RunOptions, args ...string) (int, string, error) {
+				return 1, "", errors.New("directory not found")
+			},
+			ctx:           context.Background(),
+			ldFlags:       `-X "github.com/octocat/Hello-World/version.Version=v0.1.0"`,
+			mainPkg:       "./cmd/app",
+			output:        "./bin/app",
+			expectedError: "directory not found",
+		},
+		{
+			name: "WithCrossCompile_BuildSucceeds",
+			buildSpec: spec.Build{
+				CrossCompile: true,
+				Platforms:    []string{"linux-amd64", "darwin-amd64"},
+			},
+			goBuild: func(ctx context.Context, opts shell.RunOptions, args ...string) (int, string, error) {
+				return 0, "", nil
+			},
+			ctx:           context.Background(),
+			ldFlags:       `-X "github.com/octocat/Hello-World/version.Version=v0.1.0"`,
+			mainPkg:       "./cmd/app",
+			output:        "./bin/app",
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Command{
+				ui: new(cli.MockUi),
+				spec: spec.Spec{
+					Build: tc.buildSpec,
+				},
+			}
+
+			c.funcs.goBuild = tc.goBuild
+
+			err := c.buildAll(tc.ctx, tc.ldFlags, tc.mainPkg, tc.output)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expectedError)
+			}
 		})
 	}
 }

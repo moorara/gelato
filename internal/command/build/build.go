@@ -83,6 +83,10 @@ type Command struct {
 	services struct {
 		git gitService
 	}
+	funcs struct {
+		goList  shell.RunnerFunc
+		goBuild shell.RunnerWithFunc
+	}
 	commands struct {
 		semver semverCommand
 	}
@@ -121,9 +125,14 @@ func (c *Command) Run(args []string) int {
 		return command.GitError
 	}
 
+	goList := shell.Runner("go", "list", versionPath)
+	goBuild := shell.RunnerWith("go", "build")
+
 	semver, _ := semvercmd.NewCommand(&cli.MockUi{})
 
 	c.services.git = git
+	c.funcs.goList = goList
+	c.funcs.goBuild = goBuild
 	c.commands.semver = semver
 
 	return c.run(args)
@@ -163,7 +172,7 @@ func (c *Command) run(args []string) int {
 		return command.GitError
 	}
 
-	_, versionPkg, err := shell.Run(ctx, "go", "list", versionPath)
+	_, versionPkg, err := c.funcs.goList(ctx)
 	if err != nil {
 		c.ui.Warn(err.Error())
 	}
@@ -280,7 +289,7 @@ func (c *Command) build(ctx context.Context, os, arch, ldFlags, mainPkg, output 
 		},
 	}
 
-	args := []string{"build"}
+	args := []string{}
 	if ldFlags != "" {
 		args = append(args, "-ldflags", ldFlags)
 	}
@@ -289,7 +298,7 @@ func (c *Command) build(ctx context.Context, os, arch, ldFlags, mainPkg, output 
 	}
 	args = append(args, mainPkg)
 
-	_, _, err := shell.RunWith(ctx, opts, "go", args...)
+	_, _, err := c.funcs.goBuild(ctx, opts, args...)
 	if err != nil {
 		return err
 	}

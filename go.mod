@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/go-git/go-git/v5 v5.2.0
 	github.com/mitchellh/cli v1.1.2
-	github.com/moorara/changelog v0.0.0-20201124170551-67fa37ed80ed
+	github.com/moorara/changelog v0.1.1-0.20201126220450-ad9e74e9db42
 	github.com/moorara/color v1.10.0
 	github.com/moorara/go-github v0.1.0
 	github.com/stretchr/testify v1.6.1
