@@ -1070,7 +1070,7 @@ func TestCommand_run(t *testing.T) {
 					{OutArtifacts: artifacts},
 				},
 			},
-			args:             []string{},
+			args:             []string{"-comment", "Release description"},
 			expectedExitCode: command.Success,
 		},
 		{
@@ -1150,7 +1150,7 @@ func TestCommand_run(t *testing.T) {
 					{OutArtifacts: artifacts},
 				},
 			},
-			args:             []string{"-minor"},
+			args:             []string{"-minor", "-comment", "Release description"},
 			expectedExitCode: command.Success,
 		},
 		{
@@ -1230,7 +1230,7 @@ func TestCommand_run(t *testing.T) {
 					{OutArtifacts: artifacts},
 				},
 			},
-			args:             []string{"-major"},
+			args:             []string{"-major", "-comment", "Release description"},
 			expectedExitCode: command.Success,
 		},
 	}
