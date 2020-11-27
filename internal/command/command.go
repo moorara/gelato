@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
+	"github.com/moorara/gelato/internal/git"
 	"github.com/moorara/gelato/pkg/shell"
 )
 
@@ -43,19 +44,32 @@ var (
 
 // PreflightChecklist is a list of common preflight checks for commands.
 type PreflightChecklist struct {
-	Go bool
+	Go  bool
+	Git bool
 }
 
 // PreflightInfo is a list of common preflight information for commands.
 type PreflightInfo struct {
-	WorkingDirectory string
-	GoVersion        string
+	Context struct {
+		WorkingDirectory string
+	}
+	Go struct {
+		Version string
+	}
+	Git struct {
+		Remote struct {
+			Domain string
+			Path   string
+		}
+	}
 }
 
 // RunPreflightChecks runs a list of preflight checks to ensure they are fulfilled.
 // It returns a list of preflight information.
 func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (PreflightInfo, error) {
-	var workingDirectory, goVersion string
+	var workingDirectory string
+	var goVersion string
+	var gitDomain, gitPath string
 
 	// RUN PREFLIGHT CHECKS
 
@@ -77,12 +91,26 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 		})
 	}
 
+	if checklist.Git {
+		group.Go(func() (err error) {
+			git, err := git.New(".")
+			if err != nil {
+				return err
+			}
+
+			gitDomain, gitPath, err = git.Remote("origin")
+			return err
+		})
+	}
+
 	if err := group.Wait(); err != nil {
 		return PreflightInfo{}, err
 	}
 
-	return PreflightInfo{
-		WorkingDirectory: workingDirectory,
-		GoVersion:        goVersion,
-	}, nil
+	info := PreflightInfo{}
+	info.Context.WorkingDirectory = workingDirectory
+	info.Go.Version = goVersion
+	info.Git.Remote.Domain, info.Git.Remote.Path = gitDomain, gitPath
+
+	return info, nil
 }
