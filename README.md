@@ -118,7 +118,7 @@ The initial release is always `0.1.0`.
 
 
 [godoc-url]: https://pkg.go.dev/github.com/moorara/gelato
-[godoc-image]: https://godoc.org/github.com/moorara/gelato?status.svg
+[godoc-image]: https://pkg.go.dev/badge/github.com/moorara/gelato
 [workflow-url]: https://github.com/moorara/gelato/actions
 [workflow-image]: https://github.com/moorara/gelato/workflows/Main/badge.svg
 [goreport-url]: https://goreportcard.com/report/github.com/moorara/gelato
