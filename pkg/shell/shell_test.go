@@ -94,13 +94,13 @@ func TestRunWith(t *testing.T) {
 			ctx:  context.Background(),
 			opts: RunOptions{
 				Environment: map[string]string{
-					"PLACEHOLDER": "foo bar",
+					"TOKEN": "access-token",
 				},
 			},
 			command:          "printenv",
-			args:             []string{"PLACEHOLDER"},
+			args:             []string{"TOKEN"},
 			expectedExitCode: 0,
-			expectedOutput:   "foo bar",
+			expectedOutput:   "access-token",
 			expectedError:    nil,
 		},
 	}
@@ -119,9 +119,9 @@ func TestRunWith(t *testing.T) {
 func TestRunner(t *testing.T) {
 	tests := []struct {
 		name             string
-		ctx              context.Context
 		command          string
 		args             []string
+		runCtx           context.Context
 		runArgs          []string
 		expectedExitCode int
 		expectedOutput   string
@@ -129,9 +129,9 @@ func TestRunner(t *testing.T) {
 	}{
 		{
 			name:             "NotFound",
-			ctx:              context.Background(),
 			command:          "unknown",
 			args:             []string{},
+			runCtx:           context.Background(),
 			runArgs:          []string{},
 			expectedExitCode: -1,
 			expectedOutput:   "",
@@ -139,9 +139,9 @@ func TestRunner(t *testing.T) {
 		},
 		{
 			name:             "Error",
-			ctx:              context.Background(),
 			command:          "cat",
 			args:             []string{"null"},
+			runCtx:           context.Background(),
 			runArgs:          []string{},
 			expectedExitCode: 1,
 			expectedOutput:   "",
@@ -149,9 +149,9 @@ func TestRunner(t *testing.T) {
 		},
 		{
 			name:             "Success",
-			ctx:              context.Background(),
 			command:          "echo",
 			args:             []string{"foo", "bar"},
+			runCtx:           context.Background(),
 			runArgs:          []string{"baz"},
 			expectedExitCode: 0,
 			expectedOutput:   "foo bar baz",
@@ -161,71 +161,8 @@ func TestRunner(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			run := Runner(tc.ctx, tc.command, tc.args...)
-			code, out, err := run(tc.runArgs...)
-
-			assert.Equal(t, tc.expectedExitCode, code)
-			assert.Equal(t, tc.expectedOutput, out)
-			assert.Equal(t, tc.expectedError, err)
-		})
-	}
-}
-
-func TestRunnerWith(t *testing.T) {
-	tests := []struct {
-		name             string
-		ctx              context.Context
-		opts             RunOptions
-		command          string
-		args             []string
-		runArgs          []string
-		expectedExitCode int
-		expectedOutput   string
-		expectedError    error
-	}{
-		{
-			name:             "NotFound",
-			ctx:              context.Background(),
-			opts:             RunOptions{},
-			command:          "unknown",
-			args:             []string{},
-			runArgs:          []string{},
-			expectedExitCode: -1,
-			expectedOutput:   "",
-			expectedError:    errors.New("error on running unknown: exec: \"unknown\": executable file not found in $PATH: "),
-		},
-		{
-			name:             "Error",
-			ctx:              context.Background(),
-			opts:             RunOptions{},
-			command:          "cat",
-			args:             []string{"null"},
-			runArgs:          []string{},
-			expectedExitCode: 1,
-			expectedOutput:   "",
-			expectedError:    errors.New("error on running cat null: exit status 1: cat: null: No such file or directory"),
-		},
-		{
-			name: "Success",
-			ctx:  context.Background(),
-			opts: RunOptions{
-				Environment: map[string]string{
-					"PLACEHOLDER": "foo bar baz",
-				},
-			},
-			command:          "printenv",
-			args:             []string{},
-			runArgs:          []string{"PLACEHOLDER"},
-			expectedExitCode: 0,
-			expectedOutput:   "foo bar baz",
-			expectedError:    nil,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			run := RunnerWith(tc.ctx, tc.opts, tc.command, tc.args...)
-			code, out, err := run(tc.runArgs...)
+			run := Runner(tc.command, tc.args...)
+			code, out, err := run(tc.runCtx, tc.runArgs...)
 
 			assert.Equal(t, tc.expectedExitCode, code)
 			assert.Equal(t, tc.expectedOutput, out)
@@ -237,8 +174,9 @@ func TestRunnerWith(t *testing.T) {
 func TestRunnerFunc_WithArgs(t *testing.T) {
 	tests := []struct {
 		name             string
-		runnerFunc       RunnerFunc
+		f                RunnerFunc
 		args             []string
+		runCtx           context.Context
 		runArgs          []string
 		expectedExitCode int
 		expectedOutput   string
@@ -246,8 +184,9 @@ func TestRunnerFunc_WithArgs(t *testing.T) {
 	}{
 		{
 			name:             "NotFound",
-			runnerFunc:       Runner(context.Background(), "unknown"),
+			f:                Runner("unknown"),
 			args:             []string{},
+			runCtx:           context.Background(),
 			runArgs:          []string{},
 			expectedExitCode: -1,
 			expectedOutput:   "",
@@ -255,8 +194,9 @@ func TestRunnerFunc_WithArgs(t *testing.T) {
 		},
 		{
 			name:             "Error",
-			runnerFunc:       Runner(context.Background(), "cat"),
+			f:                Runner("cat"),
 			args:             []string{"null"},
+			runCtx:           context.Background(),
 			runArgs:          []string{},
 			expectedExitCode: 1,
 			expectedOutput:   "",
@@ -264,8 +204,9 @@ func TestRunnerFunc_WithArgs(t *testing.T) {
 		},
 		{
 			name:             "Success",
-			runnerFunc:       Runner(context.Background(), "echo"),
+			f:                Runner("echo"),
 			args:             []string{"foo", "bar"},
+			runCtx:           context.Background(),
 			runArgs:          []string{"baz"},
 			expectedExitCode: 0,
 			expectedOutput:   "foo bar baz",
@@ -275,8 +216,130 @@ func TestRunnerFunc_WithArgs(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			run := tc.runnerFunc.WithArgs(tc.args...)
-			code, out, err := run(tc.runArgs...)
+			run := tc.f.WithArgs(tc.args...)
+			code, out, err := run(tc.runCtx, tc.runArgs...)
+
+			assert.Equal(t, tc.expectedExitCode, code)
+			assert.Equal(t, tc.expectedOutput, out)
+			assert.Equal(t, tc.expectedError, err)
+		})
+	}
+}
+
+func TestRunnerWith(t *testing.T) {
+	tests := []struct {
+		name             string
+		command          string
+		args             []string
+		runCtx           context.Context
+		runOpts          RunOptions
+		runArgs          []string
+		expectedExitCode int
+		expectedOutput   string
+		expectedError    error
+	}{
+		{
+			name:             "NotFound",
+			command:          "unknown",
+			args:             []string{},
+			runCtx:           context.Background(),
+			runOpts:          RunOptions{},
+			runArgs:          []string{},
+			expectedExitCode: -1,
+			expectedOutput:   "",
+			expectedError:    errors.New("error on running unknown: exec: \"unknown\": executable file not found in $PATH: "),
+		},
+		{
+			name:             "Error",
+			command:          "cat",
+			args:             []string{"null"},
+			runCtx:           context.Background(),
+			runOpts:          RunOptions{},
+			runArgs:          []string{},
+			expectedExitCode: 1,
+			expectedOutput:   "",
+			expectedError:    errors.New("error on running cat null: exit status 1: cat: null: No such file or directory"),
+		},
+		{
+			name:    "Success",
+			command: "printenv",
+			args:    []string{},
+			runCtx:  context.Background(),
+			runOpts: RunOptions{
+				Environment: map[string]string{
+					"TOKEN": "access-token",
+				},
+			},
+			runArgs:          []string{"TOKEN"},
+			expectedExitCode: 0,
+			expectedOutput:   "access-token",
+			expectedError:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			run := RunnerWith(tc.command, tc.args...)
+			code, out, err := run(tc.runCtx, tc.runOpts, tc.runArgs...)
+
+			assert.Equal(t, tc.expectedExitCode, code)
+			assert.Equal(t, tc.expectedOutput, out)
+			assert.Equal(t, tc.expectedError, err)
+		})
+	}
+}
+
+func TestRunnerWithFunc_WithArgs(t *testing.T) {
+	tests := []struct {
+		name             string
+		f                RunnerWithFunc
+		args             []string
+		runCtx           context.Context
+		runOpts          RunOptions
+		runArgs          []string
+		expectedExitCode int
+		expectedOutput   string
+		expectedError    error
+	}{
+		{
+			name:             "NotFound",
+			f:                RunnerWith("unknown"),
+			args:             []string{},
+			runCtx:           context.Background(),
+			runOpts:          RunOptions{},
+			runArgs:          []string{},
+			expectedExitCode: -1,
+			expectedOutput:   "",
+			expectedError:    errors.New("error on running unknown: exec: \"unknown\": executable file not found in $PATH: "),
+		},
+		{
+			name:             "Error",
+			f:                RunnerWith("cat"),
+			args:             []string{"null"},
+			runCtx:           context.Background(),
+			runOpts:          RunOptions{},
+			runArgs:          []string{},
+			expectedExitCode: 1,
+			expectedOutput:   "",
+			expectedError:    errors.New("error on running cat null: exit status 1: cat: null: No such file or directory"),
+		},
+		{
+			name:             "Success",
+			f:                RunnerWith("echo"),
+			args:             []string{"foo", "bar"},
+			runCtx:           context.Background(),
+			runOpts:          RunOptions{},
+			runArgs:          []string{"baz"},
+			expectedExitCode: 0,
+			expectedOutput:   "foo bar baz",
+			expectedError:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			run := tc.f.WithArgs(tc.args...)
+			code, out, err := run(tc.runCtx, tc.runOpts, tc.runArgs...)
 
 			assert.Equal(t, tc.expectedExitCode, code)
 			assert.Equal(t, tc.expectedOutput, out)

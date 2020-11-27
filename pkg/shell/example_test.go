@@ -24,26 +24,39 @@ func ExampleRunWith() {
 }
 
 func ExampleRunner() {
-	echo := shell.Runner(context.Background(), "echo", "foo", "bar")
-	_, out, _ := echo("baz")
+	echo := shell.Runner("echo", "foo", "bar")
+	_, out, _ := echo(context.Background(), "baz")
+	fmt.Println(out)
+}
+
+func ExampleRunnerFunc_WithArgs() {
+	echo := shell.Runner("echo", "foo")
+	echo = echo.WithArgs("bar")
+	_, out, _ := echo(context.Background(), "baz")
 	fmt.Println(out)
 }
 
 func ExampleRunnerWith() {
 	opts := shell.RunOptions{
 		Environment: map[string]string{
-			"PLACEHOLDER": "foo bar baz",
+			"TOKEN": "access-token",
 		},
 	}
 
-	printenv := shell.RunnerWith(context.Background(), opts, "printenv")
-	_, out, _ := printenv("PLACEHOLDER")
+	printenv := shell.RunnerWith("printenv")
+	_, out, _ := printenv(context.Background(), opts, "TOKEN")
 	fmt.Println(out)
 }
 
-func ExampleRunnerFunc_WithArgs() {
-	echo := shell.Runner(context.Background(), "echo", "foo")
-	echo = echo.WithArgs("bar")
-	_, out, _ := echo("baz")
+func ExampleRunnerWithFunc_WithArgs() {
+	opts := shell.RunOptions{
+		Environment: map[string]string{
+			"TOKEN": "access-token",
+		},
+	}
+
+	printenv := shell.RunnerWith("printenv")
+	printenv = printenv.WithArgs("TOKEN")
+	_, out, _ := printenv(context.Background(), opts)
 	fmt.Println(out)
 }
