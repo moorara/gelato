@@ -155,7 +155,8 @@ func (c *Command) run(args []string) int {
 	// ==============================> RUN PREFLIGHT CHECKS <==============================
 
 	checklist := command.PreflightChecklist{
-		Go: true,
+		Go:  true,
+		Git: true,
 	}
 
 	info, err := command.RunPreflightChecks(ctx, checklist)
@@ -193,7 +194,7 @@ func (c *Command) run(args []string) int {
 
 	// Construct the LD flags only if the version package exist
 	if versionPkg != "" {
-		goVersion := goVersionRE.FindString(info.GoVersion)
+		goVersion := goVersionRE.FindString(info.Go.Version)
 		buildTime := time.Now().UTC().Format(timeFormat)
 		buildTool := "Gelato"
 
@@ -236,15 +237,8 @@ func (c *Command) run(args []string) int {
 
 	// We also assume the current directory is a main package if it contains a main.go file.
 	if _, err = os.Stat("./main.go"); err == nil {
-		_, path, err := c.services.git.Remote(remoteName)
-		if err != nil {
-			c.ui.Error(err.Error())
-			return command.GoError
-		}
-
 		mainPkg := "."
-		fileName := filepath.Base(path)
-		output := binPath + fileName
+		output := binPath + filepath.Base(info.Git.Remote.Path)
 
 		if err := c.buildAll(ctx, ldFlags, mainPkg, output); err != nil {
 			c.ui.Error(err.Error())

@@ -10,14 +10,15 @@ import (
 
 func TestRunPreflightChecks(t *testing.T) {
 	tests := []struct {
-		name                   string
-		environment            map[string]string
-		ctx                    context.Context
-		checklist              PreflightChecklist
-		expectedError          error
-		expectWorkingDirectory bool
-		expectGoVersion        bool
-		expectGitHubToken      bool
+		name                    string
+		environment             map[string]string
+		ctx                     context.Context
+		checklist               PreflightChecklist
+		expectedError           error
+		expectWorkingDirectory  bool
+		expectGoVersion         bool
+		expectedGitRemoteDomain string
+		expectedGitRemotePath   string
 	}{
 		{
 			name:                   "NoCheck",
@@ -32,11 +33,14 @@ func TestRunPreflightChecks(t *testing.T) {
 			environment: map[string]string{},
 			ctx:         context.Background(),
 			checklist: PreflightChecklist{
-				Go: true,
+				Go:  true,
+				Git: true,
 			},
-			expectedError:          nil,
-			expectWorkingDirectory: true,
-			expectGoVersion:        true,
+			expectedError:           nil,
+			expectWorkingDirectory:  true,
+			expectGoVersion:         true,
+			expectedGitRemoteDomain: "github.com",
+			expectedGitRemotePath:   "moorara/gelato",
 		},
 	}
 
@@ -48,15 +52,17 @@ func TestRunPreflightChecks(t *testing.T) {
 				defer os.Unsetenv(key)
 			}
 
-			preflightInfo, err := RunPreflightChecks(tc.ctx, tc.checklist)
+			info, err := RunPreflightChecks(tc.ctx, tc.checklist)
 
 			if tc.expectedError != nil {
-				assert.Zero(t, preflightInfo)
+				assert.Zero(t, info)
 				assert.Equal(t, tc.expectedError, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectWorkingDirectory, preflightInfo.WorkingDirectory != "")
-				assert.Equal(t, tc.expectGoVersion, preflightInfo.GoVersion != "")
+				assert.Equal(t, tc.expectWorkingDirectory, info.Context.WorkingDirectory != "")
+				assert.Equal(t, tc.expectGoVersion, info.Go.Version != "")
+				assert.Equal(t, tc.expectedGitRemoteDomain, info.Git.Remote.Domain)
+				assert.Equal(t, tc.expectedGitRemotePath, info.Git.Remote.Path)
 			}
 		})
 	}
