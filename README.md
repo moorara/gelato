@@ -6,7 +6,7 @@
 
 # Gelato
 
-Gelato is an experimental tool for Go applications.
+Gelato is an opinionated tool and framework for Go applications.
 My vision for Gelato is an application framework for generating, building, and releasing Go applications and services
 with built-in secure defaults, observability, and best practices.
 
@@ -17,6 +17,12 @@ _TBD_
 ## Quick Start
 
 ### Install
+
+```
+brew install moorara/brew/gelato
+```
+
+For other platforms, you can download the binary from the [latest release](https://github.com/moorara/gelato/releases/latest).
 
 #### Dependencies
 
