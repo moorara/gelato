@@ -183,17 +183,17 @@ func (c *Command) Run(args []string) int {
 	client := github.NewClient(token)
 	repo := client.Repo(ownerName, repoName)
 
-	chlogSpec, err := changelogSpec.Default().FromFile()
+	cs, err := changelogSpec.Default().FromFile()
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.ChangelogError
 	}
 
-	chlogSpec = chlogSpec.WithRepo(domain, path)
-	chlogSpec.Repo.AccessToken = token
+	cs = cs.WithRepo(domain, path)
+	cs.Repo.AccessToken = token
 	chlogLogger := newLogger(c.ui)
 
-	changelog, err := changelog.New(chlogSpec, chlogLogger)
+	changelog, err := changelog.New(cs, chlogLogger)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.ChangelogError
@@ -204,7 +204,7 @@ func (c *Command) Run(args []string) int {
 
 	c.data.owner = ownerName
 	c.data.repo = repoName
-	c.data.changelogSpec = chlogSpec
+	c.data.changelogSpec = cs
 
 	c.services.git = git
 	c.services.users = client.Users
