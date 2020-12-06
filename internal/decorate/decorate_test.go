@@ -1,6 +1,8 @@
 package decorate
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -16,12 +18,17 @@ func TestDecorator_Decorate(t *testing.T) {
 	tests := []struct {
 		name          string
 		path          string
-		expectedError error
+		expectedError string
 	}{
 		{
-			name:          "OK",
-			path:          ".",
-			expectedError: nil,
+			name:          "PathNotExist",
+			path:          "/invalid/path",
+			expectedError: "stat /invalid/path: no such file or directory",
+		},
+		{
+			name:          "Success",
+			path:          "./test",
+			expectedError: "",
 		},
 	}
 
@@ -29,9 +36,16 @@ func TestDecorator_Decorate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			d := &Decorator{}
 
+			// Clean-up
+			defer os.RemoveAll(filepath.Join(tc.path, decoratedDir))
+
 			err := d.Decorate(tc.path)
 
-			assert.Equal(t, tc.expectedError, err)
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expectedError)
+			}
 		})
 	}
 }
