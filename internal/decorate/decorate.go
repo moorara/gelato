@@ -1,11 +1,13 @@
 package decorate
 
 import (
+	"go/ast"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/moorara/color"
 
@@ -16,31 +18,44 @@ const (
 	decoratedDir = ".build"
 )
 
+type loggers struct {
+	red     log.Logger
+	green   log.Logger
+	yellow  log.Logger
+	blue    log.Logger
+	magenta log.Logger
+	cyan    log.Logger
+	white   log.Logger
+}
+
+func (l *loggers) SetLevel(level log.Level) {
+	l.red.SetLevel(level)
+	l.green.SetLevel(level)
+	l.yellow.SetLevel(level)
+	l.blue.SetLevel(level)
+	l.magenta.SetLevel(level)
+	l.cyan.SetLevel(level)
+	l.white.SetLevel(level)
+}
+
 // Decorator decorates a Go application.
 type Decorator struct {
-	loggers struct {
-		red     log.Logger
-		green   log.Logger
-		yellow  log.Logger
-		blue    log.Logger
-		magenta log.Logger
-		cyan    log.Logger
-		white   log.Logger
-	}
+	loggers *loggers
 }
 
 // New creates a new decorator.
 func New() *Decorator {
-	d := &Decorator{}
-	d.loggers.red = log.NewColored(log.None, color.New(color.FgRed))
-	d.loggers.green = log.NewColored(log.None, color.New(color.FgGreen))
-	d.loggers.yellow = log.NewColored(log.None, color.New(color.FgYellow))
-	d.loggers.blue = log.NewColored(log.None, color.New(color.FgBlue))
-	d.loggers.magenta = log.NewColored(log.None, color.New(color.FgMagenta))
-	d.loggers.cyan = log.NewColored(log.None, color.New(color.FgCyan))
-	d.loggers.white = log.NewColored(log.None, color.New(color.FgWhite))
-
-	return d
+	return &Decorator{
+		loggers: &loggers{
+			red:     log.NewColored(log.None, color.New(color.FgRed)),
+			green:   log.NewColored(log.None, color.New(color.FgGreen)),
+			yellow:  log.NewColored(log.None, color.New(color.FgYellow)),
+			blue:    log.NewColored(log.None, color.New(color.FgBlue)),
+			magenta: log.NewColored(log.None, color.New(color.FgMagenta)),
+			cyan:    log.NewColored(log.None, color.New(color.FgCyan)),
+			white:   log.NewColored(log.None, color.New(color.FgWhite)),
+		},
+	}
 }
 
 func (d *Decorator) directories(basePath, relPath string, visit func(string, string) error) error {
@@ -69,13 +84,7 @@ func (d *Decorator) directories(basePath, relPath string, visit func(string, str
 // Decorate decorates a Go application.
 func (d *Decorator) Decorate(level log.Level, path string) error {
 	// Update loggers
-	d.loggers.red.SetLevel(level)
-	d.loggers.green.SetLevel(level)
-	d.loggers.yellow.SetLevel(level)
-	d.loggers.blue.SetLevel(level)
-	d.loggers.magenta.SetLevel(level)
-	d.loggers.cyan.SetLevel(level)
-	d.loggers.white.SetLevel(level)
+	d.loggers.SetLevel(level)
 
 	// Sanitize the path
 	if _, err := os.Stat(path); err != nil {
@@ -83,6 +92,11 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 	}
 
 	d.loggers.white.Infof("Decorating ...")
+
+	visitor := &visitor{
+		depth:   4,
+		loggers: d.loggers,
+	}
 
 	return d.directories(path, ".", func(basePath, relPath string) error {
 		// Creating a new directory for the decorated package
@@ -104,9 +118,12 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 
 		// Visit all parsed Go files in the currecnt directory
 		for _, pkg := range pkgs {
-			d.loggers.yellow.Debugf("     Package: %s", pkg.Name)
-			for name, _ := range pkg.Files {
-				d.loggers.green.Debugf("      File: %s", name)
+			d.loggers.magenta.Debugf("     Package: %s", pkg.Name)
+			for name, file := range pkg.Files {
+				if !strings.HasSuffix(name, "_test.go") {
+					d.loggers.green.Debugf("      File: %s", name)
+					ast.Walk(visitor, file)
+				}
 			}
 		}
 
