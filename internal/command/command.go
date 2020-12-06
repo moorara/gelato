@@ -31,6 +31,8 @@ const (
 	GitHubError
 	// ChangelogError is the exit code when generating the changelog fails.
 	ChangelogError
+	// DecorationError is the exit code when decorating an application fails.
+	DecorationError
 	// UnsupportedError is the exit code when a capability is not supported.
 	UnsupportedError
 	// MiscError is the exit code when a miscellaneous operation fails.
