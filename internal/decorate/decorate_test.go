@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/moorara/gelato/internal/log"
 )
 
 func TestNew(t *testing.T) {
@@ -17,6 +19,7 @@ func TestNew(t *testing.T) {
 func TestDecorator_Decorate(t *testing.T) {
 	tests := []struct {
 		name          string
+		level         log.Level
 		path          string
 		expectedError string
 	}{
@@ -34,12 +37,12 @@ func TestDecorator_Decorate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			d := &Decorator{}
+			d := New()
 
 			// Clean-up
 			defer os.RemoveAll(filepath.Join(tc.path, decoratedDir))
 
-			err := d.Decorate(tc.path)
+			err := d.Decorate(tc.level, tc.path)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)
