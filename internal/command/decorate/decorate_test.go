@@ -8,11 +8,13 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/spec"
 )
 
 type (
 	DecorateMock struct {
+		InLevel  log.Level
 		InPath   string
 		OutError error
 	}
@@ -23,9 +25,10 @@ type (
 	}
 )
 
-func (m *MockDecoratorService) Decorate(path string) error {
+func (m *MockDecoratorService) Decorate(level log.Level, path string) error {
 	i := m.DecorateIndex
 	m.DecorateIndex++
+	m.DecorateMocks[i].InLevel = level
 	m.DecorateMocks[i].InPath = path
 	return m.DecorateMocks[i].OutError
 }
@@ -86,14 +89,58 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.DecorationError,
 		},
 		{
-			name: "Success",
+			name: "Success_Trace",
 			spec: spec.App{},
 			decorator: &MockDecoratorService{
 				DecorateMocks: []DecorateMock{
 					{OutError: nil},
 				},
 			},
-			args:             []string{},
+			args:             []string{"-trace"},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "Success_Debug",
+			spec: spec.App{},
+			decorator: &MockDecoratorService{
+				DecorateMocks: []DecorateMock{
+					{OutError: nil},
+				},
+			},
+			args:             []string{"-debug"},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "Success_Info",
+			spec: spec.App{},
+			decorator: &MockDecoratorService{
+				DecorateMocks: []DecorateMock{
+					{OutError: nil},
+				},
+			},
+			args:             []string{"-info"},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "Success_Warn",
+			spec: spec.App{},
+			decorator: &MockDecoratorService{
+				DecorateMocks: []DecorateMock{
+					{OutError: nil},
+				},
+			},
+			args:             []string{"-warn"},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "Success_Error",
+			spec: spec.App{},
+			decorator: &MockDecoratorService{
+				DecorateMocks: []DecorateMock{
+					{OutError: nil},
+				},
+			},
+			args:             []string{"-error"},
 			expectedExitCode: command.Success,
 		},
 	}

@@ -1,9 +1,13 @@
 package decorate
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/moorara/gelato/internal/log"
 )
 
 func TestNew(t *testing.T) {
@@ -15,23 +19,36 @@ func TestNew(t *testing.T) {
 func TestDecorator_Decorate(t *testing.T) {
 	tests := []struct {
 		name          string
+		level         log.Level
 		path          string
-		expectedError error
+		expectedError string
 	}{
 		{
-			name:          "OK",
-			path:          ".",
-			expectedError: nil,
+			name:          "PathNotExist",
+			path:          "/invalid/path",
+			expectedError: "stat /invalid/path: no such file or directory",
+		},
+		{
+			name:          "Success",
+			path:          "./test",
+			expectedError: "",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			d := &Decorator{}
+			d := New()
 
-			err := d.Decorate(tc.path)
+			// Clean-up
+			defer os.RemoveAll(filepath.Join(tc.path, decoratedDir))
 
-			assert.Equal(t, tc.expectedError, err)
+			err := d.Decorate(tc.level, tc.path)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expectedError)
+			}
 		})
 	}
 }
