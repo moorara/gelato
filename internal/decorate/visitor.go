@@ -22,9 +22,9 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 	case *ast.GenDecl:
 	case *ast.FuncDecl:
 	case *ast.Ident:
-		v.loggers.red.Debugf("%s  %s", indent, n.Name)
+		v.loggers.red.Tracef("%s  %s", indent, n.Name)
 	case *ast.ImportSpec:
-		v.loggers.red.Debugf("%s  %s", indent, n.Path.Value)
+		v.loggers.red.Tracef("%s  %s", indent, n.Path.Value)
 	}
 
 	return &visitor{

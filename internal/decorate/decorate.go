@@ -2,6 +2,7 @@ package decorate
 
 import (
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"io/ioutil"
@@ -15,7 +16,12 @@ import (
 )
 
 const (
-	decoratedDir = ".build"
+	decoratedDir  = ".build"
+	gatewayPkg    = "gateway"
+	repositoryPkg = "repository"
+	controllerPkg = "controller"
+	handlerPkg    = "handler"
+	serverPkg     = "server"
 )
 
 type loggers struct {
@@ -122,7 +128,22 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 			for name, file := range pkg.Files {
 				if !strings.HasSuffix(name, "_test.go") {
 					d.loggers.green.Debugf("      File: %s", name)
+
+					// Visit all nodes in the current file AST
 					ast.Walk(visitor, file)
+
+					// Write the modified Go file to disk
+					newName := filepath.Join(newDir, filepath.Base(name))
+					f, err := os.Create(newName)
+					if err != nil {
+						return err
+					}
+
+					if err := format.Node(f, fset, file); err != nil {
+						return err
+					}
+
+					d.loggers.green.Debugf("      File written: %s", newName)
 				}
 			}
 		}

@@ -25,11 +25,13 @@ func TestDecorator_Decorate(t *testing.T) {
 	}{
 		{
 			name:          "PathNotExist",
+			level:         log.None,
 			path:          "/invalid/path",
 			expectedError: "stat /invalid/path: no such file or directory",
 		},
 		{
 			name:          "Success",
+			level:         log.None,
 			path:          "./test",
 			expectedError: "",
 		},
