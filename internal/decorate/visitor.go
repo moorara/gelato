@@ -3,11 +3,13 @@ package decorate
 import (
 	"go/ast"
 	"strings"
+
+	"github.com/moorara/gelato/internal/log"
 )
 
 type visitor struct {
-	depth   int
-	loggers *loggers
+	depth  int
+	logger *log.ColorfulLogger
 }
 
 func (v *visitor) Visit(n ast.Node) ast.Visitor {
@@ -16,19 +18,19 @@ func (v *visitor) Visit(n ast.Node) ast.Visitor {
 	}
 
 	indent := strings.Repeat("  ", v.depth)
-	v.loggers.yellow.Tracef("%s%T", indent, n)
+	v.logger.Yellow.Tracef("%s%T", indent, n)
 
 	switch n := n.(type) {
 	case *ast.GenDecl:
 	case *ast.FuncDecl:
 	case *ast.Ident:
-		v.loggers.red.Debugf("%s  %s", indent, n.Name)
+		v.logger.Red.Tracef("%s  %s", indent, n.Name)
 	case *ast.ImportSpec:
-		v.loggers.red.Debugf("%s  %s", indent, n.Path.Value)
+		v.logger.Red.Tracef("%s  %s", indent, n.Path.Value)
 	}
 
 	return &visitor{
-		depth:   v.depth + 1,
-		loggers: v.loggers,
+		depth:  v.depth + 1,
+		logger: v.logger,
 	}
 }
