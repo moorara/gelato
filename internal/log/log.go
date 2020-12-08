@@ -131,12 +131,14 @@ type coloredLogger struct {
 
 // NewColored creates a new colored logger.
 func NewColored(level Level, color *color.Color) Logger {
+	logger := &logger{
+		level:  level,
+		logger: log.New(os.Stdout, "", 0),
+	}
+
 	return &coloredLogger{
-		logger: &logger{
-			level:  level,
-			logger: log.New(os.Stdout, "", 0),
-		},
-		color: color,
+		logger: logger,
+		color:  color,
 	}
 }
 
@@ -176,4 +178,65 @@ func (l *coloredLogger) Errorf(format string, v ...interface{}) {
 func (l *coloredLogger) Fatalf(format string, v ...interface{}) {
 	msg := l.color.Sprintf(format, v...)
 	l.logger.Fatalf(msg)
+}
+
+// ColorfulLogger is a collection of colored loggers.
+type ColorfulLogger struct {
+	Red     Logger
+	Green   Logger
+	Yellow  Logger
+	Blue    Logger
+	Magenta Logger
+	Cyan    Logger
+	White   Logger
+}
+
+// NewColorful creates a new colorful logger.
+func NewColorful(level Level) *ColorfulLogger {
+	logger := &logger{
+		level:  level,
+		logger: log.New(os.Stdout, "", 0),
+	}
+
+	return &ColorfulLogger{
+		Red: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgRed),
+		},
+		Green: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgGreen),
+		},
+		Yellow: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgYellow),
+		},
+		Blue: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgBlue),
+		},
+		Magenta: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgMagenta),
+		},
+		Cyan: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgCyan),
+		},
+		White: &coloredLogger{
+			logger: logger,
+			color:  color.New(color.FgWhite),
+		},
+	}
+}
+
+// SetLevel updates the logging level of all loggers.
+func (l *ColorfulLogger) SetLevel(level Level) {
+	l.Red.SetLevel(level)
+	l.Green.SetLevel(level)
+	l.Yellow.SetLevel(level)
+	l.Blue.SetLevel(level)
+	l.Magenta.SetLevel(level)
+	l.Cyan.SetLevel(level)
+	l.White.SetLevel(level)
 }

@@ -10,61 +10,29 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/moorara/color"
-
 	"github.com/moorara/gelato/internal/log"
 )
 
 const (
-	decoratedDir  = ".build"
+	decoratedDir = ".build"
+
+	mainPkg       = "main"
+	serverPkg     = "server"
+	handlerPkg    = "handler"
+	controllerPkg = "controller"
 	gatewayPkg    = "gateway"
 	repositoryPkg = "repository"
-	controllerPkg = "controller"
-	handlerPkg    = "handler"
-	serverPkg     = "server"
 )
 
-type loggers struct {
-	red     log.Logger
-	green   log.Logger
-	yellow  log.Logger
-	blue    log.Logger
-	magenta log.Logger
-	cyan    log.Logger
-	white   log.Logger
+func isPackageDecoratable(pkgPath string) bool {
+	return strings.HasSuffix(pkgPath, "/"+serverPkg) || strings.Contains(pkgPath, "/"+serverPkg+"/") ||
+		strings.HasSuffix(pkgPath, "/"+handlerPkg) || strings.Contains(pkgPath, "/"+handlerPkg+"/") ||
+		strings.HasSuffix(pkgPath, "/"+controllerPkg) || strings.Contains(pkgPath, "/"+controllerPkg+"/") ||
+		strings.HasSuffix(pkgPath, "/"+gatewayPkg) || strings.Contains(pkgPath, "/"+gatewayPkg+"/") ||
+		strings.HasSuffix(pkgPath, "/"+repositoryPkg) || strings.Contains(pkgPath, "/"+repositoryPkg+"/")
 }
 
-func (l *loggers) SetLevel(level log.Level) {
-	l.red.SetLevel(level)
-	l.green.SetLevel(level)
-	l.yellow.SetLevel(level)
-	l.blue.SetLevel(level)
-	l.magenta.SetLevel(level)
-	l.cyan.SetLevel(level)
-	l.white.SetLevel(level)
-}
-
-// Decorator decorates a Go application.
-type Decorator struct {
-	loggers *loggers
-}
-
-// New creates a new decorator.
-func New() *Decorator {
-	return &Decorator{
-		loggers: &loggers{
-			red:     log.NewColored(log.None, color.New(color.FgRed)),
-			green:   log.NewColored(log.None, color.New(color.FgGreen)),
-			yellow:  log.NewColored(log.None, color.New(color.FgYellow)),
-			blue:    log.NewColored(log.None, color.New(color.FgBlue)),
-			magenta: log.NewColored(log.None, color.New(color.FgMagenta)),
-			cyan:    log.NewColored(log.None, color.New(color.FgCyan)),
-			white:   log.NewColored(log.None, color.New(color.FgWhite)),
-		},
-	}
-}
-
-func (d *Decorator) directories(basePath, relPath string, visit func(string, string) error) error {
+func directories(basePath, relPath string, visit func(string, string) error) error {
 	if err := visit(basePath, relPath); err != nil {
 		return err
 	}
@@ -78,7 +46,7 @@ func (d *Decorator) directories(basePath, relPath string, visit func(string, str
 	for _, file := range files {
 		if file.IsDir() && file.Name() != decoratedDir {
 			subdir := filepath.Join(relPath, file.Name())
-			if err := d.directories(basePath, subdir, visit); err != nil {
+			if err := directories(basePath, subdir, visit); err != nil {
 				return err
 			}
 		}
@@ -87,47 +55,75 @@ func (d *Decorator) directories(basePath, relPath string, visit func(string, str
 	return nil
 }
 
+// Decorator decorates a Go application.
+type Decorator struct {
+	logger     *log.ColorfulLogger
+	gateway    ast.Visitor
+	repository ast.Visitor
+	controller ast.Visitor
+	handler    ast.Visitor
+	server     ast.Visitor
+}
+
+// New creates a new decorator.
+func New() *Decorator {
+	return &Decorator{
+		logger:     log.NewColorful(log.None),
+		gateway:    newStructDecorator(gatewayPkg),
+		repository: newStructDecorator(repositoryPkg),
+		controller: newStructDecorator(controllerPkg),
+		handler:    newStructDecorator(handlerPkg),
+		server:     newStructDecorator(serverPkg),
+	}
+}
+
 // Decorate decorates a Go application.
 func (d *Decorator) Decorate(level log.Level, path string) error {
-	// Update loggers
-	d.loggers.SetLevel(level)
+	// Update logging level
+	d.logger.SetLevel(level)
 
 	// Sanitize the path
 	if _, err := os.Stat(path); err != nil {
 		return err
 	}
 
-	d.loggers.white.Infof("Decorating ...")
+	d.logger.White.Infof("Decorating ...")
 
 	visitor := &visitor{
-		depth:   4,
-		loggers: d.loggers,
+		depth:  4,
+		logger: d.logger,
 	}
 
-	return d.directories(path, ".", func(basePath, relPath string) error {
-		// Creating a new directory for the decorated package
+	return directories(path, ".", func(basePath, relPath string) error {
 		newDir := filepath.Join(basePath, decoratedDir, relPath)
-		if err := os.MkdirAll(newDir, os.ModePerm); err != nil {
-			return err
-		}
-		d.loggers.blue.Tracef("  Directory created: %s", newDir)
+		pkgDir := filepath.Join(basePath, relPath)
 
 		// Parse all Go packages and files in the currecnt directory
+		d.logger.Cyan.Debugf("  Parsing directory: %s", pkgDir)
 		fset := token.NewFileSet()
-		pkgDir := filepath.Join(basePath, relPath)
-		d.loggers.cyan.Debugf("  Parsing directory: %s", pkgDir)
 		pkgs, err := parser.ParseDir(fset, pkgDir, nil, parser.AllErrors)
 		if err != nil {
 			return err
 		}
-		d.loggers.cyan.Tracef("  Directory parsed: %s", pkgDir)
+		d.logger.Cyan.Tracef("  Directory parsed: %s", pkgDir)
+
+		// Skip the directory if it is not the main package or it does not need decoration
+		if _, exist := pkgs[mainPkg]; !exist && !isPackageDecoratable(pkgDir) {
+			return nil
+		}
+
+		// Creating a new directory for the decorated package
+		if err := os.MkdirAll(newDir, os.ModePerm); err != nil {
+			return err
+		}
+		d.logger.Blue.Tracef("  Directory created: %s", newDir)
 
 		// Visit all parsed Go files in the currecnt directory
 		for _, pkg := range pkgs {
-			d.loggers.magenta.Debugf("     Package: %s", pkg.Name)
+			d.logger.Magenta.Debugf("     Package: %s", pkg.Name)
 			for name, file := range pkg.Files {
 				if !strings.HasSuffix(name, "_test.go") {
-					d.loggers.green.Debugf("      File: %s", name)
+					d.logger.Green.Debugf("      File: %s", name)
 
 					// Visit all nodes in the current file AST
 					ast.Walk(visitor, file)
@@ -143,7 +139,7 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 						return err
 					}
 
-					d.loggers.green.Debugf("      File written: %s", newName)
+					d.logger.Green.Debugf("      File written: %s", newName)
 				}
 			}
 		}
