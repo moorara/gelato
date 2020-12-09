@@ -10,6 +10,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/moorara/gelato/internal/decorate/modifier"
+	"github.com/moorara/gelato/internal/decorate/visitor"
 	"github.com/moorara/gelato/internal/log"
 )
 
@@ -17,7 +21,6 @@ const (
 	decoratedDir = ".build"
 
 	mainPkg       = "main"
-	serverPkg     = "server"
 	handlerPkg    = "handler"
 	controllerPkg = "controller"
 	gatewayPkg    = "gateway"
@@ -25,8 +28,7 @@ const (
 )
 
 func isPackageDecoratable(pkgPath string) bool {
-	return strings.HasSuffix(pkgPath, "/"+serverPkg) || strings.Contains(pkgPath, "/"+serverPkg+"/") ||
-		strings.HasSuffix(pkgPath, "/"+handlerPkg) || strings.Contains(pkgPath, "/"+handlerPkg+"/") ||
+	return strings.HasSuffix(pkgPath, "/"+handlerPkg) || strings.Contains(pkgPath, "/"+handlerPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+controllerPkg) || strings.Contains(pkgPath, "/"+controllerPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+gatewayPkg) || strings.Contains(pkgPath, "/"+gatewayPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+repositoryPkg) || strings.Contains(pkgPath, "/"+repositoryPkg+"/")
@@ -57,23 +59,19 @@ func directories(basePath, relPath string, visit func(string, string) error) err
 
 // Decorator decorates a Go application.
 type Decorator struct {
-	logger     *log.ColorfulLogger
-	gateway    ast.Visitor
-	repository ast.Visitor
-	controller ast.Visitor
-	handler    ast.Visitor
-	server     ast.Visitor
+	logger   *log.ColorfulLogger
+	visitor  ast.Visitor
+	modifier modifier.Modifier
 }
 
 // New creates a new decorator.
 func New() *Decorator {
+	logger := log.NewColorful(log.None)
+
 	return &Decorator{
-		logger:     log.NewColorful(log.None),
-		gateway:    newStructDecorator(gatewayPkg),
-		repository: newStructDecorator(repositoryPkg),
-		controller: newStructDecorator(controllerPkg),
-		handler:    newStructDecorator(handlerPkg),
-		server:     newStructDecorator(serverPkg),
+		logger:   logger,
+		visitor:  visitor.NewDebug(4, logger),
+		modifier: modifier.NewFile(4, logger),
 	}
 }
 
@@ -88,11 +86,6 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 	}
 
 	d.logger.White.Infof("Decorating ...")
-
-	visitor := &visitor{
-		depth:  4,
-		logger: d.logger,
-	}
 
 	return directories(path, ".", func(basePath, relPath string) error {
 		newDir := filepath.Join(basePath, decoratedDir, relPath)
@@ -126,7 +119,8 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 					d.logger.Green.Debugf("      File: %s", name)
 
 					// Visit all nodes in the current file AST
-					ast.Walk(visitor, file)
+					// ast.Walk(d.visitor, file)
+					astutil.Apply(file, d.modifier.Pre, d.modifier.Post)
 
 					// Write the modified Go file to disk
 					newName := filepath.Join(newDir, filepath.Base(name))
