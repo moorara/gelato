@@ -11,11 +11,11 @@ type importModifier struct {
 	modifier
 }
 
-func (m *importModifier) Apply(n ast.Node) ast.Node {
-	return astutil.Apply(n, m.Pre, m.Post)
+func (m *importModifier) Modify(n ast.Node) ast.Node {
+	return astutil.Apply(n, m.pre, m.post)
 }
 
-func (m *importModifier) Pre(c *astutil.Cursor) bool {
+func (m *importModifier) pre(c *astutil.Cursor) bool {
 	m.depth++
 
 	switch n := c.Node().(type) {
@@ -32,7 +32,7 @@ func (m *importModifier) Pre(c *astutil.Cursor) bool {
 	return false
 }
 
-func (m *importModifier) Post(c *astutil.Cursor) bool {
+func (m *importModifier) post(c *astutil.Cursor) bool {
 	m.depth--
 	return true
 }

@@ -154,7 +154,7 @@ func TestFuncModifier(t *testing.T) {
 				},
 			}
 
-			node := m.Apply(tc.node)
+			node := m.Modify(tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 			assert.Equal(t, tc.expectedExported, m.outputs.Exported)

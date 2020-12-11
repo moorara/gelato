@@ -10,10 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/go/ast/astutil"
-
 	"github.com/moorara/gelato/internal/decorate/modifier"
-	"github.com/moorara/gelato/internal/decorate/visitor"
 	"github.com/moorara/gelato/internal/log"
 )
 
@@ -57,12 +54,17 @@ func directories(basePath, relPath string, visit func(string, string) error) err
 	return nil
 }
 
-// Decorator decorates a Go application.
-type Decorator struct {
-	logger   *log.ColorfulLogger
-	visitor  ast.Visitor
-	modifier modifier.Modifier
-}
+type (
+	fileModifier interface {
+		Modify(string, string, ast.Node) ast.Node
+	}
+
+	// Decorator decorates a Go application.
+	Decorator struct {
+		logger   *log.ColorfulLogger
+		modifier fileModifier
+	}
+)
 
 // New creates a new decorator.
 func New() *Decorator {
@@ -70,7 +72,6 @@ func New() *Decorator {
 
 	return &Decorator{
 		logger:   logger,
-		visitor:  visitor.NewDebug(4, logger),
 		modifier: modifier.NewFile(4, logger),
 	}
 }
@@ -119,8 +120,8 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 					d.logger.Green.Debugf("      File: %s", name)
 
 					// Visit all nodes in the current file AST
-					// ast.Walk(d.visitor, file)
-					astutil.Apply(file, d.modifier.Pre, d.modifier.Post)
+					// TODO: basePath is not module name!
+					d.modifier.Modify(basePath, decoratedDir, file)
 
 					// Write the modified Go file to disk
 					newName := filepath.Join(newDir, filepath.Base(name))

@@ -33,8 +33,13 @@ func NewFile(depth int, logger *log.ColorfulLogger) *FileModifier {
 	}
 }
 
+// Modify modifies a ast.File node.
+func (m *FileModifier) Modify(module, dir string, n ast.Node) ast.Node {
+	return astutil.Apply(n, m.pre, m.post)
+}
+
 // Pre is called for each node before the node's children are traversed (pre-order).
-func (m *FileModifier) Pre(c *astutil.Cursor) bool {
+func (m *FileModifier) pre(c *astutil.Cursor) bool {
 	m.depth++
 
 	switch n := c.Node().(type) {
@@ -51,16 +56,16 @@ func (m *FileModifier) Pre(c *astutil.Cursor) bool {
 		switch n.Tok {
 		case token.IMPORT:
 			// If GenDecl is an import, keep it in the AST
-			m.importModifier.Apply(n)
+			m.importModifier.Modify(n)
 			return false
 		case token.TYPE:
 			// If GenDecl is a type, visit its children using another modifier to determine whether it is an interface, struct, etc.
-			m.typeModifier.Apply(n)
-			res := m.typeModifier.outputs
+			m.typeModifier.Modify(n)
+			out := m.typeModifier.outputs
 
-			if res.IsInterface && res.Exported {
+			if out.IsInterface && out.Exported {
 				// TODO: save a reference to the interface type
-			} else if res.IsStruct && !res.Exported {
+			} else if out.IsStruct && !out.Exported {
 				// Keep the modified GenDecl in the AST if it is a struct declaration
 				// TODO: determine if the struct is implementing the interface
 				return false
@@ -69,10 +74,10 @@ func (m *FileModifier) Pre(c *astutil.Cursor) bool {
 
 	case *ast.FuncDecl:
 		// Visit the function node children using another modifier to determine wheher or not we should keep it in the AST
-		m.funcModifier.Apply(n)
-		res := m.funcModifier.outputs
+		m.funcModifier.Modify(n)
+		out := m.funcModifier.outputs
 
-		if res.Exported {
+		if out.Exported {
 			// Keep the modified FuncDecl in the AST if it implements an interface method
 			// TODO: determine if the current method has a counterpart in the interface
 			return false
@@ -88,7 +93,7 @@ func (m *FileModifier) Pre(c *astutil.Cursor) bool {
 }
 
 // Post is called for each node after its children are traversed (post-order).
-func (m *FileModifier) Post(c *astutil.Cursor) bool {
+func (m *FileModifier) post(c *astutil.Cursor) bool {
 	m.depth--
 	return true
 }

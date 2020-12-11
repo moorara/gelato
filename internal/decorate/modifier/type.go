@@ -18,16 +18,16 @@ type typeModifier struct {
 	}
 }
 
-func (m *typeModifier) Apply(n ast.Node) ast.Node {
+func (m *typeModifier) Modify(n ast.Node) ast.Node {
 	m.outputs.IsInterface = false
 	m.outputs.IsStruct = false
 	m.outputs.Exported = false
 	m.outputs.TypeName = ""
 
-	return astutil.Apply(n, m.Pre, m.Post)
+	return astutil.Apply(n, m.pre, m.post)
 }
 
-func (m *typeModifier) Pre(c *astutil.Cursor) bool {
+func (m *typeModifier) pre(c *astutil.Cursor) bool {
 	m.depth++
 
 	switch n := c.Node().(type) {
@@ -47,15 +47,13 @@ func (m *typeModifier) Pre(c *astutil.Cursor) bool {
 		m.outputs.IsStruct = true
 		return true
 	case *ast.FieldList:
-		return true
-	case *ast.Field:
-		return true
+		return false
 	}
 
 	return false
 }
 
-func (m *typeModifier) Post(c *astutil.Cursor) bool {
+func (m *typeModifier) post(c *astutil.Cursor) bool {
 	m.depth--
 	return true
 }

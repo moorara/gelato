@@ -25,8 +25,13 @@ func NewDebug(depth int, logger *log.ColorfulLogger) *DebugModifier {
 	}
 }
 
+// Modify prints debugging information for a ast.File node.
+func (m *DebugModifier) Modify(n ast.Node) ast.Node {
+	return astutil.Apply(n, m.pre, m.post)
+}
+
 // Pre is called for each node before the node's children are traversed (pre-order).
-func (m *DebugModifier) Pre(c *astutil.Cursor) bool {
+func (m *DebugModifier) pre(c *astutil.Cursor) bool {
 	m.depth++
 
 	indent := strings.Repeat("  ", m.depth)
@@ -47,7 +52,7 @@ func (m *DebugModifier) Pre(c *astutil.Cursor) bool {
 }
 
 // Post is called for each node after its children are traversed (post-order).
-func (m *DebugModifier) Post(c *astutil.Cursor) bool {
+func (m *DebugModifier) post(c *astutil.Cursor) bool {
 	m.depth--
 	return true
 }

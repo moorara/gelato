@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/moorara/gelato/internal/log"
 )
@@ -188,12 +187,16 @@ func TestFileModifier(t *testing.T) {
 	tests := []struct {
 		name         string
 		depth        int
+		module       string
+		dir          string
 		node         ast.Node
 		expectedNode ast.Node
 	}{
 		{
 			name:         "FileNode",
 			depth:        2,
+			module:       "github.com/octocat/Hello-World",
+			dir:          ".build",
 			node:         fileNode,
 			expectedNode: fileNode,
 		},
@@ -202,7 +205,8 @@ func TestFileModifier(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewFile(tc.depth, clogger)
-			node := astutil.Apply(tc.node, m.Pre, m.Post)
+
+			node := m.Modify(tc.module, tc.dir, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 		})
