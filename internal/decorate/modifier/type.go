@@ -10,19 +10,22 @@ import (
 
 type typeModifier struct {
 	modifier
+
+	typeName     string
+	typeExported bool
+
 	outputs struct {
-		IsInterface bool
-		IsStruct    bool
-		Exported    bool
-		TypeName    string
+		Interface *interfaceType
+		Struct    *structType
 	}
 }
 
 func (m *typeModifier) Modify(n ast.Node) ast.Node {
-	m.outputs.IsInterface = false
-	m.outputs.IsStruct = false
-	m.outputs.Exported = false
-	m.outputs.TypeName = ""
+	// Reset the state
+	m.typeName = ""
+	m.typeExported = false
+	m.outputs.Interface = nil
+	m.outputs.Struct = nil
 
 	return astutil.Apply(n, m.pre, m.post)
 }
@@ -33,20 +36,50 @@ func (m *typeModifier) pre(c *astutil.Cursor) bool {
 	switch n := c.Node().(type) {
 	case *ast.GenDecl:
 		return n.Tok == token.TYPE
+
 	case *ast.TypeSpec:
 		return true
+
 	case *ast.Ident:
 		if _, ok := c.Parent().(*ast.TypeSpec); ok {
-			m.outputs.TypeName = n.Name
-			m.outputs.Exported = n.Name == strings.Title(n.Name)
+			m.typeName = n.Name
+			m.typeExported = n.Name == strings.Title(n.Name)
 		}
+
 	case *ast.InterfaceType:
-		m.outputs.IsInterface = true
+		m.outputs.Interface = &interfaceType{
+			Exported: m.typeExported,
+			Name:     m.typeName,
+		}
 		return true
+
 	case *ast.StructType:
-		m.outputs.IsStruct = true
+		m.outputs.Struct = &structType{
+			Exported: m.typeExported,
+			Name:     m.typeName,
+		}
 		return true
+
 	case *ast.FieldList:
+		// Modify the struct field list
+		// TODO: verify this is the right FieldList to modify (as opposed to a FieldList in InterfaceType or a different StructType type)
+		n.List = []*ast.Field{
+			{
+				Names: []*ast.Ident{
+					{
+						Name: "impl",
+					},
+				},
+				Type: &ast.SelectorExpr{
+					X: &ast.Ident{
+						Name: "pkg",
+					},
+					Sel: &ast.Ident{
+						Name: m.typeName,
+					},
+				},
+			},
+		}
 		return false
 	}
 

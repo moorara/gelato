@@ -63,9 +63,9 @@ func (m *FileModifier) pre(c *astutil.Cursor) bool {
 			m.typeModifier.Modify(n)
 			out := m.typeModifier.outputs
 
-			if out.IsInterface && out.Exported {
+			if out.Interface != nil && out.Interface.Exported {
 				// TODO: save a reference to the interface type
-			} else if out.IsStruct && !out.Exported {
+			} else if out.Struct != nil && !out.Struct.Exported {
 				// Keep the modified GenDecl in the AST if it is a struct declaration
 				// TODO: determine if the struct is implementing the interface
 				return false
@@ -77,7 +77,7 @@ func (m *FileModifier) pre(c *astutil.Cursor) bool {
 		m.funcModifier.Modify(n)
 		out := m.funcModifier.outputs
 
-		if out.Exported {
+		if out.Func.Exported {
 			// Keep the modified FuncDecl in the AST if it implements an interface method
 			// TODO: determine if the current method has a counterpart in the interface
 			return false

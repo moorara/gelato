@@ -63,7 +63,7 @@ func TestFileModifier(t *testing.T) {
 				Specs: []ast.Spec{
 					&ast.TypeSpec{
 						Name: &ast.Ident{
-							Name: "DomainController",
+							Name: "Controller",
 						},
 						Type: &ast.InterfaceType{
 							Methods: &ast.FieldList{
@@ -84,7 +84,7 @@ func TestFileModifier(t *testing.T) {
 				Specs: []ast.Spec{
 					&ast.TypeSpec{
 						Name: &ast.Ident{
-							Name: "domainController",
+							Name: "controller",
 						},
 						Type: &ast.StructType{
 							Fields: &ast.FieldList{
@@ -102,15 +102,30 @@ func TestFileModifier(t *testing.T) {
 			// Exported Function
 			&ast.FuncDecl{
 				Recv: nil,
-				Name: &ast.Ident{
-					Name: "NewDomain",
-				},
+				Name: &ast.Ident{Name: "NewController"},
 				Type: &ast.FuncType{
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "ug"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "gateway"},
+										Sel: &ast.Ident{Name: "UserGateway"},
+									},
+								},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: &ast.Ident{Name: "Controller"},
+							},
+							{
+								Type: &ast.Ident{Name: "error"},
 							},
 						},
 					},
@@ -119,15 +134,32 @@ func TestFileModifier(t *testing.T) {
 			// Unexported Function
 			&ast.FuncDecl{
 				Recv: nil,
-				Name: &ast.Ident{
-					Name: "newDomain",
-				},
+				Name: &ast.Ident{Name: "newController"},
 				Type: &ast.FuncType{
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "ug"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "gateway"},
+										Sel: &ast.Ident{Name: "UserGateway"},
+									},
+								},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: "controller"},
+								},
+							},
+							{
+								Type: &ast.Ident{Name: "error"},
 							},
 						},
 					},
@@ -138,8 +170,12 @@ func TestFileModifier(t *testing.T) {
 				Recv: &ast.FieldList{
 					List: []*ast.Field{
 						{
-							Names: []*ast.Ident{},
-							Type:  &ast.FuncType{},
+							Names: []*ast.Ident{
+								{Name: "c"},
+							},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{Name: "controller"},
+							},
 						},
 					},
 				},
@@ -150,8 +186,28 @@ func TestFileModifier(t *testing.T) {
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "a"},
+									{Name: "b"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: "int"},
+								},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "entity"},
+										Sel: &ast.Ident{Name: "CalculateResponse"},
+									},
+								},
+							},
+							{
+								Type: &ast.Ident{Name: "error"},
 							},
 						},
 					},
@@ -162,8 +218,12 @@ func TestFileModifier(t *testing.T) {
 				Recv: &ast.FieldList{
 					List: []*ast.Field{
 						{
-							Names: []*ast.Ident{},
-							Type:  &ast.FuncType{},
+							Names: []*ast.Ident{
+								{Name: "c"},
+							},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{Name: "controller"},
+							},
 						},
 					},
 				},
@@ -174,8 +234,30 @@ func TestFileModifier(t *testing.T) {
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "a"},
+									{Name: "b"},
+								},
+								Type: &ast.Ident{Name: "int"},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Names: []*ast.Ident{
+									{Name: "resp"},
+								},
+								Type: &ast.SelectorExpr{
+									X:   &ast.Ident{Name: "entity"},
+									Sel: &ast.Ident{Name: "CalculateResponse"},
+								},
+							},
+							{
+								Names: []*ast.Ident{
+									{Name: "err"},
+								},
+								Type: &ast.Ident{Name: "error"},
 							},
 						},
 					},

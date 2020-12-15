@@ -23,15 +23,30 @@ func TestFuncModifier(t *testing.T) {
 
 	exportedFunc := &ast.FuncDecl{
 		Recv: nil,
-		Name: &ast.Ident{
-			Name: "NewDomain",
-		},
+		Name: &ast.Ident{Name: "NewController"},
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Names: []*ast.Ident{},
-						Type:  &ast.FuncType{},
+						Names: []*ast.Ident{
+							{Name: "ug"},
+						},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "gateway"},
+								Sel: &ast.Ident{Name: "UserGateway"},
+							},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.Ident{Name: "Controller"},
+					},
+					{
+						Type: &ast.Ident{Name: "error"},
 					},
 				},
 			},
@@ -40,15 +55,32 @@ func TestFuncModifier(t *testing.T) {
 
 	unexportedFunc := &ast.FuncDecl{
 		Recv: nil,
-		Name: &ast.Ident{
-			Name: "newDomain",
-		},
+		Name: &ast.Ident{Name: "newController"},
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Names: []*ast.Ident{},
-						Type:  &ast.FuncType{},
+						Names: []*ast.Ident{
+							{Name: "ug"},
+						},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "gateway"},
+								Sel: &ast.Ident{Name: "UserGateway"},
+							},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: "controller"},
+						},
+					},
+					{
+						Type: &ast.Ident{Name: "error"},
 					},
 				},
 			},
@@ -59,8 +91,12 @@ func TestFuncModifier(t *testing.T) {
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
 				{
-					Names: []*ast.Ident{},
-					Type:  &ast.FuncType{},
+					Names: []*ast.Ident{
+						{Name: "c"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: "controller"},
+					},
 				},
 			},
 		},
@@ -71,8 +107,28 @@ func TestFuncModifier(t *testing.T) {
 			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Names: []*ast.Ident{},
-						Type:  &ast.FuncType{},
+						Names: []*ast.Ident{
+							{Name: "a"},
+							{Name: "b"},
+						},
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: "int"},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "entity"},
+								Sel: &ast.Ident{Name: "CalculateResponse"},
+							},
+						},
+					},
+					{
+						Type: &ast.Ident{Name: "error"},
 					},
 				},
 			},
@@ -83,8 +139,12 @@ func TestFuncModifier(t *testing.T) {
 		Recv: &ast.FieldList{
 			List: []*ast.Field{
 				{
-					Names: []*ast.Ident{},
-					Type:  &ast.FuncType{},
+					Names: []*ast.Ident{
+						{Name: "c"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: "controller"},
+					},
 				},
 			},
 		},
@@ -95,8 +155,30 @@ func TestFuncModifier(t *testing.T) {
 			Params: &ast.FieldList{
 				List: []*ast.Field{
 					{
-						Names: []*ast.Ident{},
-						Type:  &ast.FuncType{},
+						Names: []*ast.Ident{
+							{Name: "a"},
+							{Name: "b"},
+						},
+						Type: &ast.Ident{Name: "int"},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							{Name: "resp"},
+						},
+						Type: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: "entity"},
+							Sel: &ast.Ident{Name: "CalculateResponse"},
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							{Name: "err"},
+						},
+						Type: &ast.Ident{Name: "error"},
 					},
 				},
 			},
@@ -104,44 +186,151 @@ func TestFuncModifier(t *testing.T) {
 	}
 
 	tests := []struct {
-		name             string
-		depth            int
-		node             ast.Node
-		expectedNode     ast.Node
-		expectedExported bool
-		expectedFuncName string
+		name         string
+		depth        int
+		node         ast.Node
+		expectedNode ast.Node
+		expectedFunc funcType
 	}{
 		{
-			name:             "ExportedFunc",
-			depth:            2,
-			node:             exportedFunc,
-			expectedNode:     exportedFunc,
-			expectedExported: true,
-			expectedFuncName: "NewDomain",
+			name:         "ExportedFunc",
+			depth:        2,
+			node:         exportedFunc,
+			expectedNode: exportedFunc,
+			expectedFunc: funcType{
+				Exported: true,
+				Name:     "NewController",
+				Receiver: nil,
+				Inputs: fields{
+					{
+						Names:   []string{"ug"},
+						Star:    true,
+						Package: "gateway",
+						Type:    "UserGateway",
+					},
+				},
+				Outputs: fields{
+					{
+						Names:   nil,
+						Star:    false,
+						Package: "",
+						Type:    "Controller",
+					},
+					{
+						Names:   nil,
+						Star:    false,
+						Package: "",
+						Type:    "error",
+					},
+				},
+			},
 		},
 		{
-			name:             "UnexportedFunc",
-			depth:            2,
-			node:             unexportedFunc,
-			expectedNode:     unexportedFunc,
-			expectedExported: false,
-			expectedFuncName: "newDomain",
+			name:         "UnexportedFunc",
+			depth:        2,
+			node:         unexportedFunc,
+			expectedNode: unexportedFunc,
+			expectedFunc: funcType{
+				Exported: false,
+				Name:     "newController",
+				Receiver: nil,
+				Inputs: fields{
+					{
+						Names:   []string{"ug"},
+						Star:    true,
+						Package: "gateway",
+						Type:    "UserGateway",
+					},
+				},
+				Outputs: fields{
+					{
+						Names:   nil,
+						Star:    true,
+						Package: "",
+						Type:    "controller",
+					},
+					{
+						Names:   nil,
+						Star:    false,
+						Package: "",
+						Type:    "error",
+					},
+				},
+			},
 		},
 		{
-			name:             "ExportedMethod",
-			depth:            2,
-			node:             exportedMethod,
-			expectedNode:     exportedMethod,
-			expectedExported: true,
-			expectedFuncName: "Calculate",
+			name:         "ExportedMethod",
+			depth:        2,
+			node:         exportedMethod,
+			expectedNode: exportedMethod,
+			expectedFunc: funcType{
+				Exported: true,
+				Name:     "Calculate",
+				Receiver: &receiver{
+					Name: "c",
+					Star: true,
+					Type: "controller",
+				},
+				Inputs: fields{
+					{
+						Names:   []string{"a", "b"},
+						Star:    true,
+						Package: "",
+						Type:    "int",
+					},
+				},
+				Outputs: fields{
+					{
+						Names:   nil,
+						Star:    true,
+						Package: "entity",
+						Type:    "CalculateResponse",
+					},
+					{
+						Names:   nil,
+						Star:    false,
+						Package: "",
+						Type:    "error",
+					},
+				},
+			},
 		},
 		{
-			name:             "UnexportedMethod",
-			depth:            2,
-			node:             unexportedMethod,
-			expectedNode:     unexportedMethod,
-			expectedExported: false,
-			expectedFuncName: "calculate",
+			name:         "UnexportedMethod",
+			depth:        2,
+			node:         unexportedMethod,
+			expectedNode: unexportedMethod,
+			expectedFunc: funcType{
+				Exported: false,
+				Name:     "calculate",
+				Receiver: &receiver{
+					Name: "c",
+					Star: true,
+					Type: "controller",
+				},
+				Inputs: fields{
+					{
+						Names:   []string{"a", "b"},
+						Star:    false,
+						Package: "",
+						Type:    "int",
+					},
+				},
+				Outputs: fields{
+					{
+						Names:   []string{"resp"},
+						Star:    false,
+						Package: "entity",
+						Type:    "CalculateResponse",
+					},
+					{
+						Names:   []string{"err"},
+						Star:    false,
+						Package: "",
+						Type:    "error",
+					},
+				},
+			},
 		},
 	}
 
@@ -157,8 +346,7 @@ func TestFuncModifier(t *testing.T) {
 			node := m.Modify(tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
-			assert.Equal(t, tc.expectedExported, m.outputs.Exported)
-			assert.Equal(t, tc.expectedFuncName, m.outputs.FuncName)
+			assert.Equal(t, tc.expectedFunc, m.outputs.Func)
 		})
 	}
 }

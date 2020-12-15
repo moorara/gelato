@@ -27,7 +27,7 @@ func TestTypeModifier(t *testing.T) {
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
 				Name: &ast.Ident{
-					Name: "DomainController",
+					Name: "Controller",
 				},
 				Type: &ast.InterfaceType{
 					Methods: &ast.FieldList{
@@ -48,7 +48,7 @@ func TestTypeModifier(t *testing.T) {
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
 				Name: &ast.Ident{
-					Name: "domainController",
+					Name: "controller",
 				},
 				Type: &ast.StructType{
 					Fields: &ast.FieldList{
@@ -65,14 +65,12 @@ func TestTypeModifier(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                string
-		depth               int
-		node                ast.Node
-		expectedNode        ast.Node
-		expectedExported    bool
-		expectedIsInterface bool
-		expectedIsStruct    bool
-		expectedTypeName    string
+		name              string
+		depth             int
+		node              ast.Node
+		expectedNode      ast.Node
+		expectedInterface *interfaceType
+		expectedStruct    *structType
 	}{
 		{
 			name:  "InvalidGenDecl",
@@ -83,30 +81,30 @@ func TestTypeModifier(t *testing.T) {
 			expectedNode: &ast.GenDecl{
 				Tok: token.IMPORT,
 			},
-			expectedIsInterface: false,
-			expectedIsStruct:    false,
-			expectedExported:    false,
-			expectedTypeName:    "",
+			expectedInterface: nil,
+			expectedStruct:    nil,
 		},
 		{
-			name:                "InterfaceGenDecl",
-			depth:               2,
-			node:                interfaceGenDecl,
-			expectedNode:        interfaceGenDecl,
-			expectedIsInterface: true,
-			expectedIsStruct:    false,
-			expectedExported:    true,
-			expectedTypeName:    "DomainController",
+			name:         "InterfaceGenDecl",
+			depth:        2,
+			node:         interfaceGenDecl,
+			expectedNode: interfaceGenDecl,
+			expectedInterface: &interfaceType{
+				Exported: true,
+				Name:     "Controller",
+			},
+			expectedStruct: nil,
 		},
 		{
-			name:                "StructGenDecl",
-			depth:               2,
-			node:                structGenDecl,
-			expectedNode:        structGenDecl,
-			expectedIsInterface: false,
-			expectedIsStruct:    true,
-			expectedExported:    false,
-			expectedTypeName:    "domainController",
+			name:              "StructGenDecl",
+			depth:             2,
+			node:              structGenDecl,
+			expectedNode:      structGenDecl,
+			expectedInterface: nil,
+			expectedStruct: &structType{
+				Exported: false,
+				Name:     "controller",
+			},
 		},
 	}
 
@@ -122,10 +120,8 @@ func TestTypeModifier(t *testing.T) {
 			node := m.Modify(tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
-			assert.Equal(t, tc.expectedIsInterface, m.outputs.IsInterface)
-			assert.Equal(t, tc.expectedIsStruct, m.outputs.IsStruct)
-			assert.Equal(t, tc.expectedExported, m.outputs.Exported)
-			assert.Equal(t, tc.expectedTypeName, m.outputs.TypeName)
+			assert.Equal(t, tc.expectedInterface, m.outputs.Interface)
+			assert.Equal(t, tc.expectedStruct, m.outputs.Struct)
 		})
 	}
 }
