@@ -7,13 +7,15 @@ import (
 	"golang.org/x/tools/go/ast/astutil"
 )
 
+const (
+	addToReceiver = 1 + iota
+	addToInputs
+	addToOutputs
+)
+
 type funcModifier struct {
 	modifier
-
-	addToReceiver bool
-	addToInputs   bool
-	addToOutputs  bool
-
+	addTo   int
 	outputs struct {
 		Func funcType
 	}
@@ -21,9 +23,7 @@ type funcModifier struct {
 
 func (m *funcModifier) Modify(n ast.Node) ast.Node {
 	// Reset the state
-	m.addToReceiver = false
-	m.addToInputs = false
-	m.addToOutputs = false
+	m.addTo = 0
 	m.outputs.Func = funcType{}
 
 	return astutil.Apply(n, m.pre, m.post)
@@ -45,31 +45,33 @@ func (m *funcModifier) pre(c *astutil.Cursor) bool {
 	case *ast.FieldList:
 		switch c.Name() {
 		case "Recv":
-			m.addToReceiver = true
+			m.addTo = addToReceiver
 			m.outputs.Func.Receiver = &receiver{}
 		case "Params":
-			m.addToInputs = true
+			m.addTo = addToInputs
 		case "Results":
-			m.addToOutputs = true
+			m.addTo = addToOutputs
 		}
 		return true
 
 	case *ast.Field:
-		if m.addToReceiver {
+		switch m.addTo {
+		case addToReceiver:
 			m.outputs.Func.Receiver.Name = n.Names[0].Name
-		} else if m.addToInputs {
+		case addToInputs:
 			m.outputs.Func.Inputs.Append(n)
-		} else if m.addToOutputs {
+		case addToOutputs:
 			m.outputs.Func.Outputs.Append(n)
 		}
 		return true
 
 	case *ast.StarExpr:
-		if m.addToReceiver {
+		switch m.addTo {
+		case addToReceiver:
 			m.outputs.Func.Receiver.Star = true
-		} else if m.addToInputs {
+		case addToInputs:
 			m.outputs.Func.Inputs.SetStar()
-		} else if m.addToOutputs {
+		case addToOutputs:
 			m.outputs.Func.Outputs.SetStar()
 		}
 		return true
@@ -80,26 +82,27 @@ func (m *funcModifier) pre(c *astutil.Cursor) bool {
 	case *ast.Ident:
 		switch c.Parent().(type) {
 		case *ast.Field, *ast.StarExpr:
-			if m.addToReceiver {
+			switch m.addTo {
+			case addToReceiver:
 				m.outputs.Func.Receiver.Type = n.Name
-			} else if m.addToInputs {
+			case addToInputs:
 				m.outputs.Func.Inputs.SetType(n)
-			} else if m.addToOutputs {
+			case addToOutputs:
 				m.outputs.Func.Outputs.SetType(n)
 			}
 		case *ast.SelectorExpr:
 			// SelectorExpr can only appear for a method input or output
 			switch c.Name() {
 			case "X":
-				if m.addToInputs {
+				if m.addTo == addToInputs {
 					m.outputs.Func.Inputs.SetPackage(n)
-				} else if m.addToOutputs {
+				} else if m.addTo == addToOutputs {
 					m.outputs.Func.Outputs.SetPackage(n)
 				}
 			case "Sel":
-				if m.addToInputs {
+				if m.addTo == addToInputs {
 					m.outputs.Func.Inputs.SetType(n)
-				} else if m.addToOutputs {
+				} else if m.addTo == addToOutputs {
 					m.outputs.Func.Outputs.SetType(n)
 				}
 			}
@@ -116,13 +119,12 @@ func (m *funcModifier) post(c *astutil.Cursor) bool {
 	case *ast.FieldList:
 		switch c.Name() {
 		case "Recv":
-			m.addToReceiver = false
+			m.addTo = 0
 		case "Params":
-			m.addToInputs = false
+			m.addTo = 0
 		case "Results":
-			m.addToOutputs = false
+			m.addTo = 0
 		}
-		return true
 	}
 
 	return true

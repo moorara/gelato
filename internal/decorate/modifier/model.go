@@ -1,6 +1,18 @@
 package modifier
 
-import "go/ast"
+import (
+	"go/ast"
+)
+
+const (
+	implementationID = "impl"
+)
+
+type receiver struct {
+	Name string
+	Star bool
+	Type string
+}
 
 type field struct {
 	Names   []string
@@ -34,12 +46,6 @@ func (f *fields) SetType(n *ast.Ident) {
 	(*f)[i].Type = n.Name
 }
 
-type receiver struct {
-	Name string
-	Star bool
-	Type string
-}
-
 type funcType struct {
 	Exported bool
 	Name     string
@@ -51,11 +57,9 @@ type funcType struct {
 type interfaceType struct {
 	Exported bool
 	Name     string
-	Methods  []funcType
 }
 
 type structType struct {
 	Exported bool
 	Name     string
-	Fields   fields
 }

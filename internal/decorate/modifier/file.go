@@ -16,6 +16,9 @@ type FileModifier struct {
 	importModifier *importModifier
 	typeModifier   *typeModifier
 	funcModifier   *funcModifier
+	outputs        struct {
+		packageName string
+	}
 }
 
 // NewFile creates a new file modifier.
@@ -35,6 +38,9 @@ func NewFile(depth int, logger *log.ColorfulLogger) *FileModifier {
 
 // Modify modifies a ast.File node.
 func (m *FileModifier) Modify(module, dir string, n ast.Node) ast.Node {
+	// Reset the state
+	m.outputs.packageName = ""
+
 	return astutil.Apply(n, m.pre, m.post)
 }
 
@@ -49,6 +55,7 @@ func (m *FileModifier) pre(c *astutil.Cursor) bool {
 	case *ast.Ident:
 		// Keep the node in the AST if it is the package identifier
 		if _, ok := c.Parent().(*ast.File); ok {
+			m.outputs.packageName = n.Name
 			return false
 		}
 
@@ -60,7 +67,7 @@ func (m *FileModifier) pre(c *astutil.Cursor) bool {
 			return false
 		case token.TYPE:
 			// If GenDecl is a type, visit its children using another modifier to determine whether it is an interface, struct, etc.
-			m.typeModifier.Modify(n)
+			m.typeModifier.Modify(m.outputs.packageName, n)
 			out := m.typeModifier.outputs
 
 			if out.Interface != nil && out.Interface.Exported {

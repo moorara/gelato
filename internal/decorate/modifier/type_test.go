@@ -26,15 +26,49 @@ func TestTypeModifier(t *testing.T) {
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
-				Name: &ast.Ident{
-					Name: "Controller",
-				},
+				Name: &ast.Ident{Name: "Controller"},
 				Type: &ast.InterfaceType{
 					Methods: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "Calculate"},
+								},
+								Type: &ast.FuncType{
+									Params: &ast.FieldList{
+										List: []*ast.Field{
+											{
+												Type: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "context"},
+													Sel: &ast.Ident{Name: "Context"},
+												},
+											},
+											{
+												Type: &ast.StarExpr{
+													X: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "entity"},
+														Sel: &ast.Ident{Name: "CalculateRequest"},
+													},
+												},
+											},
+										},
+									},
+									Results: &ast.FieldList{
+										List: []*ast.Field{
+											{
+												Type: &ast.StarExpr{
+													X: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "entity"},
+														Sel: &ast.Ident{Name: "CalculateResponse"},
+													},
+												},
+											},
+											{
+												Type: &ast.Ident{Name: "error"},
+											},
+										},
+									},
+								},
 							},
 						},
 					},
@@ -47,15 +81,18 @@ func TestTypeModifier(t *testing.T) {
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
-				Name: &ast.Ident{
-					Name: "controller",
-				},
+				Name: &ast.Ident{Name: "controller"},
 				Type: &ast.StructType{
 					Fields: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.SelectorExpr{},
+								Names: []*ast.Ident{
+									{Name: "userGateway"},
+								},
+								Type: &ast.SelectorExpr{
+									X:   &ast.Ident{Name: "gateway"},
+									Sel: &ast.Ident{Name: "UserGateway"},
+								},
 							},
 						},
 					},
@@ -67,6 +104,7 @@ func TestTypeModifier(t *testing.T) {
 	tests := []struct {
 		name              string
 		depth             int
+		pkg               string
 		node              ast.Node
 		expectedNode      ast.Node
 		expectedInterface *interfaceType
@@ -75,6 +113,7 @@ func TestTypeModifier(t *testing.T) {
 		{
 			name:  "InvalidGenDecl",
 			depth: 2,
+			pkg:   "controller",
 			node: &ast.GenDecl{
 				Tok: token.IMPORT,
 			},
@@ -87,6 +126,7 @@ func TestTypeModifier(t *testing.T) {
 		{
 			name:         "InterfaceGenDecl",
 			depth:        2,
+			pkg:          "controller",
 			node:         interfaceGenDecl,
 			expectedNode: interfaceGenDecl,
 			expectedInterface: &interfaceType{
@@ -98,6 +138,7 @@ func TestTypeModifier(t *testing.T) {
 		{
 			name:              "StructGenDecl",
 			depth:             2,
+			pkg:               "controller",
 			node:              structGenDecl,
 			expectedNode:      structGenDecl,
 			expectedInterface: nil,
@@ -117,7 +158,7 @@ func TestTypeModifier(t *testing.T) {
 				},
 			}
 
-			node := m.Modify(tc.node)
+			node := m.Modify(tc.pkg, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 			assert.Equal(t, tc.expectedInterface, m.outputs.Interface)
