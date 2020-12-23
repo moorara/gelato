@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	errorID          = "err"
 	implementationID = "impl"
 )
 

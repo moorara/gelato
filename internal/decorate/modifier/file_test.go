@@ -108,7 +108,7 @@ func TestFileModifier(t *testing.T) {
 						List: []*ast.Field{
 							{
 								Names: []*ast.Ident{
-									{Name: "ug"},
+									{Name: "userGateway"},
 								},
 								Type: &ast.StarExpr{
 									X: &ast.SelectorExpr{
@@ -126,6 +126,26 @@ func TestFileModifier(t *testing.T) {
 							},
 							{
 								Type: &ast.Ident{Name: "error"},
+							},
+						},
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								&ast.UnaryExpr{
+									X: &ast.CompositeLit{
+										Type: &ast.Ident{Name: "controller"},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key:   &ast.Ident{Name: "userGateway"},
+												Value: &ast.Ident{Name: "userGateway"},
+											},
+										},
+									},
+								},
+								&ast.Ident{Name: "nil"},
 							},
 						},
 					},
@@ -212,6 +232,35 @@ func TestFileModifier(t *testing.T) {
 						},
 					},
 				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								&ast.UnaryExpr{
+									X: &ast.CompositeLit{
+										Type: &ast.StarExpr{
+											X: &ast.SelectorExpr{
+												X:   &ast.Ident{Name: "entity"},
+												Sel: &ast.Ident{Name: "CalculateResponse"},
+											},
+										},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: &ast.Ident{Name: "Result"},
+												Value: &ast.BinaryExpr{
+													Op: token.Lookup("*"),
+													X:  &ast.Ident{Name: "a"},
+													Y:  &ast.Ident{Name: "b"},
+												},
+											},
+										},
+									},
+								},
+								&ast.Ident{Name: "nil"},
+							},
+						},
+					},
+				},
 			},
 			// UnexportedMethod
 			&ast.FuncDecl{
@@ -270,7 +319,8 @@ func TestFileModifier(t *testing.T) {
 		name         string
 		depth        int
 		module       string
-		dir          string
+		decDir       string
+		relPath      string
 		node         ast.Node
 		expectedNode ast.Node
 	}{
@@ -278,7 +328,8 @@ func TestFileModifier(t *testing.T) {
 			name:         "FileNode",
 			depth:        2,
 			module:       "github.com/octocat/Hello-World",
-			dir:          ".build",
+			decDir:       ".build",
+			relPath:      "internal/controller",
 			node:         fileNode,
 			expectedNode: fileNode,
 		},
@@ -288,7 +339,7 @@ func TestFileModifier(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewFile(tc.depth, clogger)
 
-			node := m.Modify(tc.module, tc.dir, tc.node)
+			node := m.Modify(tc.module, tc.decDir, tc.relPath, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 		})

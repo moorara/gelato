@@ -10,35 +10,41 @@ import (
 
 type typeModifier struct {
 	modifier
-	packageName  string
-	typeName     string
-	typeExported bool
-	outputs      struct {
+	inputs struct {
+		origPkgName   string
+		interfaceName string
+	}
+	outputs struct {
+		TypeName  string
+		Exported  bool
 		Interface *interfaceType
 		Struct    *structType
 	}
 }
 
-func (m *typeModifier) Modify(pkg string, n ast.Node) ast.Node {
-	// Reset the state
-	m.packageName = pkg
-	m.typeName = ""
-	m.typeExported = false
+func (m *typeModifier) Modify(origPkgName, interfaceName string, n ast.Node) ast.Node {
+	m.inputs.origPkgName = origPkgName
+	m.inputs.interfaceName = interfaceName
+	m.outputs.TypeName = ""
+	m.outputs.Exported = false
 	m.outputs.Interface = nil
 	m.outputs.Struct = nil
 
 	return astutil.Apply(n, m.pre, m.post)
 }
 
-func (m *typeModifier) createFieldList() []*ast.Field {
+func (m *typeModifier) createStructFieldList() []*ast.Field {
 	return []*ast.Field{
 		{
 			Names: []*ast.Ident{
-				{Name: implementationID},
+				{
+					// TODO: Resolve NamePos
+					Name: implementationID,
+				},
 			},
 			Type: &ast.SelectorExpr{
-				X:   &ast.Ident{Name: "_" + m.packageName},
-				Sel: &ast.Ident{Name: m.typeName},
+				X:   &ast.Ident{Name: m.inputs.origPkgName},
+				Sel: &ast.Ident{Name: m.inputs.interfaceName},
 			},
 		},
 	}
@@ -53,21 +59,21 @@ func (m *typeModifier) pre(c *astutil.Cursor) bool {
 
 	case *ast.TypeSpec:
 		name := n.Name.Name
-		m.typeName = name
-		m.typeExported = name == strings.Title(name)
+		m.outputs.TypeName = name
+		m.outputs.Exported = name == strings.Title(name)
 		return true
 
 	case *ast.InterfaceType:
 		m.outputs.Interface = &interfaceType{
-			Exported: m.typeExported,
-			Name:     m.typeName,
+			Exported: m.outputs.Exported,
+			Name:     m.outputs.TypeName,
 		}
 		return true
 
 	case *ast.StructType:
 		m.outputs.Struct = &structType{
-			Exported: m.typeExported,
-			Name:     m.typeName,
+			Exported: m.outputs.Exported,
+			Name:     m.outputs.TypeName,
 		}
 		return true
 
@@ -79,7 +85,7 @@ func (m *typeModifier) pre(c *astutil.Cursor) bool {
 		case "Fields":
 			// Modify the struct field list
 			// TODO: verify this is the right FieldList to modify (as opposed to a FieldList in InterfaceType or a different StructType type)
-			n.List = m.createFieldList()
+			n.List = m.createStructFieldList()
 			return false
 		case "Methods":
 		case "Params":

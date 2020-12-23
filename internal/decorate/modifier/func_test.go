@@ -2,6 +2,7 @@ package modifier
 
 import (
 	"go/ast"
+	"go/token"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func TestFuncModifier(t *testing.T) {
 				List: []*ast.Field{
 					{
 						Names: []*ast.Ident{
-							{Name: "ug"},
+							{Name: "userGateway"},
 						},
 						Type: &ast.StarExpr{
 							X: &ast.SelectorExpr{
@@ -47,6 +48,26 @@ func TestFuncModifier(t *testing.T) {
 					},
 					{
 						Type: &ast.Ident{Name: "error"},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.UnaryExpr{
+							X: &ast.CompositeLit{
+								Type: &ast.Ident{Name: "controller"},
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key:   &ast.Ident{Name: "userGateway"},
+										Value: &ast.Ident{Name: "userGateway"},
+									},
+								},
+							},
+						},
+						&ast.Ident{Name: "nil"},
 					},
 				},
 			},
@@ -133,6 +154,35 @@ func TestFuncModifier(t *testing.T) {
 				},
 			},
 		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.UnaryExpr{
+							X: &ast.CompositeLit{
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "entity"},
+										Sel: &ast.Ident{Name: "CalculateResponse"},
+									},
+								},
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key: &ast.Ident{Name: "Result"},
+										Value: &ast.BinaryExpr{
+											Op: token.Lookup("*"),
+											X:  &ast.Ident{Name: "a"},
+											Y:  &ast.Ident{Name: "b"},
+										},
+									},
+								},
+							},
+						},
+						&ast.Ident{Name: "nil"},
+					},
+				},
+			},
+		},
 	}
 
 	unexportedMethod := &ast.FuncDecl{
@@ -185,25 +235,92 @@ func TestFuncModifier(t *testing.T) {
 		},
 	}
 
+	voidMethod := &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "h"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: "handler"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{
+			Name: "Calculate",
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							{Name: "w"},
+						},
+						Type: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: "http"},
+							Sel: &ast.Ident{Name: "ResponseWriter"},
+						},
+					},
+					{
+						Names: []*ast.Ident{
+							{Name: "r"},
+						},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "http"},
+								Sel: &ast.Ident{Name: "Request"},
+							},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: "w"},
+							Sel: &ast.Ident{Name: "WriteHeader"},
+						},
+						Args: []ast.Expr{
+							&ast.BasicLit{
+								Value: "200",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
 	tests := []struct {
-		name         string
-		depth        int
-		node         ast.Node
-		expectedNode ast.Node
-		expectedFunc funcType
+		name          string
+		depth         int
+		origPkgName   string
+		interfaceName string
+		structName    string
+		node          ast.Node
+		expectedNode  ast.Node
+		expectedFunc  funcType
 	}{
 		{
-			name:         "ExportedFunc",
-			depth:        2,
-			node:         exportedFunc,
-			expectedNode: exportedFunc,
+			name:          "ExportedFunc",
+			depth:         2,
+			origPkgName:   "_controller",
+			interfaceName: "Controller",
+			structName:    "controller",
+			node:          exportedFunc,
+			expectedNode:  exportedFunc,
 			expectedFunc: funcType{
 				Exported: true,
 				Name:     "NewController",
 				Receiver: nil,
 				Inputs: fields{
 					{
-						Names:   []string{"ug"},
+						Names:   []string{"userGateway"},
 						Star:    true,
 						Package: "gateway",
 						Type:    "UserGateway",
@@ -213,7 +330,7 @@ func TestFuncModifier(t *testing.T) {
 					{
 						Names:   nil,
 						Star:    false,
-						Package: "",
+						Package: "_controller",
 						Type:    "Controller",
 					},
 					{
@@ -332,6 +449,36 @@ func TestFuncModifier(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:         "VoidMethod",
+			depth:        2,
+			node:         voidMethod,
+			expectedNode: voidMethod,
+			expectedFunc: funcType{
+				Exported: true,
+				Name:     "Calculate",
+				Receiver: &receiver{
+					Name: "h",
+					Star: true,
+					Type: "handler",
+				},
+				Inputs: fields{
+					{
+						Names:   []string{"w"},
+						Star:    false,
+						Package: "http",
+						Type:    "ResponseWriter",
+					},
+					{
+						Names:   []string{"r"},
+						Star:    true,
+						Package: "http",
+						Type:    "Request",
+					},
+				},
+				Outputs: nil,
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -343,7 +490,7 @@ func TestFuncModifier(t *testing.T) {
 				},
 			}
 
-			node := m.Modify(tc.node)
+			node := m.Modify(tc.origPkgName, tc.interfaceName, tc.structName, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 			assert.Equal(t, tc.expectedFunc, m.outputs.Func)

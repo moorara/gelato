@@ -104,16 +104,18 @@ func TestTypeModifier(t *testing.T) {
 	tests := []struct {
 		name              string
 		depth             int
-		pkg               string
+		origPkgName       string
+		interfaceName     string
 		node              ast.Node
 		expectedNode      ast.Node
 		expectedInterface *interfaceType
 		expectedStruct    *structType
 	}{
 		{
-			name:  "InvalidGenDecl",
-			depth: 2,
-			pkg:   "controller",
+			name:          "InvalidGenDecl",
+			depth:         2,
+			origPkgName:   "controller",
+			interfaceName: "Controller",
 			node: &ast.GenDecl{
 				Tok: token.IMPORT,
 			},
@@ -124,11 +126,12 @@ func TestTypeModifier(t *testing.T) {
 			expectedStruct:    nil,
 		},
 		{
-			name:         "InterfaceGenDecl",
-			depth:        2,
-			pkg:          "controller",
-			node:         interfaceGenDecl,
-			expectedNode: interfaceGenDecl,
+			name:          "InterfaceGenDecl",
+			depth:         2,
+			origPkgName:   "controller",
+			interfaceName: "Controller",
+			node:          interfaceGenDecl,
+			expectedNode:  interfaceGenDecl,
 			expectedInterface: &interfaceType{
 				Exported: true,
 				Name:     "Controller",
@@ -138,7 +141,8 @@ func TestTypeModifier(t *testing.T) {
 		{
 			name:              "StructGenDecl",
 			depth:             2,
-			pkg:               "controller",
+			origPkgName:       "controller",
+			interfaceName:     "Controller",
 			node:              structGenDecl,
 			expectedNode:      structGenDecl,
 			expectedInterface: nil,
@@ -158,7 +162,7 @@ func TestTypeModifier(t *testing.T) {
 				},
 			}
 
-			node := m.Modify(tc.pkg, tc.node)
+			node := m.Modify(tc.origPkgName, tc.interfaceName, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 			assert.Equal(t, tc.expectedInterface, m.outputs.Interface)

@@ -2,6 +2,7 @@ package modifier
 
 import (
 	"go/ast"
+	"go/token"
 	"strings"
 
 	"golang.org/x/tools/go/ast/astutil"
@@ -15,18 +16,133 @@ const (
 
 type funcModifier struct {
 	modifier
-	addTo   int
+	addTo  int
+	inputs struct {
+		origPkgName   string
+		interfaceName string
+		structName    string
+	}
 	outputs struct {
 		Func funcType
 	}
 }
 
-func (m *funcModifier) Modify(n ast.Node) ast.Node {
-	// Reset the state
+func (m *funcModifier) Modify(origPkgName, interfaceName, structName string, n ast.Node) ast.Node {
 	m.addTo = 0
+	m.inputs.origPkgName = origPkgName
+	m.inputs.interfaceName = interfaceName
+	m.inputs.structName = structName
 	m.outputs.Func = funcType{}
 
 	return astutil.Apply(n, m.pre, m.post)
+}
+
+func (m *funcModifier) createNewFuncBody() *ast.BlockStmt {
+	argsExprs := []ast.Expr{}
+	for _, field := range m.outputs.Func.Inputs {
+		for _, name := range field.Names {
+			argsExprs = append(argsExprs, &ast.Ident{Name: name})
+		}
+	}
+
+	returnsExprs := []ast.Expr{}
+	for i := 0; i < len(m.outputs.Func.Outputs)-1; i++ {
+		returnsExprs = append(returnsExprs, &ast.Ident{Name: "nil"})
+	}
+	returnsExprs = append(returnsExprs, &ast.Ident{Name: errorID})
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{
+			&ast.AssignStmt{
+				// TODO: TokPos
+				Lhs: []ast.Expr{
+					&ast.Ident{Name: implementationID},
+					&ast.Ident{Name: errorID},
+				},
+				Tok: token.DEFINE,
+				Rhs: []ast.Expr{
+					&ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: m.inputs.origPkgName},
+							Sel: &ast.Ident{Name: m.outputs.Func.Name},
+						},
+						Args: argsExprs,
+					},
+				},
+			},
+			&ast.IfStmt{
+				// TODO: If
+				Cond: &ast.BinaryExpr{
+					X:  &ast.Ident{Name: errorID},
+					Op: token.NEQ,
+					Y:  &ast.Ident{Name: "nil"},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ReturnStmt{
+							Results: returnsExprs,
+						},
+					},
+				},
+			},
+			&ast.ReturnStmt{
+				// TODO: Return
+				Results: []ast.Expr{
+					&ast.UnaryExpr{
+						Op: token.AND,
+						X: &ast.CompositeLit{
+							Type: &ast.Ident{Name: m.inputs.structName},
+							Elts: []ast.Expr{
+								&ast.KeyValueExpr{
+									Key:   &ast.Ident{Name: implementationID},
+									Value: &ast.Ident{Name: implementationID},
+								},
+							},
+						},
+					},
+					&ast.Ident{Name: "nil"},
+				},
+			},
+		},
+	}
+}
+
+func (m *funcModifier) createDecoratedMethodBody() *ast.BlockStmt {
+	argsExprs := []ast.Expr{}
+	for _, field := range m.outputs.Func.Inputs {
+		for _, name := range field.Names {
+			argsExprs = append(argsExprs, &ast.Ident{Name: name})
+		}
+	}
+
+	callExpr := &ast.CallExpr{
+		Fun: &ast.SelectorExpr{
+			X: &ast.SelectorExpr{
+				X:   &ast.Ident{Name: m.outputs.Func.Receiver.Name},
+				Sel: &ast.Ident{Name: implementationID},
+			},
+			Sel: &ast.Ident{Name: m.outputs.Func.Name},
+		},
+		Args: argsExprs,
+	}
+
+	var stmt ast.Stmt
+	if len(m.outputs.Func.Outputs) == 0 {
+		stmt = &ast.ExprStmt{
+			X: callExpr,
+		}
+	} else {
+		stmt = &ast.ReturnStmt{
+			// TODO: Return
+			Results: []ast.Expr{
+				callExpr,
+			},
+		}
+	}
+
+	return &ast.BlockStmt{
+		List: []ast.Stmt{stmt},
+	}
 }
 
 func (m *funcModifier) pre(c *astutil.Cursor) bool {
@@ -62,6 +178,17 @@ func (m *funcModifier) pre(c *astutil.Cursor) bool {
 			m.outputs.Func.Inputs.Append(n)
 		case addToOutputs:
 			m.outputs.Func.Outputs.Append(n)
+
+			// Check if this is a New... function for creating an interface implementation
+			if m.outputs.Func.Exported && m.outputs.Func.Receiver == nil {
+				if id, ok := n.Type.(*ast.Ident); ok && id.Name == m.inputs.interfaceName {
+					// Reference the return interface type from the original package
+					n.Type = &ast.SelectorExpr{
+						X:   &ast.Ident{Name: m.inputs.origPkgName},
+						Sel: &ast.Ident{Name: m.inputs.interfaceName},
+					}
+				}
+			}
 		}
 		return true
 
@@ -115,7 +242,17 @@ func (m *funcModifier) pre(c *astutil.Cursor) bool {
 func (m *funcModifier) post(c *astutil.Cursor) bool {
 	m.depth--
 
-	switch c.Node().(type) {
+	switch n := c.Node().(type) {
+	case *ast.FuncDecl:
+		// Re-write the function body
+		if m.outputs.Func.Exported {
+			if m.outputs.Func.Receiver == nil { // New... function
+				n.Body = m.createNewFuncBody()
+			} else { // Struct method
+				n.Body = m.createDecoratedMethodBody()
+			}
+		}
+
 	case *ast.FieldList:
 		switch c.Name() {
 		case "Recv":

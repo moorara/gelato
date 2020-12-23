@@ -10,6 +10,6 @@ require (
 	github.com/moorara/go-github v0.1.0
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/tools v0.0.0-20201211185031-d93e913c1a58
+	golang.org/x/tools v0.0.0-20201223010750-3fa0e8f87c1a
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )
