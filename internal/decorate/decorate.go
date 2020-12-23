@@ -1,6 +1,8 @@
 package decorate
 
 import (
+	"bufio"
+	"errors"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -10,14 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/tools/go/ast/astutil"
-
 	"github.com/moorara/gelato/internal/decorate/modifier"
-	"github.com/moorara/gelato/internal/decorate/visitor"
 	"github.com/moorara/gelato/internal/log"
 )
 
 const (
+	goModFile    = "go.mod"
 	decoratedDir = ".build"
 
 	mainPkg       = "main"
@@ -57,12 +57,38 @@ func directories(basePath, relPath string, visit func(string, string) error) err
 	return nil
 }
 
-// Decorator decorates a Go application.
-type Decorator struct {
-	logger   *log.ColorfulLogger
-	visitor  ast.Visitor
-	modifier modifier.Modifier
+func getGoModule(path string) (string, error) {
+	f, err := os.Open(filepath.Join(path, goModFile))
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if line := scanner.Text(); strings.HasPrefix(line, "module ") {
+			return strings.TrimPrefix(line, "module "), nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", errors.New("invalid go.mod file: no module name found")
 }
+
+type (
+	fileModifier interface {
+		Modify(string, string, string, ast.Node) ast.Node
+	}
+
+	// Decorator decorates a Go application.
+	Decorator struct {
+		logger   *log.ColorfulLogger
+		modifier fileModifier
+	}
+)
 
 // New creates a new decorator.
 func New() *Decorator {
@@ -70,7 +96,6 @@ func New() *Decorator {
 
 	return &Decorator{
 		logger:   logger,
-		visitor:  visitor.NewDebug(4, logger),
 		modifier: modifier.NewFile(4, logger),
 	}
 }
@@ -87,9 +112,14 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 
 	d.logger.White.Infof("Decorating ...")
 
+	module, err := getGoModule(path)
+	if err != nil {
+		return err
+	}
+
 	return directories(path, ".", func(basePath, relPath string) error {
-		newDir := filepath.Join(basePath, decoratedDir, relPath)
 		pkgDir := filepath.Join(basePath, relPath)
+		newDir := filepath.Join(basePath, decoratedDir, relPath)
 
 		// Parse all Go packages and files in the currecnt directory
 		d.logger.Cyan.Debugf("  Parsing directory: %s", pkgDir)
@@ -100,8 +130,13 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 		}
 		d.logger.Cyan.Tracef("  Directory parsed: %s", pkgDir)
 
-		// Skip the directory if it is not the main package or it does not need decoration
-		if _, exist := pkgs[mainPkg]; !exist && !isPackageDecoratable(pkgDir) {
+		// Skip the directory if it does not need decoration
+		if !isPackageDecoratable(pkgDir) {
+			return nil
+		}
+
+		if _, exist := pkgs[mainPkg]; exist {
+			// TODO: main package requires a special decoration!
 			return nil
 		}
 
@@ -119,8 +154,7 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 					d.logger.Green.Debugf("      File: %s", name)
 
 					// Visit all nodes in the current file AST
-					// ast.Walk(d.visitor, file)
-					astutil.Apply(file, d.modifier.Pre, d.modifier.Post)
+					d.modifier.Modify(module, decoratedDir, relPath, file)
 
 					// Write the modified Go file to disk
 					newName := filepath.Join(newDir, filepath.Base(name))

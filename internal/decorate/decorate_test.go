@@ -9,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/moorara/gelato/internal/decorate/modifier"
 	"github.com/moorara/gelato/internal/log"
 )
 
@@ -142,6 +141,50 @@ func TestDirectories(t *testing.T) {
 	}
 }
 
+func TestGetGoModule(t *testing.T) {
+	tests := []struct {
+		name           string
+		path           string
+		expectedModule string
+		expectedError  string
+	}{
+		{
+			name:          "NoModFile",
+			path:          "./test",
+			expectedError: "open test/go.mod: no such file or directory",
+		},
+		{
+			name:          "InvalidModFile",
+			path:          "./test/invalid",
+			expectedError: "invalid go.mod file: no module name found",
+		},
+		{
+			name:           "Success_Horizontal",
+			path:           "./test/horizontal",
+			expectedModule: "github.com/moorara/test/horizontal",
+		},
+		{
+			name:           "Success_Vertical",
+			path:           "./test/vertical",
+			expectedModule: "github.com/moorara/test/vertical",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := getGoModule(tc.path)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedModule, module)
+			} else {
+				assert.Empty(t, module)
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestNew(t *testing.T) {
 	d := New()
 
@@ -163,7 +206,7 @@ func TestDecorator_Decorate(t *testing.T) {
 	tests := []struct {
 		name          string
 		visitor       ast.Visitor
-		modifier      modifier.Modifier
+		modifier      *MockModifier
 		level         log.Level
 		path          string
 		expectedError string
@@ -175,18 +218,35 @@ func TestDecorator_Decorate(t *testing.T) {
 			expectedError: "stat /invalid/path: no such file or directory",
 		},
 		{
-			name:    "Success",
-			visitor: &MockVisitor{},
+			name: "Success_Horizontal",
 			modifier: &MockModifier{
-				PreMock: PreMock{
-					OutBool: true,
-				},
-				PostMock: PostMock{
-					OutBool: true,
+				ModifyMocks: []ModifyMock{
+					{
+						OutNode: &ast.File{},
+					},
+					{
+						OutNode: &ast.File{},
+					},
 				},
 			},
 			level:         log.None,
-			path:          "./test",
+			path:          "./test/horizontal",
+			expectedError: "",
+		},
+		{
+			name: "Success_Vertical",
+			modifier: &MockModifier{
+				ModifyMocks: []ModifyMock{
+					{
+						OutNode: &ast.File{},
+					},
+					{
+						OutNode: &ast.File{},
+					},
+				},
+			},
+			level:         log.None,
+			path:          "./test/vertical",
 			expectedError: "",
 		},
 	}
@@ -195,7 +255,6 @@ func TestDecorator_Decorate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			d := &Decorator{
 				logger:   clogger,
-				visitor:  tc.visitor,
 				modifier: tc.modifier,
 			}
 

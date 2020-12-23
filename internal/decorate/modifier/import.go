@@ -1,6 +1,7 @@
 package modifier
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
@@ -9,13 +10,20 @@ import (
 
 type importModifier struct {
 	modifier
+	inputs struct {
+		origPkgName string
+		origPkgPath string
+	}
 }
 
-func (m *importModifier) Apply(n ast.Node) ast.Node {
-	return astutil.Apply(n, m.Pre, m.Post)
+func (m *importModifier) Modify(origPkgName, origPkgPath string, n ast.Node) ast.Node {
+	m.inputs.origPkgName = origPkgName
+	m.inputs.origPkgPath = origPkgPath
+
+	return astutil.Apply(n, m.pre, m.post)
 }
 
-func (m *importModifier) Pre(c *astutil.Cursor) bool {
+func (m *importModifier) pre(c *astutil.Cursor) bool {
 	m.depth++
 
 	switch n := c.Node().(type) {
@@ -32,7 +40,22 @@ func (m *importModifier) Pre(c *astutil.Cursor) bool {
 	return false
 }
 
-func (m *importModifier) Post(c *astutil.Cursor) bool {
+func (m *importModifier) post(c *astutil.Cursor) bool {
 	m.depth--
+
+	switch n := c.Node().(type) {
+	case *ast.GenDecl:
+		n.Specs = append(n.Specs, &ast.ImportSpec{
+			Name: &ast.Ident{
+				// TODO: Resolve NamePos
+				Name: m.inputs.origPkgName,
+			},
+			Path: &ast.BasicLit{
+				// TODO: Resolve ValuePos
+				Value: fmt.Sprintf("%q", m.inputs.origPkgPath),
+			},
+		})
+	}
+
 	return true
 }

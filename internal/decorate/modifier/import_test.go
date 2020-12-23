@@ -39,12 +39,16 @@ func TestImportModifier(t *testing.T) {
 	tests := []struct {
 		name         string
 		depth        int
+		origPkgName  string
+		origPkgPath  string
 		node         ast.Node
 		expectedNode ast.Node
 	}{
 		{
-			name:  "InvalidGenDecl",
-			depth: 2,
+			name:        "InvalidGenDecl",
+			depth:       2,
+			origPkgName: "_controller",
+			origPkgPath: "github.com/octocat/Hello-World/internal/controller",
 			node: &ast.GenDecl{
 				Tok: token.TYPE,
 			},
@@ -55,6 +59,8 @@ func TestImportModifier(t *testing.T) {
 		{
 			name:         "ImportGenDecl",
 			depth:        2,
+			origPkgName:  "_controller",
+			origPkgPath:  "github.com/octocat/Hello-World/internal/controller",
 			node:         importGenDecl,
 			expectedNode: importGenDecl,
 		},
@@ -69,7 +75,7 @@ func TestImportModifier(t *testing.T) {
 				},
 			}
 
-			node := m.Apply(tc.node)
+			node := m.Modify(tc.origPkgName, tc.origPkgPath, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 		})

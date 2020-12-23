@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/tools/go/ast/astutil"
 
 	"github.com/moorara/gelato/internal/log"
 )
@@ -64,7 +63,7 @@ func TestFileModifier(t *testing.T) {
 				Specs: []ast.Spec{
 					&ast.TypeSpec{
 						Name: &ast.Ident{
-							Name: "DomainController",
+							Name: "Controller",
 						},
 						Type: &ast.InterfaceType{
 							Methods: &ast.FieldList{
@@ -85,7 +84,7 @@ func TestFileModifier(t *testing.T) {
 				Specs: []ast.Spec{
 					&ast.TypeSpec{
 						Name: &ast.Ident{
-							Name: "domainController",
+							Name: "controller",
 						},
 						Type: &ast.StructType{
 							Fields: &ast.FieldList{
@@ -103,15 +102,50 @@ func TestFileModifier(t *testing.T) {
 			// Exported Function
 			&ast.FuncDecl{
 				Recv: nil,
-				Name: &ast.Ident{
-					Name: "NewDomain",
-				},
+				Name: &ast.Ident{Name: "NewController"},
 				Type: &ast.FuncType{
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "userGateway"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "gateway"},
+										Sel: &ast.Ident{Name: "UserGateway"},
+									},
+								},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: &ast.Ident{Name: "Controller"},
+							},
+							{
+								Type: &ast.Ident{Name: "error"},
+							},
+						},
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								&ast.UnaryExpr{
+									X: &ast.CompositeLit{
+										Type: &ast.Ident{Name: "controller"},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key:   &ast.Ident{Name: "userGateway"},
+												Value: &ast.Ident{Name: "userGateway"},
+											},
+										},
+									},
+								},
+								&ast.Ident{Name: "nil"},
 							},
 						},
 					},
@@ -120,15 +154,32 @@ func TestFileModifier(t *testing.T) {
 			// Unexported Function
 			&ast.FuncDecl{
 				Recv: nil,
-				Name: &ast.Ident{
-					Name: "newDomain",
-				},
+				Name: &ast.Ident{Name: "newController"},
 				Type: &ast.FuncType{
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "ug"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "gateway"},
+										Sel: &ast.Ident{Name: "UserGateway"},
+									},
+								},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: "controller"},
+								},
+							},
+							{
+								Type: &ast.Ident{Name: "error"},
 							},
 						},
 					},
@@ -139,8 +190,12 @@ func TestFileModifier(t *testing.T) {
 				Recv: &ast.FieldList{
 					List: []*ast.Field{
 						{
-							Names: []*ast.Ident{},
-							Type:  &ast.FuncType{},
+							Names: []*ast.Ident{
+								{Name: "c"},
+							},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{Name: "controller"},
+							},
 						},
 					},
 				},
@@ -151,8 +206,57 @@ func TestFileModifier(t *testing.T) {
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "a"},
+									{Name: "b"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: "int"},
+								},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "entity"},
+										Sel: &ast.Ident{Name: "CalculateResponse"},
+									},
+								},
+							},
+							{
+								Type: &ast.Ident{Name: "error"},
+							},
+						},
+					},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								&ast.UnaryExpr{
+									X: &ast.CompositeLit{
+										Type: &ast.StarExpr{
+											X: &ast.SelectorExpr{
+												X:   &ast.Ident{Name: "entity"},
+												Sel: &ast.Ident{Name: "CalculateResponse"},
+											},
+										},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: &ast.Ident{Name: "Result"},
+												Value: &ast.BinaryExpr{
+													Op: token.Lookup("*"),
+													X:  &ast.Ident{Name: "a"},
+													Y:  &ast.Ident{Name: "b"},
+												},
+											},
+										},
+									},
+								},
+								&ast.Ident{Name: "nil"},
 							},
 						},
 					},
@@ -163,8 +267,12 @@ func TestFileModifier(t *testing.T) {
 				Recv: &ast.FieldList{
 					List: []*ast.Field{
 						{
-							Names: []*ast.Ident{},
-							Type:  &ast.FuncType{},
+							Names: []*ast.Ident{
+								{Name: "c"},
+							},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{Name: "controller"},
+							},
 						},
 					},
 				},
@@ -175,8 +283,30 @@ func TestFileModifier(t *testing.T) {
 					Params: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{},
-								Type:  &ast.FuncType{},
+								Names: []*ast.Ident{
+									{Name: "a"},
+									{Name: "b"},
+								},
+								Type: &ast.Ident{Name: "int"},
+							},
+						},
+					},
+					Results: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Names: []*ast.Ident{
+									{Name: "resp"},
+								},
+								Type: &ast.SelectorExpr{
+									X:   &ast.Ident{Name: "entity"},
+									Sel: &ast.Ident{Name: "CalculateResponse"},
+								},
+							},
+							{
+								Names: []*ast.Ident{
+									{Name: "err"},
+								},
+								Type: &ast.Ident{Name: "error"},
 							},
 						},
 					},
@@ -188,12 +318,18 @@ func TestFileModifier(t *testing.T) {
 	tests := []struct {
 		name         string
 		depth        int
+		module       string
+		decDir       string
+		relPath      string
 		node         ast.Node
 		expectedNode ast.Node
 	}{
 		{
 			name:         "FileNode",
 			depth:        2,
+			module:       "github.com/octocat/Hello-World",
+			decDir:       ".build",
+			relPath:      "internal/controller",
 			node:         fileNode,
 			expectedNode: fileNode,
 		},
@@ -202,7 +338,8 @@ func TestFileModifier(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			m := NewFile(tc.depth, clogger)
-			node := astutil.Apply(tc.node, m.Pre, m.Post)
+
+			node := m.Modify(tc.module, tc.decDir, tc.relPath, tc.node)
 
 			assert.Equal(t, tc.expectedNode, node)
 		})

@@ -1,50 +1,28 @@
 package decorate
 
-import (
-	"go/ast"
-
-	"golang.org/x/tools/go/ast/astutil"
-)
+import "go/ast"
 
 type (
-	VisitMock struct {
-		InNode     ast.Node
-		OutVisitor ast.Visitor
-	}
-
-	MockVisitor struct {
-		VisitMock
-	}
-)
-
-func (m *MockVisitor) Visit(node ast.Node) ast.Visitor {
-	m.VisitMock.InNode = node
-	return m.VisitMock.OutVisitor
-}
-
-type (
-	PreMock struct {
-		InCursor *astutil.Cursor
-		OutBool  bool
-	}
-
-	PostMock struct {
-		InCursor *astutil.Cursor
-		OutBool  bool
+	ModifyMock struct {
+		InModule  string
+		InDecDir  string
+		InRelPath string
+		InNode    ast.Node
+		OutNode   ast.Node
 	}
 
 	MockModifier struct {
-		PreMock
-		PostMock
+		ModifyIndex int
+		ModifyMocks []ModifyMock
 	}
 )
 
-func (m *MockModifier) Pre(cursor *astutil.Cursor) bool {
-	m.PreMock.InCursor = cursor
-	return m.PreMock.OutBool
-}
-
-func (m *MockModifier) Post(cursor *astutil.Cursor) bool {
-	m.PostMock.InCursor = cursor
-	return m.PostMock.OutBool
+func (m *MockModifier) Modify(module, decDir, relPath string, node ast.Node) ast.Node {
+	i := m.ModifyIndex
+	m.ModifyIndex++
+	m.ModifyMocks[i].InModule = module
+	m.ModifyMocks[i].InDecDir = decDir
+	m.ModifyMocks[i].InRelPath = relPath
+	m.ModifyMocks[i].InNode = node
+	return m.ModifyMocks[i].OutNode
 }
