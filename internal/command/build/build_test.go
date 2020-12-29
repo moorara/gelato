@@ -51,6 +51,25 @@ func (m *MockGitService) Remote(name string) (string, string, error) {
 }
 
 type (
+	DecorateMock struct {
+		InPath   string
+		OutError error
+	}
+
+	MockDecorateService struct {
+		DecorateIndex int
+		DecorateMocks []DecorateMock
+	}
+)
+
+func (m *MockDecorateService) Decorate(path string) error {
+	i := m.DecorateIndex
+	m.DecorateIndex++
+	m.DecorateMocks[i].InPath = path
+	return m.DecorateMocks[i].OutError
+}
+
+type (
 	RunMock struct {
 		InArgs  []string
 		OutCode int
@@ -109,13 +128,16 @@ func TestCommand_Run(t *testing.T) {
 	c.Run([]string{"--undefined"})
 
 	assert.NotNil(t, c.services.git)
+	assert.NotNil(t, c.services.decorator)
 	assert.NotNil(t, c.commands.semver)
 }
 
 func TestCommand_run(t *testing.T) {
 	tests := []struct {
 		name             string
+		spec             spec.Spec
 		git              *MockGitService
+		decorator        *MockDecorateService
 		goList           shell.RunnerFunc
 		goBuild          shell.RunnerWithFunc
 		semver           *MockSemverCommand
@@ -123,12 +145,20 @@ func TestCommand_run(t *testing.T) {
 		expectedExitCode int
 	}{
 		{
-			name:             "UndefinedFlag",
+			name: "UndefinedFlag",
+			spec: spec.Spec{
+				GelatoVersion: "v0.1.0",
+				Build:         spec.Build{},
+			},
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
 		},
 		{
 			name: "GitHEADFails",
+			spec: spec.Spec{
+				GelatoVersion: "v0.1.0",
+				Build:         spec.Build{},
+			},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutError: errors.New("git error")},
@@ -139,6 +169,10 @@ func TestCommand_run(t *testing.T) {
 		},
 		{
 			name: "SemverRunFails",
+			spec: spec.Spec{
+				GelatoVersion: "v0.1.0",
+				Build:         spec.Build{},
+			},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
@@ -157,9 +191,81 @@ func TestCommand_run(t *testing.T) {
 		},
 		{
 			name: "Success_NoArtifact",
+			spec: spec.Spec{
+				GelatoVersion: "v0.1.0",
+				Build:         spec.Build{},
+			},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
 					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
+				},
+			},
+			goList: func(ctx context.Context, args ...string) (int, string, error) {
+				return 1, "github.com/octocat/Hello-World/version", nil
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []RunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{
+						OutSemVer: semver.SemVer{},
+					},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.Success,
+		},
+		{
+			name: "DecorateFails",
+			spec: spec.Spec{
+				GelatoVersion: "v0.1.0",
+				Build: spec.Build{
+					Decorate: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
+				},
+			},
+			decorator: &MockDecorateService{
+				DecorateMocks: []DecorateMock{
+					{OutError: errors.New("error on decoration")},
+				},
+			},
+			goList: func(ctx context.Context, args ...string) (int, string, error) {
+				return 1, "github.com/octocat/Hello-World/version", nil
+			},
+			semver: &MockSemverCommand{
+				RunMocks: []RunMock{
+					{OutCode: command.Success},
+				},
+				SemVerMocks: []SemVerMock{
+					{
+						OutSemVer: semver.SemVer{},
+					},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.DecorationError,
+		},
+		{
+			name: "Success_Decorated_NoArtifact",
+			spec: spec.Spec{
+				GelatoVersion: "v0.1.0",
+				Build: spec.Build{
+					Decorate: true,
+				},
+			},
+			git: &MockGitService{
+				HEADMocks: []HEADMock{
+					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
+				},
+			},
+			decorator: &MockDecorateService{
+				DecorateMocks: []DecorateMock{
+					{OutError: nil},
 				},
 			},
 			goList: func(ctx context.Context, args ...string) (int, string, error) {
@@ -183,13 +289,12 @@ func TestCommand_run(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &Command{
-				ui: new(cli.MockUi),
-				spec: spec.Spec{
-					GelatoVersion: "v0.1.0",
-				},
+				ui:   new(cli.MockUi),
+				spec: tc.spec,
 			}
 
 			c.services.git = tc.git
+			c.services.decorator = tc.decorator
 			c.funcs.goList = tc.goList
 			c.funcs.goBuild = tc.goBuild
 			c.commands.semver = tc.semver

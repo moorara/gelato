@@ -20,9 +20,7 @@ import (
 )
 
 const (
-	goModFile    = "go.mod"
-	decoratedDir = ".build"
-
+	goModFile     = "go.mod"
 	mainPkg       = "main"
 	handlerPkg    = "handler"
 	controllerPkg = "controller"
@@ -40,29 +38,6 @@ func isGenericPackage(pkgPath string) bool {
 		strings.HasSuffix(pkgPath, "/"+controllerPkg) || strings.Contains(pkgPath, "/"+controllerPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+gatewayPkg) || strings.Contains(pkgPath, "/"+gatewayPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+repositoryPkg) || strings.Contains(pkgPath, "/"+repositoryPkg+"/")
-}
-
-func directories(basePath, relPath string, visit func(string, string) error) error {
-	if err := visit(basePath, relPath); err != nil {
-		return err
-	}
-
-	dir := filepath.Join(basePath, relPath)
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		if file.IsDir() && file.Name() != decoratedDir {
-			subdir := filepath.Join(relPath, file.Name())
-			if err := directories(basePath, subdir, visit); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func getGoModule(path string) (string, error) {
@@ -97,6 +72,7 @@ type (
 
 	// Decorator decorates a Go application.
 	Decorator struct {
+		decoratedDir    string
 		logger          *log.ColorfulLogger
 		mainModifier    mainModifier
 		genericModifier genericModifier
@@ -104,21 +80,42 @@ type (
 )
 
 // New creates a new decorator.
-func New() *Decorator {
-	logger := log.NewColorful(log.None)
+func New(decoratedDir string, level log.Level) *Decorator {
+	logger := log.NewColorful(level)
 
 	return &Decorator{
+		decoratedDir:    decoratedDir,
 		logger:          logger,
 		mainModifier:    modifier.NewMain(4, logger),
 		genericModifier: modifier.NewGeneric(4, logger),
 	}
 }
 
-// Decorate decorates a Go application.
-func (d *Decorator) Decorate(level log.Level, path string) error {
-	// Update logging level
-	d.logger.SetLevel(level)
+func (d *Decorator) directories(basePath, relPath string, visit func(string, string) error) error {
+	if err := visit(basePath, relPath); err != nil {
+		return err
+	}
 
+	dir := filepath.Join(basePath, relPath)
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if file.IsDir() && file.Name() != d.decoratedDir {
+			subdir := filepath.Join(relPath, file.Name())
+			if err := d.directories(basePath, subdir, visit); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// Decorate decorates a Go application.
+func (d *Decorator) Decorate(path string) error {
 	// Sanitize the path
 	if _, err := os.Stat(path); err != nil {
 		return err
@@ -131,9 +128,9 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 		return err
 	}
 
-	return directories(path, ".", func(basePath, relPath string) error {
+	return d.directories(path, ".", func(basePath, relPath string) error {
 		pkgDir := filepath.Join(basePath, relPath)
-		newDir := filepath.Join(basePath, decoratedDir, relPath)
+		newDir := filepath.Join(basePath, d.decoratedDir, relPath)
 
 		// Parse all Go packages and files in the currecnt directory
 		d.logger.Cyan.Debugf("  Parsing directory: %s", pkgDir)
@@ -165,7 +162,7 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 					// Visit all nodes in the current file AST
 					switch {
 					case isMainPackage(pkgs):
-						d.mainModifier.Modify(module, decoratedDir, file)
+						d.mainModifier.Modify(module, d.decoratedDir, file)
 					case isGenericPackage(pkgDir):
 						d.genericModifier.Modify(module, relPath, file)
 					}
@@ -201,6 +198,7 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 					d.logger.Green.Debugf("      File written: %s", newName)
 				}
 			}
+			d.logger.White.Infof("  Decorated %s package", pkg.Name)
 		}
 
 		return nil

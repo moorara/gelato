@@ -8,7 +8,6 @@ import (
 
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/command/build"
-	"github.com/moorara/gelato/internal/command/decorate"
 	"github.com/moorara/gelato/internal/command/release"
 	"github.com/moorara/gelato/internal/command/semver"
 	"github.com/moorara/gelato/internal/command/update"
@@ -55,9 +54,6 @@ func main() {
 		},
 		"update": func() (cli.Command, error) {
 			return update.NewCommand(ui)
-		},
-		"decorate": func() (cli.Command, error) {
-			return decorate.NewCommand(ui, spec.App)
 		},
 	}
 

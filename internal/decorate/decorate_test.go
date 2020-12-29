@@ -110,6 +110,72 @@ func TestIsGenericPackage(t *testing.T) {
 	}
 }
 
+func TestGetGoModule(t *testing.T) {
+	tests := []struct {
+		name           string
+		path           string
+		expectedModule string
+		expectedError  string
+	}{
+		{
+			name:          "NoModFile",
+			path:          "./test",
+			expectedError: "open test/go.mod: no such file or directory",
+		},
+		{
+			name:          "InvalidModFile",
+			path:          "./test/invalid",
+			expectedError: "invalid go.mod file: no module name found",
+		},
+		{
+			name:           "Success_Horizontal",
+			path:           "./test/horizontal",
+			expectedModule: "github.com/moorara/test/horizontal",
+		},
+		{
+			name:           "Success_Vertical",
+			path:           "./test/vertical",
+			expectedModule: "github.com/moorara/test/vertical",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := getGoModule(tc.path)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedModule, module)
+			} else {
+				assert.Empty(t, module)
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	tests := []struct {
+		name         string
+		decoratedDir string
+		level        log.Level
+	}{
+		{
+			name:         "OK",
+			decoratedDir: ".build",
+			level:        log.None,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			d := New(tc.decoratedDir, tc.level)
+
+			assert.NotNil(t, d)
+		})
+	}
+}
+
 func TestDirectories(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -161,7 +227,11 @@ func TestDirectories(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			err := directories(tc.basePath, tc.relPath, tc.visit)
+			d := &Decorator{
+				decoratedDir: ".build",
+			}
+
+			err := d.directories(tc.basePath, tc.relPath, tc.visit)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)
@@ -170,56 +240,6 @@ func TestDirectories(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestGetGoModule(t *testing.T) {
-	tests := []struct {
-		name           string
-		path           string
-		expectedModule string
-		expectedError  string
-	}{
-		{
-			name:          "NoModFile",
-			path:          "./test",
-			expectedError: "open test/go.mod: no such file or directory",
-		},
-		{
-			name:          "InvalidModFile",
-			path:          "./test/invalid",
-			expectedError: "invalid go.mod file: no module name found",
-		},
-		{
-			name:           "Success_Horizontal",
-			path:           "./test/horizontal",
-			expectedModule: "github.com/moorara/test/horizontal",
-		},
-		{
-			name:           "Success_Vertical",
-			path:           "./test/vertical",
-			expectedModule: "github.com/moorara/test/vertical",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			module, err := getGoModule(tc.path)
-
-			if tc.expectedError == "" {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedModule, module)
-			} else {
-				assert.Empty(t, module)
-				assert.EqualError(t, err, tc.expectedError)
-			}
-		})
-	}
-}
-
-func TestNew(t *testing.T) {
-	d := New()
-
-	assert.NotNil(t, d)
 }
 
 func TestDecorator_Decorate(t *testing.T) {
@@ -239,13 +259,11 @@ func TestDecorator_Decorate(t *testing.T) {
 		visitor         ast.Visitor
 		mainModifier    *MockMainModifier
 		genericModifier *MockGenericModifier
-		level           log.Level
 		path            string
 		expectedError   string
 	}{
 		{
 			name:          "PathNotExist",
-			level:         log.None,
 			path:          "/invalid/path",
 			expectedError: "stat /invalid/path: no such file or directory",
 		},
@@ -261,7 +279,6 @@ func TestDecorator_Decorate(t *testing.T) {
 			genericModifier: &MockGenericModifier{
 				ModifyMocks: []GenericModifyMock{},
 			},
-			level:         log.None,
 			path:          "./test/horizontal",
 			expectedError: "",
 		},
@@ -277,7 +294,6 @@ func TestDecorator_Decorate(t *testing.T) {
 			genericModifier: &MockGenericModifier{
 				ModifyMocks: []GenericModifyMock{},
 			},
-			level:         log.None,
 			path:          "./test/vertical",
 			expectedError: "",
 		},
@@ -286,15 +302,16 @@ func TestDecorator_Decorate(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d := &Decorator{
+				decoratedDir:    ".build",
 				logger:          clogger,
 				mainModifier:    tc.mainModifier,
 				genericModifier: tc.genericModifier,
 			}
 
 			// Clean-up
-			defer os.RemoveAll(filepath.Join(tc.path, decoratedDir))
+			defer os.RemoveAll(filepath.Join(tc.path, d.decoratedDir))
 
-			err := d.Decorate(tc.level, tc.path)
+			err := d.Decorate(tc.path)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)
