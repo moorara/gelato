@@ -55,6 +55,7 @@ func TestFromFile(t *testing.T) {
 				},
 				Build: Build{
 					CrossCompile: true,
+					Decorate:     true,
 					Platforms:    []string{"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "darwin-amd64", "windows-386", "windows-amd64"},
 				},
 				Release: Release{
@@ -74,6 +75,7 @@ func TestFromFile(t *testing.T) {
 				},
 				Build: Build{
 					CrossCompile: true,
+					Decorate:     true,
 					Platforms:    []string{"linux-386", "linux-amd64", "linux-arm", "linux-arm64", "darwin-amd64", "windows-386", "windows-amd64"},
 				},
 				Release: Release{
@@ -118,6 +120,7 @@ func TestSpecWithDefaults(t *testing.T) {
 				},
 				Build: Build{
 					CrossCompile: false,
+					Decorate:     false,
 					Platforms:    defaultPlatforms,
 				},
 				Release: Release{
@@ -137,6 +140,7 @@ func TestSpecWithDefaults(t *testing.T) {
 				},
 				Build: Build{
 					CrossCompile: true,
+					Decorate:     true,
 					Platforms:    []string{"linux-amd64", "darwin-amd64", "windows-amd64"},
 				},
 				Release: Release{
@@ -153,6 +157,7 @@ func TestSpecWithDefaults(t *testing.T) {
 				},
 				Build: Build{
 					CrossCompile: true,
+					Decorate:     true,
 					Platforms:    []string{"linux-amd64", "darwin-amd64", "windows-amd64"},
 				},
 				Release: Release{
@@ -217,6 +222,7 @@ func TestBuildWithDefaults(t *testing.T) {
 			Build{},
 			Build{
 				CrossCompile: false,
+				Decorate:     false,
 				Platforms:    defaultPlatforms,
 			},
 		},
@@ -224,10 +230,12 @@ func TestBuildWithDefaults(t *testing.T) {
 			"DefaultsNotRequired",
 			Build{
 				CrossCompile: true,
+				Decorate:     true,
 				Platforms:    []string{"linux-amd64", "darwin-amd64", "windows-amd64"},
 			},
 			Build{
 				CrossCompile: true,
+				Decorate:     true,
 				Platforms:    []string{"linux-amd64", "darwin-amd64", "windows-amd64"},
 			},
 		},
@@ -251,6 +259,7 @@ func TestBuildFlagSet(t *testing.T) {
 		{
 			build: Build{
 				CrossCompile: true,
+				Decorate:     true,
 				Platforms:    []string{"linux-amd64", "darwin-amd64", "windows-amd64"},
 			},
 		},

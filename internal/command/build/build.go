@@ -18,7 +18,9 @@ import (
 
 	"github.com/moorara/gelato/internal/command"
 	semvercmd "github.com/moorara/gelato/internal/command/semver"
+	"github.com/moorara/gelato/internal/decorate"
 	"github.com/moorara/gelato/internal/git"
+	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/semver"
 	"github.com/moorara/gelato/pkg/shell"
@@ -34,23 +36,30 @@ const (
   By convention, It assumes the current directory is a main package if it contains a main.go file.
   It also assumes every directory inside cmd is a main package for a binary with the same name as the directory name.
 
+  Decoration is an experimental feature to decorate the applications with horizontal layout.
+  It wraps the controller, gateway, handler, and repository packages with a set of decorators.
+  Decorators can be used for augmenting an application with observability, error reccovery, etc.
+
   Usage:  gelato build [flags]
 
   Flags:
     -cross-compile:  build the binary for all platforms (default: {{.Build.CrossCompile}})
+    -decorate:       [EXPERIMENTAL] decorate the application before building
 
   Examples:
     gelato build
     gelato build -cross-compile
+    gelato build -decorate
+    gelato build -cross-compile -decorate
   `
 )
 
 const (
-	remoteName  = "origin"
-	cmdPath     = "./cmd/"
-	binPath     = "./bin/"
-	versionPath = "./version"
-	timeFormat  = "2006-01-02 15:04:05 MST"
+	decoratedDir = ".build"
+	cmdDir       = "cmd"
+	binPath      = "./bin/"
+	versionPath  = "./version"
+	timeFormat   = "2006-01-02 15:04:05 MST"
 )
 
 var (
@@ -61,6 +70,10 @@ type (
 	gitService interface {
 		HEAD() (string, string, error)
 		Remote(string) (string, string, error)
+	}
+
+	decorateService interface {
+		Decorate(string) error
 	}
 
 	semverCommand interface {
@@ -81,7 +94,8 @@ type Command struct {
 	ui       cli.Ui
 	spec     spec.Spec
 	services struct {
-		git gitService
+		git       gitService
+		decorator decorateService
 	}
 	funcs struct {
 		goList  shell.RunnerFunc
@@ -125,14 +139,12 @@ func (c *Command) Run(args []string) int {
 		return command.GitError
 	}
 
-	goList := shell.Runner("go", "list", versionPath)
-	goBuild := shell.RunnerWith("go", "build")
-
 	semver, _ := semvercmd.NewCommand(&cli.MockUi{})
 
 	c.services.git = git
-	c.funcs.goList = goList
-	c.funcs.goBuild = goBuild
+	c.services.decorator = decorate.New(decoratedDir, log.Info)
+	c.funcs.goList = shell.Runner("go", "list", versionPath)
+	c.funcs.goBuild = shell.RunnerWith("go", "build")
 	c.commands.semver = semver
 
 	return c.run(args)
@@ -212,7 +224,23 @@ func (c *Command) run(args []string) int {
 		}, " ")
 	}
 
+	// ==============================> DECORATE <==============================
+
+	if c.spec.Build.Decorate {
+		if err := c.services.decorator.Decorate(info.Context.WorkingDirectory); err != nil {
+			c.ui.Error(err.Error())
+			return command.DecorationError
+		}
+	}
+
 	// ==============================> BUILD BINARIES <==============================
+
+	var cmdPath string
+	if c.spec.Build.Decorate {
+		cmdPath = fmt.Sprintf("./%s/%s/", decoratedDir, cmdDir)
+	} else {
+		cmdPath = fmt.Sprintf("./%s/", cmdDir)
+	}
 
 	// By convention, we assume every directory inside cmd is a main package for a binary with the same name as the directory name.
 	if _, err = os.Stat(cmdPath); err == nil {

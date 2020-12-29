@@ -131,6 +131,7 @@ func (a App) WithDefaults() App {
 // Build has the specifications for the build command.
 type Build struct {
 	CrossCompile bool     `json:"crossCompile" yaml:"cross_compile"`
+	Decorate     bool     `json:"decorate" yaml:"decorate"`
 	Platforms    []string `json:"platforms" yaml:"platforms"`
 }
 
@@ -147,6 +148,7 @@ func (b Build) WithDefaults() Build {
 func (b *Build) FlagSet() *flag.FlagSet {
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	fs.BoolVar(&b.CrossCompile, "cross-compile", b.CrossCompile, "")
+	fs.BoolVar(&b.Decorate, "decorate", b.Decorate, "")
 
 	return fs
 }
