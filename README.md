@@ -41,7 +41,7 @@ gelato update
 gelato semver
 
 # Build a Go application
-gelato update
+gelato build
 
 # Release a repository
 gelato release
