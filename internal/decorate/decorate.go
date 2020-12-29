@@ -2,6 +2,7 @@ package decorate
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"go/ast"
 	"go/format"
@@ -11,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/imports"
 
 	"github.com/moorara/gelato/internal/decorate/modifier"
 	"github.com/moorara/gelato/internal/log"
@@ -167,14 +170,31 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 						d.genericModifier.Modify(module, relPath, file)
 					}
 
-					// Write the modified Go file to disk
+					buf := new(bytes.Buffer)
+					if err := format.Node(buf, fset, file); err != nil {
+						return err
+					}
+
+					// Format the modified Go file
 					newName := filepath.Join(newDir, filepath.Base(name))
+					b, err := imports.Process(newName, buf.Bytes(), &imports.Options{
+						TabWidth:  8,
+						TabIndent: true,
+						Comments:  true,
+						Fragment:  true,
+					})
+
+					if err != nil {
+						return err
+					}
+
+					// Write the Go file to disk
 					f, err := os.Create(newName)
 					if err != nil {
 						return err
 					}
 
-					if err := format.Node(f, fset, file); err != nil {
+					if _, err := f.Write(b); err != nil {
 						return err
 					}
 
