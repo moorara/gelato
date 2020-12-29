@@ -109,7 +109,13 @@ This command can be used to get the current semantic version for building artifa
 ### `build`
 
 `gelato build` compiles your binary and injects the build metadata into the `version` package (if any).
+
 `gelato build -cross-compile` builds the binaries for all supported platforms.
+
+`gelato build -decorate` decorates an application with a set of decorators.
+Decoration is an experimental feature to decorate the applications with **horizontal layout**.
+It wraps the `controller`, `gateway`, `handler`, and `repository` packages with a set of decorators.
+Decorators can be used for augmenting an application with *observability*, *error reccovery*, etc.
 
 ### `release`
 
