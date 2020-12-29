@@ -12,7 +12,38 @@ import (
 	"github.com/moorara/gelato/internal/log"
 )
 
-func TestIsPackageDecoratable(t *testing.T) {
+func TestIsMainPackage(t *testing.T) {
+	tests := []struct {
+		name       string
+		pkgs       map[string]*ast.Package
+		expectedOK bool
+	}{
+		{
+			name: "MainPackage",
+			pkgs: map[string]*ast.Package{
+				"main": {},
+			},
+			expectedOK: true,
+		},
+		{
+			name: "NoneMainPackage",
+			pkgs: map[string]*ast.Package{
+				"cmd": {},
+			},
+			expectedOK: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ok := isMainPackage(tc.pkgs)
+
+			assert.Equal(t, tc.expectedOK, ok)
+		})
+	}
+}
+
+func TestIsGenericPackage(t *testing.T) {
 	tests := []struct {
 		name       string
 		pkgPath    string
@@ -20,59 +51,59 @@ func TestIsPackageDecoratable(t *testing.T) {
 	}{
 		{
 			name:       "main",
-			pkgPath:    "github.com/octocat/Hello-World",
+			pkgPath:    "github.com/octocat/service",
 			expectedOK: false,
 		},
 		{
 			name:       "internal",
-			pkgPath:    "github.com/octocat/Hello-World/internal",
+			pkgPath:    "github.com/octocat/service/internal",
 			expectedOK: false,
 		},
 		{
 			name:       "controller",
-			pkgPath:    "github.com/octocat/Hello-World/internal/controller",
+			pkgPath:    "github.com/octocat/service/internal/controller",
 			expectedOK: true,
 		},
 		{
 			name:       "controller/sub",
-			pkgPath:    "github.com/octocat/Hello-World/internal/controller/sub",
+			pkgPath:    "github.com/octocat/service/internal/controller/sub",
 			expectedOK: true,
 		},
 		{
 			name:       "gateway",
-			pkgPath:    "github.com/octocat/Hello-World/internal/gateway",
+			pkgPath:    "github.com/octocat/service/internal/gateway",
 			expectedOK: true,
 		},
 		{
 			name:       "gateway/sub",
-			pkgPath:    "github.com/octocat/Hello-World/internal/gateway/sub",
+			pkgPath:    "github.com/octocat/service/internal/gateway/sub",
 			expectedOK: true,
 		},
 		{
 			name:       "handler",
-			pkgPath:    "github.com/octocat/Hello-World/internal/handler",
+			pkgPath:    "github.com/octocat/service/internal/handler",
 			expectedOK: true,
 		},
 		{
 			name:       "handler/sub",
-			pkgPath:    "github.com/octocat/Hello-World/internal/handler/sub",
+			pkgPath:    "github.com/octocat/service/internal/handler/sub",
 			expectedOK: true,
 		},
 		{
 			name:       "repository",
-			pkgPath:    "github.com/octocat/Hello-World/internal/repository",
+			pkgPath:    "github.com/octocat/service/internal/repository",
 			expectedOK: true,
 		},
 		{
 			name:       "repository/sub",
-			pkgPath:    "github.com/octocat/Hello-World/internal/repository/sub",
+			pkgPath:    "github.com/octocat/service/internal/repository/sub",
 			expectedOK: true,
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ok := isPackageDecoratable(tc.pkgPath)
+			ok := isGenericPackage(tc.pkgPath)
 
 			assert.Equal(t, tc.expectedOK, ok)
 		})
@@ -204,12 +235,13 @@ func TestDecorator_Decorate(t *testing.T) {
 	}
 
 	tests := []struct {
-		name          string
-		visitor       ast.Visitor
-		modifier      *MockModifier
-		level         log.Level
-		path          string
-		expectedError string
+		name            string
+		visitor         ast.Visitor
+		mainModifier    *MockMainModifier
+		genericModifier *MockGenericModifier
+		level           log.Level
+		path            string
+		expectedError   string
 	}{
 		{
 			name:          "PathNotExist",
@@ -219,15 +251,15 @@ func TestDecorator_Decorate(t *testing.T) {
 		},
 		{
 			name: "Success_Horizontal",
-			modifier: &MockModifier{
-				ModifyMocks: []ModifyMock{
-					{
-						OutNode: &ast.File{},
-					},
+			mainModifier: &MockMainModifier{
+				ModifyMocks: []MainModifyMock{
 					{
 						OutNode: &ast.File{},
 					},
 				},
+			},
+			genericModifier: &MockGenericModifier{
+				ModifyMocks: []GenericModifyMock{},
 			},
 			level:         log.None,
 			path:          "./test/horizontal",
@@ -235,15 +267,15 @@ func TestDecorator_Decorate(t *testing.T) {
 		},
 		{
 			name: "Success_Vertical",
-			modifier: &MockModifier{
-				ModifyMocks: []ModifyMock{
-					{
-						OutNode: &ast.File{},
-					},
+			mainModifier: &MockMainModifier{
+				ModifyMocks: []MainModifyMock{
 					{
 						OutNode: &ast.File{},
 					},
 				},
+			},
+			genericModifier: &MockGenericModifier{
+				ModifyMocks: []GenericModifyMock{},
 			},
 			level:         log.None,
 			path:          "./test/vertical",
@@ -254,8 +286,9 @@ func TestDecorator_Decorate(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			d := &Decorator{
-				logger:   clogger,
-				modifier: tc.modifier,
+				logger:          clogger,
+				mainModifier:    tc.mainModifier,
+				genericModifier: tc.genericModifier,
 			}
 
 			// Clean-up

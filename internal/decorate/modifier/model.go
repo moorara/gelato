@@ -1,8 +1,6 @@
 package modifier
 
-import (
-	"go/ast"
-)
+import "go/ast"
 
 const (
 	errorID          = "err"
