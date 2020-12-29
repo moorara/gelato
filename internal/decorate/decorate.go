@@ -2,6 +2,7 @@ package decorate
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"go/ast"
 	"go/format"
@@ -11,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/tools/imports"
 
 	"github.com/moorara/gelato/internal/decorate/modifier"
 	"github.com/moorara/gelato/internal/log"
@@ -27,7 +30,12 @@ const (
 	repositoryPkg = "repository"
 )
 
-func isPackageDecoratable(pkgPath string) bool {
+func isMainPackage(pkgs map[string]*ast.Package) bool {
+	_, exist := pkgs[mainPkg]
+	return exist
+}
+
+func isGenericPackage(pkgPath string) bool {
 	return strings.HasSuffix(pkgPath, "/"+handlerPkg) || strings.Contains(pkgPath, "/"+handlerPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+controllerPkg) || strings.Contains(pkgPath, "/"+controllerPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+gatewayPkg) || strings.Contains(pkgPath, "/"+gatewayPkg+"/") ||
@@ -79,14 +87,19 @@ func getGoModule(path string) (string, error) {
 }
 
 type (
-	fileModifier interface {
-		Modify(string, string, string, ast.Node) ast.Node
+	mainModifier interface {
+		Modify(string, string, ast.Node) ast.Node
+	}
+
+	genericModifier interface {
+		Modify(string, string, ast.Node) ast.Node
 	}
 
 	// Decorator decorates a Go application.
 	Decorator struct {
-		logger   *log.ColorfulLogger
-		modifier fileModifier
+		logger          *log.ColorfulLogger
+		mainModifier    mainModifier
+		genericModifier genericModifier
 	}
 )
 
@@ -95,8 +108,9 @@ func New() *Decorator {
 	logger := log.NewColorful(log.None)
 
 	return &Decorator{
-		logger:   logger,
-		modifier: modifier.NewFile(4, logger),
+		logger:          logger,
+		mainModifier:    modifier.NewMain(4, logger),
+		genericModifier: modifier.NewGeneric(4, logger),
 	}
 }
 
@@ -131,12 +145,7 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 		d.logger.Cyan.Tracef("  Directory parsed: %s", pkgDir)
 
 		// Skip the directory if it does not need decoration
-		if !isPackageDecoratable(pkgDir) {
-			return nil
-		}
-
-		if _, exist := pkgs[mainPkg]; exist {
-			// TODO: main package requires a special decoration!
+		if !isMainPackage(pkgs) && !isGenericPackage(pkgDir) {
 			return nil
 		}
 
@@ -154,16 +163,38 @@ func (d *Decorator) Decorate(level log.Level, path string) error {
 					d.logger.Green.Debugf("      File: %s", name)
 
 					// Visit all nodes in the current file AST
-					d.modifier.Modify(module, decoratedDir, relPath, file)
+					switch {
+					case isMainPackage(pkgs):
+						d.mainModifier.Modify(module, decoratedDir, file)
+					case isGenericPackage(pkgDir):
+						d.genericModifier.Modify(module, relPath, file)
+					}
 
-					// Write the modified Go file to disk
+					buf := new(bytes.Buffer)
+					if err := format.Node(buf, fset, file); err != nil {
+						return err
+					}
+
+					// Format the modified Go file
 					newName := filepath.Join(newDir, filepath.Base(name))
+					b, err := imports.Process(newName, buf.Bytes(), &imports.Options{
+						TabWidth:  8,
+						TabIndent: true,
+						Comments:  true,
+						Fragment:  true,
+					})
+
+					if err != nil {
+						return err
+					}
+
+					// Write the Go file to disk
 					f, err := os.Create(newName)
 					if err != nil {
 						return err
 					}
 
-					if err := format.Node(f, fset, file); err != nil {
+					if _, err := f.Write(b); err != nil {
 						return err
 					}
 
