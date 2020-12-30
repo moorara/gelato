@@ -101,7 +101,7 @@ func (m *MockSemverCommand) SemVer() semver.SemVer {
 }
 
 func TestNewCommand(t *testing.T) {
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	spec := spec.Spec{}
 	c, err := NewCommand(ui, spec)
 
@@ -124,7 +124,7 @@ func TestCommand_Help(t *testing.T) {
 }
 
 func TestCommand_Run(t *testing.T) {
-	c := &Command{ui: new(cli.MockUi)}
+	c := &Command{ui: cli.NewMockUi()}
 	c.Run([]string{"--undefined"})
 
 	assert.NotNil(t, c.services.git)
@@ -289,7 +289,7 @@ func TestCommand_run(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &Command{
-				ui:   new(cli.MockUi),
+				ui:   cli.NewMockUi(),
 				spec: tc.spec,
 			}
 
@@ -380,7 +380,7 @@ func TestCommand_buildAll(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &Command{
-				ui: new(cli.MockUi),
+				ui: cli.NewMockUi(),
 				spec: spec.Spec{
 					Build: tc.buildSpec,
 				},

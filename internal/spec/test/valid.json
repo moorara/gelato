@@ -2,8 +2,8 @@
   "version": "1.0",
   "app": {
     "language": "go",
-    "type": "service",
-    "layout": "vertical"
+    "type": "grpc-service",
+    "layout": "horizontal"
   },
   "build": {
     "crossCompile": true,

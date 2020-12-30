@@ -74,41 +74,26 @@ func (s Spec) WithDefaults() Spec {
 
 // App has the specifications for an application.
 type App struct {
-	Language AppLanguage `json:"language" yaml:"language"`
-	Type     AppType     `json:"type" yaml:"type"`
-	Layout   AppLayout   `json:"layout" yaml:"layout"`
+	Language string `json:"language" yaml:"language"`
+	Type     string `json:"type" yaml:"type"`
+	Layout   string `json:"layout" yaml:"layout"`
 }
-
-// AppLanguage specifies the programming language of an application.
-type AppLanguage string
 
 const (
 	// AppLanguageGo represents Go programming language.
-	AppLanguageGo AppLanguage = "go"
-)
+	AppLanguageGo = "go"
 
-// AppType specifies the type of an application.
-type AppType string
-
-const (
-	// AppTypeGeneric represents a generic application.
-	AppTypeGeneric AppType = "generic"
 	// AppTypeCLI represents a command-line application.
-	AppTypeCLI AppType = "cli"
-	// AppTypeService represents a backend service.
-	AppTypeService AppType = "service"
-)
+	AppTypeCLI = "cli"
+	// AppTypeHTTPService represents an HTTP service.
+	AppTypeHTTPService = "http-service"
+	// AppTypeGRPCService represents a gRPC service.
+	AppTypeGRPCService = "grpc-service"
 
-// AppLayout specifies the layout of an application code.
-type AppLayout string
-
-const (
-	// AppLayoutCustom represents a custom application.
-	AppLayoutCustom AppLayout = "custom"
 	// AppLayoutVertical represents a vertical application layout.
-	AppLayoutVertical AppLayout = "vertical"
+	AppLayoutVertical = "vertical"
 	// AppLayoutHorizontal represents a horizontal application layout (a.k.a. onion architecture).
-	AppLayoutHorizontal AppLayout = "horizontal"
+	AppLayoutHorizontal = "horizontal"
 )
 
 // WithDefaults returns a new object with default values.
@@ -118,14 +103,24 @@ func (a App) WithDefaults() App {
 	}
 
 	if a.Type == "" {
-		a.Type = AppTypeGeneric
+		a.Type = AppTypeHTTPService
 	}
 
 	if a.Layout == "" {
-		a.Layout = AppLayoutCustom
+		a.Layout = AppLayoutVertical
 	}
 
 	return a
+}
+
+// FlagSet returns a flag set for the app command arguments.
+func (a *App) FlagSet() *flag.FlagSet {
+	fs := flag.NewFlagSet("app", flag.ContinueOnError)
+	fs.StringVar(&a.Language, "language", a.Language, "")
+	fs.StringVar(&a.Type, "type", a.Type, "")
+	fs.StringVar(&a.Layout, "layout", a.Layout, "")
+
+	return fs
 }
 
 // Build has the specifications for the build command.

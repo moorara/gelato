@@ -21,7 +21,7 @@ func TestLogger(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			ui := new(cli.MockUi)
+			ui := cli.NewMockUi()
 			l := newLogger(ui)
 
 			l.ChangeVerbosity(0)

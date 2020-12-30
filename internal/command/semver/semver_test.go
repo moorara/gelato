@@ -77,7 +77,7 @@ func (m *MockGitService) CommitsIn(rev string) (git.Commits, error) {
 }
 
 func TestNewCommand(t *testing.T) {
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	c, err := NewCommand(ui)
 
 	assert.NoError(t, err)
@@ -99,7 +99,7 @@ func TestCommand_Help(t *testing.T) {
 }
 
 func TestCommand_Run(t *testing.T) {
-	c := &Command{ui: new(cli.MockUi)}
+	c := &Command{ui: cli.NewMockUi()}
 	c.Run([]string{"--undefined"})
 
 	assert.NotNil(t, c.services.git)
@@ -497,7 +497,7 @@ func TestCommand_run(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &Command{ui: new(cli.MockUi)}
+			c := &Command{ui: cli.NewMockUi()}
 			c.services.git = tc.git
 
 			exitCode := c.run(tc.args)

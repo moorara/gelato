@@ -33,6 +33,8 @@ const (
 	ChangelogError
 	// DecorationError is the exit code when decorating an application fails.
 	DecorationError
+	// InputError is the exist code when a user provides an invalid input.
+	InputError
 	// UnsupportedError is the exit code when a capability is not supported.
 	UnsupportedError
 	// MiscError is the exit code when a miscellaneous operation fails.
