@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: grpc-service
+    container_name: grpc-service
+    ports:
+      - "4000:4000"
+      - "5000:5000"
+    environment:
+      - ENVIRONMENT=docker
+
+  unit-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    hostname: unit-test
+    container_name: unit-test
+    command: [ "go", "test", "-race", "./..." ]

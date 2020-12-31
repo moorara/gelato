@@ -1,0 +1,16 @@
+# Compiled files
+/main
+/grpc-service
+
+# Build directories
+/bin/**
+/build/**
+/.build/**
+
+# Test files
+*.log
+*.out
+*.test
+
+# Misc files
+*.html

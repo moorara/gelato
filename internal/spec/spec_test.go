@@ -115,8 +115,8 @@ func TestSpecWithDefaults(t *testing.T) {
 				Version:       "1.0",
 				App: App{
 					Language: AppLanguageGo,
-					Type:     AppTypeHTTPService,
-					Layout:   AppLayoutVertical,
+					Type:     "",
+					Layout:   "",
 				},
 				Build: Build{
 					CrossCompile: false,
@@ -185,8 +185,8 @@ func TestAppWithDefaults(t *testing.T) {
 			App{},
 			App{
 				Language: AppLanguageGo,
-				Type:     AppTypeHTTPService,
-				Layout:   AppLayoutVertical,
+				Type:     "",
+				Layout:   "",
 			},
 		},
 		{
@@ -208,29 +208,6 @@ func TestAppWithDefaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expectedApp, tc.app.WithDefaults())
 		})
-	}
-}
-
-func TestAppFlagSet(t *testing.T) {
-	tests := []struct {
-		app App
-	}{
-		{
-			app: App{},
-		},
-		{
-			app: App{
-				Language: "go",
-				Type:     "grpc-service",
-				Layout:   "horizontal",
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		fs := tc.app.FlagSet()
-
-		assert.NotNil(t, fs)
 	}
 }
 

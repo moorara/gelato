@@ -1,0 +1,20 @@
+version: "3.8"
+services:
+  service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    hostname: http-service
+    container_name: http-service
+    ports:
+      - "4000:4000"
+    environment:
+      - ENVIRONMENT=docker
+
+  unit-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    hostname: unit-test
+    container_name: unit-test
+    command: [ "go", "test", "-race", "./..." ]

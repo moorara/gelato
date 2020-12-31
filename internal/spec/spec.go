@@ -102,25 +102,7 @@ func (a App) WithDefaults() App {
 		a.Language = AppLanguageGo
 	}
 
-	if a.Type == "" {
-		a.Type = AppTypeHTTPService
-	}
-
-	if a.Layout == "" {
-		a.Layout = AppLayoutVertical
-	}
-
 	return a
-}
-
-// FlagSet returns a flag set for the app command arguments.
-func (a *App) FlagSet() *flag.FlagSet {
-	fs := flag.NewFlagSet("app", flag.ContinueOnError)
-	fs.StringVar(&a.Language, "language", a.Language, "")
-	fs.StringVar(&a.Type, "type", a.Type, "")
-	fs.StringVar(&a.Layout, "layout", a.Layout, "")
-
-	return fs
 }
 
 // Build has the specifications for the build command.

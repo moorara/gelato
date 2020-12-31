@@ -1,0 +1,28 @@
+// https://developers.google.com/protocol-buffers/docs/proto3
+
+syntax = "proto3";
+
+package greeting;
+
+// go_package specifies the full go import path.
+// By convention, we always add pb suffix (for protobuf or protocol buffers).
+// This is for distinguishing the package name from other packages with the same name.
+option go_package = "vertical/grpc-service/internal/idl/greetingpb";
+
+// This is your API contract.
+// You can have multiple files in idl directory and multiple services in the same file.
+// By convention, we always have a message per request and a message per response.
+// This gives flexibility and isolation to future extensions of service methods.
+// It is recommended to comment on each service method to keep the IDL self-explanatory.
+service GreetingService {
+  // Creates and returns a greeting for a given name.
+  rpc Greet(GreetRequest) returns (GreetResponse);
+}
+
+message GreetRequest {
+  string name = 1;
+}
+
+message GreetResponse {
+  string greeting = 1;
+}

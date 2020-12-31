@@ -1,0 +1,13 @@
+version: "1.0"
+
+app:
+  language: go
+  type: http-service
+  layout: vertical
+
+build:
+  decorate: false
+  cross_compile: false
+
+release:
+  artifacts: false

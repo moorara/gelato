@@ -1,0 +1,40 @@
+# https://swagger.io/specification
+# https://editor.swagger.io
+
+openapi: 3.0.0
+info:
+  version: 1.0.0
+  title: Greeting API
+  description: An example API in OpenAPI specification.
+servers:
+  - url: api.example.com/v1
+paths:
+  /greet:
+    post:
+      tags:
+        - greeting
+      summary: Greets a name.
+      description: Creates and returns a greeting for a given name.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Successful response.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - greeting
+                properties:
+                  greeting:
+                    type: string
