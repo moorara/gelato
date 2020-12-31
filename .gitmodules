@@ -1,0 +1,4 @@
+[submodule "templates/go/make"]
+	path = templates/go/make
+	url = git@github.com:moorara/make.git
+	branch = main

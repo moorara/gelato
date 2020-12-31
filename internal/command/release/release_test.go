@@ -18,7 +18,7 @@ import (
 )
 
 func TestNewCommand(t *testing.T) {
-	ui := new(cli.MockUi)
+	ui := cli.NewMockUi()
 	spec := spec.Spec{}
 	c, err := NewCommand(ui, spec)
 
@@ -70,7 +70,7 @@ func TestCommand_Run(t *testing.T) {
 				defer os.Unsetenv(key)
 			}
 
-			c := &Command{ui: new(cli.MockUi)}
+			c := &Command{ui: cli.NewMockUi()}
 
 			exitCode := c.Run([]string{"--undefined"})
 
@@ -1238,7 +1238,7 @@ func TestCommand_run(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &Command{
-				ui:   new(cli.MockUi),
+				ui:   cli.NewMockUi(),
 				spec: tc.spec,
 			}
 

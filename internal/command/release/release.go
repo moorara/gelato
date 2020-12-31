@@ -41,11 +41,11 @@ const (
   Usage:  gelato release [flags]
 
   Flags:
-    -patch:      create a patch version release (default: true)
-    -minor:      create a minor version release (default: false)
-    -major:      create a major version release (default: false)
-    -comment:    add a description for the release
-    -artifacts:  build the artifacts and include them in the release (default: {{.Release.Artifacts}})
+    -patch        create a patch version release (default: true)
+    -minor        create a minor version release (default: false)
+    -major        create a major version release (default: false)
+    -comment      add a description for the release
+    -artifacts    build the artifacts and include them in the release (default: {{.Release.Artifacts}})
 
   Examples:
     gelato release

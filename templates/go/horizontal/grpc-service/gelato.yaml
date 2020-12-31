@@ -1,0 +1,13 @@
+version: "1.0"
+
+app:
+  language: go
+  type: grpc-service
+  layout: horizontal
+
+build:
+  decorate: true
+  cross_compile: false
+
+release:
+  artifacts: false

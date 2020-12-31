@@ -50,8 +50,8 @@ func TestFromFile(t *testing.T) {
 				Version: "1.0",
 				App: App{
 					Language: AppLanguageGo,
-					Type:     AppTypeService,
-					Layout:   AppLayoutVertical,
+					Type:     AppTypeGRPCService,
+					Layout:   AppLayoutHorizontal,
 				},
 				Build: Build{
 					CrossCompile: true,
@@ -70,8 +70,8 @@ func TestFromFile(t *testing.T) {
 				Version: "1.0",
 				App: App{
 					Language: AppLanguageGo,
-					Type:     AppTypeService,
-					Layout:   AppLayoutVertical,
+					Type:     AppTypeGRPCService,
+					Layout:   AppLayoutHorizontal,
 				},
 				Build: Build{
 					CrossCompile: true,
@@ -115,8 +115,8 @@ func TestSpecWithDefaults(t *testing.T) {
 				Version:       "1.0",
 				App: App{
 					Language: AppLanguageGo,
-					Type:     AppTypeGeneric,
-					Layout:   AppLayoutCustom,
+					Type:     "",
+					Layout:   "",
 				},
 				Build: Build{
 					CrossCompile: false,
@@ -135,8 +135,8 @@ func TestSpecWithDefaults(t *testing.T) {
 				Version:       "2.0",
 				App: App{
 					Language: AppLanguageGo,
-					Type:     AppTypeService,
-					Layout:   AppLayoutVertical,
+					Type:     AppTypeGRPCService,
+					Layout:   AppLayoutHorizontal,
 				},
 				Build: Build{
 					CrossCompile: true,
@@ -152,8 +152,8 @@ func TestSpecWithDefaults(t *testing.T) {
 				Version:       "2.0",
 				App: App{
 					Language: AppLanguageGo,
-					Type:     AppTypeService,
-					Layout:   AppLayoutVertical,
+					Type:     AppTypeGRPCService,
+					Layout:   AppLayoutHorizontal,
 				},
 				Build: Build{
 					CrossCompile: true,
@@ -185,21 +185,21 @@ func TestAppWithDefaults(t *testing.T) {
 			App{},
 			App{
 				Language: AppLanguageGo,
-				Type:     AppTypeGeneric,
-				Layout:   AppLayoutCustom,
+				Type:     "",
+				Layout:   "",
 			},
 		},
 		{
 			"DefaultsNotRequired",
 			App{
 				Language: AppLanguageGo,
-				Type:     AppTypeService,
-				Layout:   AppLayoutVertical,
+				Type:     AppTypeGRPCService,
+				Layout:   AppLayoutHorizontal,
 			},
 			App{
 				Language: AppLanguageGo,
-				Type:     AppTypeService,
-				Layout:   AppLayoutVertical,
+				Type:     AppTypeGRPCService,
+				Layout:   AppLayoutHorizontal,
 			},
 		},
 	}
@@ -250,8 +250,7 @@ func TestBuildWithDefaults(t *testing.T) {
 
 func TestBuildFlagSet(t *testing.T) {
 	tests := []struct {
-		build        Build
-		expectedName string
+		build Build
 	}{
 		{
 			build: Build{},
@@ -305,8 +304,7 @@ func TestReleaseWithDefaults(t *testing.T) {
 
 func TestReleaseFlagSet(t *testing.T) {
 	tests := []struct {
-		release      Release
-		expectedName string
+		release Release
 	}{
 		{
 			release: Release{},

@@ -1,0 +1,19 @@
+# Compiled files
+/main
+/http-service
+
+# Build directories
+/bin/**
+/build/**
+/.build/**
+
+# Test files
+*.log
+*.out
+*.test
+
+# Misc files
+*.html
+
+# Exceptions
+!Dockerfile.test

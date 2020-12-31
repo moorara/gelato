@@ -7,6 +7,7 @@ import (
 	"github.com/mitchellh/cli"
 
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/command/app"
 	"github.com/moorara/gelato/internal/command/build"
 	"github.com/moorara/gelato/internal/command/release"
 	"github.com/moorara/gelato/internal/command/semver"
@@ -43,6 +44,9 @@ func main() {
 	c := cli.NewCLI("gelato", version.String())
 	c.Args = os.Args[1:]
 	c.Commands = map[string]cli.CommandFactory{
+		"app": func() (cli.Command, error) {
+			return app.NewCommand(ui, spec.GelatoVersion)
+		},
 		"semver": func() (cli.Command, error) {
 			return semver.NewCommand(ui)
 		},

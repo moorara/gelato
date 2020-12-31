@@ -43,8 +43,8 @@ const (
   Usage:  gelato build [flags]
 
   Flags:
-    -cross-compile:  build the binary for all platforms (default: {{.Build.CrossCompile}})
-    -decorate:       [EXPERIMENTAL] decorate the application before building
+    -cross-compile    build the binary for all platforms (default: {{.Build.CrossCompile}})
+    -decorate         [EXPERIMENTAL] decorate the application before building
 
   Examples:
     gelato build

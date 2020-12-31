@@ -1,0 +1,51 @@
+name: templates/go/vertical/grpc-service
+on:
+  push:
+    paths:
+      - 'templates/go/vertical/grpc-service/**'
+jobs:
+  lint:
+    name: Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+      - name: Lint
+        uses: moorara/actions/go-lint@main
+        with:
+          path: ./templates/go/vertical/grpc-service
+  test:
+    name: Test Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Test
+        id: test
+        uses: moorara/actions/go-cover@main
+        with:
+          path: ./templates/go/vertical/grpc-service
+      # - name: Upload Test Report
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: coverage-report
+      #     path: ./templates/go/vertical/grpc-service/${{ steps.test.outputs.coverage_report_file }}
+  build:
+    name: Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          submodules: 'true'
+      - name: Build Binary
+        working-directory: ./templates/go/vertical/grpc-service
+        run: make build
+      - name: Build Docker Image
+        working-directory: ./templates/go/vertical/grpc-service
+        run: make docker save-docker
+      # - name: Upload Docker Image
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: docker-image
+      #     path: ./templates/go/vertical/grpc-service/docker.tar
