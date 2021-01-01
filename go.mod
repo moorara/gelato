@@ -7,9 +7,9 @@ require (
 	github.com/mitchellh/cli v1.1.2
 	github.com/moorara/changelog v0.1.3
 	github.com/moorara/color v1.10.0
-	github.com/moorara/go-github v0.1.0
+	github.com/moorara/go-github v0.1.2
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
-	golang.org/x/tools v0.0.0-20201223010750-3fa0e8f87c1a
+	golang.org/x/tools v0.0.0-20210102185154-773b96fafca2
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776
 )

@@ -17,12 +17,11 @@ var (
 
 // Spec is the model for all specifications.
 type Spec struct {
-	GelatoVersion string `json:"-" yaml:"-"`
-
-	Version string  `json:"version" yaml:"version"`
-	App     App     `json:"app" yaml:"app"`
-	Build   Build   `json:"build" yaml:"build"`
-	Release Release `json:"release" yaml:"release"`
+	APIVersion string  `json:"version" yaml:"version"`
+	Gelato     Gelato  `json:"-" yaml:"-"`
+	App        App     `json:"app" yaml:"app"`
+	Build      Build   `json:"build" yaml:"build"`
+	Release    Release `json:"release" yaml:"release"`
 }
 
 // FromFile reads and returns specifications from a file.
@@ -61,8 +60,8 @@ func FromFile() (Spec, error) {
 
 // WithDefaults returns a new object with default values.
 func (s Spec) WithDefaults() Spec {
-	if s.Version == "" {
-		s.Version = "1.0"
+	if s.APIVersion == "" {
+		s.APIVersion = "1.0"
 	}
 
 	s.App = s.App.WithDefaults()
@@ -70,6 +69,12 @@ func (s Spec) WithDefaults() Spec {
 	s.Release = s.Release.WithDefaults()
 
 	return s
+}
+
+// Gelato has the metadata about the gelato binary itself
+type Gelato struct {
+	Version  string `json:"-" yaml:"-"`
+	Revision string `json:"-" yaml:"-"`
 }
 
 // App has the specifications for an application.
@@ -103,6 +108,16 @@ func (a App) WithDefaults() App {
 	}
 
 	return a
+}
+
+// FlagSet returns a flag set for the app command arguments.
+func (a *App) FlagSet() *flag.FlagSet {
+	fs := flag.NewFlagSet("app", flag.ContinueOnError)
+	fs.StringVar(&a.Language, "language", a.Language, "")
+	fs.StringVar(&a.Type, "type", a.Type, "")
+	fs.StringVar(&a.Layout, "layout", a.Layout, "")
+
+	return fs
 }
 
 // Build has the specifications for the build command.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -35,7 +36,7 @@ const (
 
 type repoService interface {
 	LatestRelease(context.Context) (*github.Release, *github.Response, error)
-	DownloadReleaseAsset(context.Context, string, string, string) (*github.Response, error)
+	DownloadReleaseAsset(context.Context, string, string, io.Writer) (*github.Response, error)
 }
 
 // Command is the cli.Command implementation for update command.
@@ -124,7 +125,14 @@ func (c *Command) run(args []string) int {
 		return command.OSError
 	}
 
-	_, err = c.services.repo.DownloadReleaseAsset(ctx, release.TagName, assetName, binPath)
+	f, err := os.OpenFile(binPath, os.O_WRONLY, 0755)
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Cannot open file for writing: %s", err))
+		return command.OSError
+	}
+	defer f.Close()
+
+	_, err = c.services.repo.DownloadReleaseAsset(ctx, release.TagName, assetName, f)
 	if err != nil {
 		c.ui.Error(fmt.Sprintf("Failed to download and update Gelato binary: %s", err))
 		return command.GitHubError

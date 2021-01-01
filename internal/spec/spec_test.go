@@ -47,7 +47,7 @@ func TestFromFile(t *testing.T) {
 			name:      "ValidJSON",
 			specFiles: []string{"test/valid.json"},
 			expectedSpec: Spec{
-				Version: "1.0",
+				APIVersion: "1.0",
 				App: App{
 					Language: AppLanguageGo,
 					Type:     AppTypeGRPCService,
@@ -67,7 +67,7 @@ func TestFromFile(t *testing.T) {
 			name:      "ValidYAML",
 			specFiles: []string{"test/valid.yaml"},
 			expectedSpec: Spec{
-				Version: "1.0",
+				APIVersion: "1.0",
 				App: App{
 					Language: AppLanguageGo,
 					Type:     AppTypeGRPCService,
@@ -111,8 +111,11 @@ func TestSpecWithDefaults(t *testing.T) {
 			"DefaultsRequired",
 			Spec{},
 			Spec{
-				GelatoVersion: "",
-				Version:       "1.0",
+				APIVersion: "1.0",
+				Gelato: Gelato{
+					Version:  "",
+					Revision: "",
+				},
 				App: App{
 					Language: AppLanguageGo,
 					Type:     "",
@@ -131,8 +134,11 @@ func TestSpecWithDefaults(t *testing.T) {
 		{
 			"DefaultsNotRequired",
 			Spec{
-				GelatoVersion: "0.1.0",
-				Version:       "2.0",
+				APIVersion: "2.0",
+				Gelato: Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
 				App: App{
 					Language: AppLanguageGo,
 					Type:     AppTypeGRPCService,
@@ -148,8 +154,11 @@ func TestSpecWithDefaults(t *testing.T) {
 				},
 			},
 			Spec{
-				GelatoVersion: "0.1.0",
-				Version:       "2.0",
+				APIVersion: "2.0",
+				Gelato: Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
 				App: App{
 					Language: AppLanguageGo,
 					Type:     AppTypeGRPCService,
@@ -208,6 +217,29 @@ func TestAppWithDefaults(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			assert.Equal(t, tc.expectedApp, tc.app.WithDefaults())
 		})
+	}
+}
+
+func TestAppFlagSet(t *testing.T) {
+	tests := []struct {
+		app App
+	}{
+		{
+			app: App{},
+		},
+		{
+			app: App{
+				Language: "go",
+				Type:     "grpc-service",
+				Layout:   "horizontal",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		fs := tc.app.FlagSet()
+
+		assert.NotNil(t, fs)
 	}
 }
 

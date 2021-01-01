@@ -147,8 +147,11 @@ func TestCommand_run(t *testing.T) {
 		{
 			name: "UndefinedFlag",
 			spec: spec.Spec{
-				GelatoVersion: "v0.1.0",
-				Build:         spec.Build{},
+				Gelato: spec.Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
+				Build: spec.Build{},
 			},
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
@@ -156,8 +159,11 @@ func TestCommand_run(t *testing.T) {
 		{
 			name: "GitHEADFails",
 			spec: spec.Spec{
-				GelatoVersion: "v0.1.0",
-				Build:         spec.Build{},
+				Gelato: spec.Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
+				Build: spec.Build{},
 			},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
@@ -170,8 +176,11 @@ func TestCommand_run(t *testing.T) {
 		{
 			name: "SemverRunFails",
 			spec: spec.Spec{
-				GelatoVersion: "v0.1.0",
-				Build:         spec.Build{},
+				Gelato: spec.Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
+				Build: spec.Build{},
 			},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
@@ -192,8 +201,11 @@ func TestCommand_run(t *testing.T) {
 		{
 			name: "Success_NoArtifact",
 			spec: spec.Spec{
-				GelatoVersion: "v0.1.0",
-				Build:         spec.Build{},
+				Gelato: spec.Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
+				Build: spec.Build{},
 			},
 			git: &MockGitService{
 				HEADMocks: []HEADMock{
@@ -219,7 +231,10 @@ func TestCommand_run(t *testing.T) {
 		{
 			name: "DecorateFails",
 			spec: spec.Spec{
-				GelatoVersion: "v0.1.0",
+				Gelato: spec.Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
 				Build: spec.Build{
 					Decorate: true,
 				},
@@ -253,7 +268,10 @@ func TestCommand_run(t *testing.T) {
 		{
 			name: "Success_Decorated_NoArtifact",
 			spec: spec.Spec{
-				GelatoVersion: "v0.1.0",
+				Gelato: spec.Gelato{
+					Version:  "0.1.0",
+					Revision: "aaaaaaa",
+				},
 				Build: spec.Build{
 					Decorate: true,
 				},
