@@ -15,7 +15,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/moorara/go-github"
 
-	"github.com/moorara/gelato/internal/archive"
+	"github.com/moorara/gelato/internal/service/archive"
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/spec"

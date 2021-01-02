@@ -18,8 +18,8 @@ import (
 
 	"github.com/moorara/gelato/internal/command"
 	semvercmd "github.com/moorara/gelato/internal/command/semver"
-	"github.com/moorara/gelato/internal/decorate"
-	"github.com/moorara/gelato/internal/git"
+	"github.com/moorara/gelato/internal/service/decorate"
+	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/semver"

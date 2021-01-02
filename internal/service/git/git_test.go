@@ -113,7 +113,7 @@ func TestParseRemoteURL(t *testing.T) {
 }
 
 func TestGit_Remote(t *testing.T) {
-	repo, err := git.PlainOpen("../..")
+	repo, err := git.PlainOpen("../../..")
 	assert.NoError(t, err)
 
 	tests := []struct {
@@ -156,7 +156,7 @@ func TestGit_Remote(t *testing.T) {
 }
 
 func TestGit_IsClean(t *testing.T) {
-	repo, err := git.PlainOpen("../..")
+	repo, err := git.PlainOpen("../../..")
 	assert.NoError(t, err)
 
 	g := &Git{repo: repo}
@@ -166,7 +166,7 @@ func TestGit_IsClean(t *testing.T) {
 }
 
 func TestGit_HEAD(t *testing.T) {
-	repo, err := git.PlainOpen("../..")
+	repo, err := git.PlainOpen("../../..")
 	assert.NoError(t, err)
 
 	g := &Git{repo: repo}
@@ -179,7 +179,7 @@ func TestGit_HEAD(t *testing.T) {
 
 func TestGit_Tag(t *testing.T) {
 	// TODO: uncomment after releasing
-	// repo, err := git.PlainOpen("../..")
+	// repo, err := git.PlainOpen("../../..")
 	// assert.NoError(t, err)
 
 	// g := &Git{repo: repo}
@@ -191,7 +191,7 @@ func TestGit_Tag(t *testing.T) {
 
 func TestGit_Tags(t *testing.T) {
 	// TODO: uncomment after releasing
-	// repo, err := git.PlainOpen("../..")
+	// repo, err := git.PlainOpen("../../..")
 	// assert.NoError(t, err)
 
 	// g := &Git{repo: repo}
@@ -206,7 +206,7 @@ func TestGit_CreateTag(t *testing.T) {
 }
 
 func TestGit_CommitsIn(t *testing.T) {
-	repo, err := git.PlainOpen("../..")
+	repo, err := git.PlainOpen("../../..")
 	assert.NoError(t, err)
 
 	g := &Git{repo: repo}

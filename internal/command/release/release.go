@@ -21,7 +21,7 @@ import (
 	"github.com/moorara/gelato/internal/command"
 	buildcmd "github.com/moorara/gelato/internal/command/build"
 	semvercmd "github.com/moorara/gelato/internal/command/semver"
-	"github.com/moorara/gelato/internal/git"
+	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/semver"
 )
