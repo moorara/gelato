@@ -8,7 +8,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/moorara/gelato/internal/git"
+	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/pkg/shell"
 )
 

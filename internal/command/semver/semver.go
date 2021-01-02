@@ -9,7 +9,7 @@ import (
 	"github.com/mitchellh/cli"
 
 	"github.com/moorara/gelato/internal/command"
-	"github.com/moorara/gelato/internal/git"
+	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/pkg/semver"
 )
 

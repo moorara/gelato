@@ -11,7 +11,7 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/moorara/gelato/internal/archive"
+	"github.com/moorara/gelato/internal/service/archive"
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/go-github"
