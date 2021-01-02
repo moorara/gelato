@@ -137,5 +137,5 @@ The initial release is always `0.1.0`.
 [goreport-image]: https://goreportcard.com/badge/github.com/moorara/gelato
 [coverage-url]: https://codeclimate.com/github/moorara/gelato/test_coverage
 [coverage-image]: https://api.codeclimate.com/v1/badges/a2ea750b7fe5a629654c/test_coverage
-[maintainability-url]: https://codeclimate.com/github/moorara/gelato/test_coverage
-[maintainability-image]: https://api.codeclimate.com/v1/badges/a2ea750b7fe5a629654c/test_coverage
+[maintainability-url]: https://codeclimate.com/github/moorara/gelato/maintainability
+[maintainability-image]: https://api.codeclimate.com/v1/badges/a2ea750b7fe5a629654c/maintainability
