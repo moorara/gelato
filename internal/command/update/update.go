@@ -121,6 +121,7 @@ func (c *Command) run(args []string) int {
 
 	binPath, err := exec.LookPath(os.Args[0])
 	if err != nil {
+		fmt.Println(err)
 		c.ui.Error(fmt.Sprintf("Cannot find the path for Gelato binary: %s", err))
 		return command.OSError
 	}
