@@ -266,7 +266,7 @@ func (c *Command) run(args []string) int {
 	// We also assume the current directory is a main package if it contains a main.go file.
 	if _, err = os.Stat("./main.go"); err == nil {
 		mainPkg := "."
-		output := binPath + filepath.Base(info.Git.Remote.Path)
+		output := binPath + filepath.Base(info.Context.WorkingDirectory)
 
 		if err := c.buildAll(ctx, ldFlags, mainPkg, output); err != nil {
 			c.ui.Error(err.Error())

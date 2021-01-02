@@ -108,6 +108,46 @@ func TestCommand_run(t *testing.T) {
 			args:             []string{},
 			expectedExitCode: command.GitHubError,
 		},
+		/* {
+			name: "DownloadReleaseAssetFails",
+			repo: &MockRepoService{
+				LatestReleaseMocks: []LatestReleaseMock{
+					{
+						OutRelease: &github.Release{
+							Name:    "1.0.0",
+							TagName: "v1.0.0",
+						},
+						OutResponse: &github.Response{},
+					},
+				},
+				DownloadReleaseAssetMocks: []DownloadReleaseAssetMock{
+					{OutError: errors.New("error on downloading the release asset")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GitHubError,
+		},
+		{
+			name: "Success",
+			repo: &MockRepoService{
+				LatestReleaseMocks: []LatestReleaseMock{
+					{
+						OutRelease: &github.Release{
+							Name:    "1.0.0",
+							TagName: "v1.0.0",
+						},
+						OutResponse: &github.Response{},
+					},
+				},
+				DownloadReleaseAssetMocks: []DownloadReleaseAssetMock{
+					{
+						OutResponse: &github.Response{},
+					},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.Success,
+		}, */
 	}
 
 	for _, tc := range tests {
