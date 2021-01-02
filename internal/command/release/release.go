@@ -26,8 +26,6 @@ import (
 	"github.com/moorara/gelato/pkg/semver"
 )
 
-const remoteName = "origin"
-
 const (
 	releaseTimeout  = 10 * time.Minute
 	releaseSynopsis = `Create a release`
@@ -57,6 +55,10 @@ const (
     gelato release -minor -comment "New Features!"
     gelato release -major -comment "Breaking Changes!"
   `
+)
+
+const (
+	remoteName = "origin"
 )
 
 var (

@@ -39,13 +39,14 @@ func main() {
 	}
 
 	spec = spec.WithDefaults()
-	spec.GelatoVersion = version.Version
+	spec.Gelato.Version = version.Version
+	spec.Gelato.Revision = version.Commit
 
 	c := cli.NewCLI("gelato", version.String())
 	c.Args = os.Args[1:]
 	c.Commands = map[string]cli.CommandFactory{
 		"app": func() (cli.Command, error) {
-			return app.NewCommand(ui, spec.GelatoVersion)
+			return app.NewCommand(ui, spec)
 		},
 		"semver": func() (cli.Command, error) {
 			return semver.NewCommand(ui)

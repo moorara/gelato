@@ -1,15 +1,23 @@
 package app
 
 import (
+	"bytes"
 	"context"
-	"flag"
 	"fmt"
+	"html/template"
+	"io"
+	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/mitchellh/cli"
+	"github.com/moorara/go-github"
 
+	"github.com/moorara/gelato/internal/archive"
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/spec"
 )
 
@@ -20,26 +28,52 @@ const (
   Use this command for creating a new application.
   Currently, the app command can only create Go applications.
 
-  Usage:  gelato app
+  Usage:  gelato app [flags]
+
+  Flags:
+    -module      The Go module name for the new application
+    -language    the programming language of the new application (values: go{{if .App.Language}}, default: {{.App.Language}}{{end}})
+    -type        the type of the new application (values: cli|http-service|grpc-service{{if .App.Type}}, default: {{.App.Type}}){{end}})
+    -layout      the layout of the new application (values: vertical|horizontal{{if .App.Layout}}, default: {{.App.Layout}}){{end}})
 
   Examples:
     gelato app
+    gelato app -module=github.com/octocat/service -type=http-service -layout=vertical
   `
+)
+
+const (
+	templateOwner = "moorara"
+	templateRepo  = "gelato"
+	defaultRef    = "main"
+)
+
+type (
+	repoService interface {
+		DownloadTarArchive(context.Context, string, io.Writer) (*github.Response, error)
+	}
+
+	archiveService interface {
+		Extract(string, io.Reader, archive.Selector) error
+	}
 )
 
 // Command is the cli.Command implementation for app command.
 type Command struct {
 	ui       cli.Ui
-	version  string
-	services struct{}
-	outputs  struct{}
+	spec     spec.Spec
+	services struct {
+		repo repoService
+		arch archiveService
+	}
+	outputs struct{}
 }
 
 // NewCommand creates an app command.
-func NewCommand(ui cli.Ui, version string) (*Command, error) {
+func NewCommand(ui cli.Ui, spec spec.Spec) (*Command, error) {
 	return &Command{
-		ui:      ui,
-		version: version,
+		ui:   ui,
+		spec: spec,
 	}, nil
 }
 
@@ -50,18 +84,35 @@ func (c *Command) Synopsis() string {
 
 // Help returns a long help text including usage, description, and list of flags for the command.
 func (c *Command) Help() string {
-	return appHelp
+	var buf bytes.Buffer
+	t := template.Must(template.New("help").Parse(appHelp))
+	_ = t.Execute(&buf, c.spec)
+	return buf.String()
 }
 
 // Run runs the actual command with the given command-line arguments.
 // This method is used as a proxy for creating dependencies and the actual command execution is delegated to the run method for testing purposes.
 func (c *Command) Run(args []string) int {
+	// If no access token is provided, we try without it!
+	token := os.Getenv("GELATO_GITHUB_TOKEN")
+
+	client := github.NewClient(token)
+	repo := client.Repo(templateOwner, templateRepo)
+
+	c.services.repo = repo
+	c.services.arch = archive.NewTarArchive(log.Info)
+
 	return c.run(args)
 }
 
 // run in an auxiliary method, so we can test the business logic with mock dependencies.
 func (c *Command) run(args []string) int {
-	fs := flag.NewFlagSet("app", flag.ContinueOnError)
+	flags := struct {
+		module string
+	}{}
+
+	fs := c.spec.App.FlagSet()
+	fs.StringVar(&flags.module, "module", flags.module, "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -77,7 +128,7 @@ func (c *Command) run(args []string) int {
 
 	checklist := command.PreflightChecklist{}
 
-	_, err := command.RunPreflightChecks(ctx, checklist)
+	info, err := command.RunPreflightChecks(ctx, checklist)
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.PreflightError
@@ -85,54 +136,111 @@ func (c *Command) run(args []string) int {
 
 	// ==============================> GET INPUTS <==============================
 
-	langOptions := strings.Join([]string{spec.AppLanguageGo}, ", ")
-	appLang, err := c.ui.Ask(fmt.Sprintf("Application Language (%s): ", langOptions))
+	if flags.module == "" {
+		flags.module, err = c.ui.Ask("Go module name: ")
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid module name: %s", err))
+			return command.InputError
+		}
+
+		if flags.module == "" {
+			c.ui.Error(fmt.Sprintf("unsupported module name: %s", flags.module))
+			return command.UnsupportedError
+		}
+	}
+
+	if c.spec.App.Language == "" {
+		langOptions := strings.Join([]string{spec.AppLanguageGo}, ", ")
+		c.spec.App.Language, err = c.ui.Ask(fmt.Sprintf("Application Language (%s): ", langOptions))
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid application language: %s", err))
+			return command.InputError
+		}
+
+		// Only Go applications are supported
+		if c.spec.App.Language != spec.AppLanguageGo {
+			c.ui.Error(fmt.Sprintf("unsupported application language: %s", c.spec.App.Language))
+			return command.UnsupportedError
+		}
+	}
+
+	if c.spec.App.Type == "" {
+		typeOptions := strings.Join([]string{spec.AppTypeCLI, spec.AppTypeHTTPService, spec.AppTypeGRPCService}, ", ")
+		c.spec.App.Type, err = c.ui.Ask(fmt.Sprintf("Application Type (%s): ", typeOptions))
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid application type: %s", err))
+			return command.InputError
+		}
+
+		// Only HTTP and gRPC services are supported
+		if c.spec.App.Type != spec.AppTypeHTTPService && c.spec.App.Type != spec.AppTypeGRPCService {
+			c.ui.Error(fmt.Sprintf("unsupported application type: %s", c.spec.App.Type))
+			return command.UnsupportedError
+		}
+	}
+
+	if c.spec.App.Layout == "" {
+		layoutOptions := strings.Join([]string{spec.AppLayoutVertical, spec.AppLayoutHorizontal}, ", ")
+		c.spec.App.Layout, err = c.ui.Ask(fmt.Sprintf("Application Layout (%s): ", layoutOptions))
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid application layout: %s", err))
+			return command.InputError
+		}
+
+		// Only vertical and horizontal layouts are supported
+		if c.spec.App.Layout != spec.AppLayoutVertical && c.spec.App.Layout != spec.AppLayoutHorizontal {
+			c.ui.Error(fmt.Sprintf("unsupported application layout: %s", c.spec.App.Layout))
+			return command.UnsupportedError
+		}
+	}
+
+	// ==============================> DOWNLOAD REPO ARCHIVE <==============================
+
+	buf := new(bytes.Buffer)
+
+	ref := c.spec.Gelato.Revision
+	if ref == "" {
+		ref = defaultRef
+	}
+
+	c.ui.Output(fmt.Sprintf("Downloading Templates revision %s ...", ref))
+
+	_, err = c.services.repo.DownloadTarArchive(ctx, ref, buf)
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("invalid application language: %s", err))
-		return command.InputError
+		c.ui.Error(fmt.Sprintf("Failed to download repository archive: %s", err))
+		return command.GitHubError
 	}
 
-	// Only Go applications are supported
-	if appLang != spec.AppLanguageGo {
-		c.ui.Error(fmt.Sprintf("unsupported application language: %s", appLang))
-		return command.UnsupportedError
-	}
+	// ==============================> EXTRACT REPO ARCHIVE <==============================
 
-	typeOptions := strings.Join([]string{spec.AppTypeCLI, spec.AppTypeHTTPService, spec.AppTypeGRPCService}, ", ")
-	appType, err := c.ui.Ask(fmt.Sprintf("Application Type (%s): ", typeOptions))
+	c.ui.Output(fmt.Sprintf("Extracting Templates revision %s ...", ref))
+
+	appName := filepath.Base(flags.module)
+
+	targetPath := filepath.Join("templates",
+		c.spec.App.Language,
+		c.spec.App.Layout,
+		c.spec.App.Type,
+	)
+
+	dirRegex, err := regexp.Compile(fmt.Sprintf("%s-%s-[0-9a-f]{7,40}/%s", templateOwner, templateRepo, targetPath))
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("invalid application type: %s", err))
-		return command.InputError
+		c.ui.Error(fmt.Sprintf("Cannot create regex for directory: %s", err))
+		return command.MiscError
 	}
 
-	// Only HTTP and gRPC services are supported
-	if appType != spec.AppTypeHTTPService && appType != spec.AppTypeGRPCService {
-		c.ui.Error(fmt.Sprintf("unsupported application type: %s", appType))
-		return command.UnsupportedError
-	}
+	err = c.services.arch.Extract(info.Context.WorkingDirectory, buf, func(path string) (string, bool) {
+		if !strings.Contains(path, targetPath) {
+			return "", false
+		}
 
-	layoutOptions := strings.Join([]string{spec.AppLayoutVertical, spec.AppLayoutHorizontal}, ", ")
-	appLayout, err := c.ui.Ask(fmt.Sprintf("Application Layout (%s): ", layoutOptions))
+		path = dirRegex.ReplaceAllString(path, appName)
+		return path, true
+	})
+
 	if err != nil {
-		c.ui.Error(fmt.Sprintf("invalid application layout: %s", err))
-		return command.InputError
-	}
-
-	// Only vertical and horizontal layouts are supported
-	if appLayout != spec.AppLayoutVertical && appLayout != spec.AppLayoutHorizontal {
-		c.ui.Error(fmt.Sprintf("unsupported application layout: %s", appLayout))
-		return command.UnsupportedError
-	}
-
-	modName, err := c.ui.Ask("Go module name: ")
-	if err != nil {
-		c.ui.Error(fmt.Sprintf("invalid module name: %s", err))
-		return command.InputError
-	}
-
-	if modName == "" {
-		c.ui.Error(fmt.Sprintf("unsupported module name: %s", modName))
-		return command.UnsupportedError
+		c.ui.Error(err.Error())
+		return command.ExtractionError
 	}
 
 	// ==============================> DONE <==============================

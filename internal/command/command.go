@@ -37,6 +37,8 @@ const (
 	InputError
 	// UnsupportedError is the exit code when a capability is not supported.
 	UnsupportedError
+	// ExtractionError is the exit code when extracting an archive file fails.
+	ExtractionError
 	// MiscError is the exit code when a miscellaneous operation fails.
 	MiscError
 )

@@ -3,6 +3,7 @@ package update
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/mitchellh/cli"
@@ -24,7 +25,7 @@ type (
 		InContext    context.Context
 		InReleaseTag string
 		InAssetName  string
-		InOutFile    string
+		InWriter     io.Writer
 		OutResponse  *github.Response
 		OutError     error
 	}
@@ -45,13 +46,13 @@ func (m *MockRepoService) LatestRelease(ctx context.Context) (*github.Release, *
 	return m.LatestReleaseMocks[i].OutRelease, m.LatestReleaseMocks[i].OutResponse, m.LatestReleaseMocks[i].OutError
 }
 
-func (m *MockRepoService) DownloadReleaseAsset(ctx context.Context, releaseTag, assetName, outFile string) (*github.Response, error) {
+func (m *MockRepoService) DownloadReleaseAsset(ctx context.Context, releaseTag, assetName string, writer io.Writer) (*github.Response, error) {
 	i := m.DownloadReleaseAssetIndex
 	m.DownloadReleaseAssetIndex++
 	m.DownloadReleaseAssetMocks[i].InContext = ctx
 	m.DownloadReleaseAssetMocks[i].InReleaseTag = releaseTag
 	m.DownloadReleaseAssetMocks[i].InAssetName = assetName
-	m.DownloadReleaseAssetMocks[i].InOutFile = outFile
+	m.DownloadReleaseAssetMocks[i].InWriter = writer
 	return m.DownloadReleaseAssetMocks[i].OutResponse, m.DownloadReleaseAssetMocks[i].OutError
 }
 
@@ -106,46 +107,6 @@ func TestCommand_run(t *testing.T) {
 			},
 			args:             []string{},
 			expectedExitCode: command.GitHubError,
-		},
-		{
-			name: "DownloadReleaseAssetFails",
-			repo: &MockRepoService{
-				LatestReleaseMocks: []LatestReleaseMock{
-					{
-						OutRelease: &github.Release{
-							Name:    "1.0.0",
-							TagName: "v1.0.0",
-						},
-						OutResponse: &github.Response{},
-					},
-				},
-				DownloadReleaseAssetMocks: []DownloadReleaseAssetMock{
-					{OutError: errors.New("error on downloading the release asset")},
-				},
-			},
-			args:             []string{},
-			expectedExitCode: command.GitHubError,
-		},
-		{
-			name: "Success",
-			repo: &MockRepoService{
-				LatestReleaseMocks: []LatestReleaseMock{
-					{
-						OutRelease: &github.Release{
-							Name:    "1.0.0",
-							TagName: "v1.0.0",
-						},
-						OutResponse: &github.Response{},
-					},
-				},
-				DownloadReleaseAssetMocks: []DownloadReleaseAssetMock{
-					{
-						OutResponse: &github.Response{},
-					},
-				},
-			},
-			args:             []string{},
-			expectedExitCode: command.Success,
 		},
 	}
 

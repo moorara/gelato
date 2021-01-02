@@ -210,8 +210,8 @@ func (c *Command) run(args []string) int {
 		buildTime := time.Now().UTC().Format(timeFormat)
 		buildTool := "Gelato"
 
-		if c.spec.GelatoVersion != "" {
-			buildTool += " " + c.spec.GelatoVersion
+		if c.spec.Gelato.Version != "" {
+			buildTool += " " + c.spec.Gelato.Version
 		}
 
 		ldFlags = strings.Join([]string{
