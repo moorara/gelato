@@ -11,8 +11,9 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/moorara/gelato/internal/service/archive"
 	"github.com/moorara/gelato/internal/command"
+	"github.com/moorara/gelato/internal/service/archive"
+	"github.com/moorara/gelato/internal/service/edit"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/go-github"
 )
@@ -64,6 +65,27 @@ func (m *MockArchiveService) Extract(dest string, reader io.Reader, selector arc
 	return m.ExtractMocks[i].OutError
 }
 
+type (
+	ReplaceInDirMock struct {
+		InRoot   string
+		InSpecs  []edit.ReplaceSpec
+		OutError error
+	}
+
+	MockEditService struct {
+		ReplaceInDirIndex int
+		ReplaceInDirMocks []ReplaceInDirMock
+	}
+)
+
+func (m *MockEditService) ReplaceInDir(root string, specs []edit.ReplaceSpec) error {
+	i := m.ReplaceInDirIndex
+	m.ReplaceInDirIndex++
+	m.ReplaceInDirMocks[i].InRoot = root
+	m.ReplaceInDirMocks[i].InSpecs = specs
+	return m.ReplaceInDirMocks[i].OutError
+}
+
 func TestNewCommand(t *testing.T) {
 	ui := cli.NewMockUi()
 	spec := spec.Spec{}
@@ -93,6 +115,7 @@ func TestCommand_Run(t *testing.T) {
 
 	assert.NotNil(t, c.services.repo)
 	assert.NotNil(t, c.services.arch)
+	assert.NotNil(t, c.services.edit)
 }
 
 func TestCommand_run(t *testing.T) {
@@ -100,6 +123,7 @@ func TestCommand_run(t *testing.T) {
 		name             string
 		repo             *MockRepoService
 		arch             *MockArchiveService
+		edit             *MockEditService
 		args             []string
 		inputs           string
 		expectedExitCode int
@@ -108,95 +132,125 @@ func TestCommand_run(t *testing.T) {
 			name:             "UndefinedFlag",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{"--undefined"},
 			expectedExitCode: command.FlagError,
-		},
-		{
-			name:             "InvalidModuleName",
-			repo:             &MockRepoService{},
-			arch:             &MockArchiveService{},
-			args:             []string{},
-			inputs:           "",
-			expectedExitCode: command.InputError,
-		},
-		{
-			name:             "EmptyModuleName",
-			repo:             &MockRepoService{},
-			arch:             &MockArchiveService{},
-			args:             []string{},
-			inputs:           "\n",
-			expectedExitCode: command.UnsupportedError,
 		},
 		{
 			name:             "InvalidAppLang",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\n",
+			inputs:           "",
 			expectedExitCode: command.InputError,
 		},
 		{
 			name:             "EmptyAppLang",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\n\n",
+			inputs:           "\n",
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
 			name:             "UnsupportedAppLang",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\njavascript\n",
+			inputs:           "javascript\n",
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
 			name:             "InvalidAppType",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\ngo\n",
+			inputs:           "go\n",
 			expectedExitCode: command.InputError,
 		},
 		{
 			name:             "EmptyAppType",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\ngo\n\n",
+			inputs:           "go\n\n",
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
 			name:             "UnsupportedAppType",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\ngo\ncli\n",
+			inputs:           "go\ncli\n",
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
 			name:             "InvalidAppType",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\ngo\nhttp-service\n",
+			inputs:           "go\nhttp-service\n",
 			expectedExitCode: command.InputError,
 		},
 		{
 			name:             "EmptyAppType",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\ngo\nhttp-service\n\n",
+			inputs:           "go\nhttp-service\n\n",
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
 			name:             "UnsupportedAppType",
 			repo:             &MockRepoService{},
 			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
 			args:             []string{},
-			inputs:           "github.com/octocat/service\ngo\nhttp-service\ndiagonal\n",
+			inputs:           "go\nhttp-service\ndiagonal\n",
+			expectedExitCode: command.UnsupportedError,
+		},
+		{
+			name:             "InvalidModuleName",
+			repo:             &MockRepoService{},
+			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
+			args:             []string{},
+			inputs:           "go\nhttp-service\nvertical\n",
+			expectedExitCode: command.InputError,
+		},
+		{
+			name:             "EmptyModuleName",
+			repo:             &MockRepoService{},
+			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
+			args:             []string{},
+			inputs:           "go\nhttp-service\nvertical\n\n",
+			expectedExitCode: command.UnsupportedError,
+		},
+		{
+			name:             "InvalidDockerID",
+			repo:             &MockRepoService{},
+			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
+			args:             []string{},
+			inputs:           "go\nhttp-service\nvertical\ngithub.com/octocat/service\n",
+			expectedExitCode: command.InputError,
+		},
+		{
+			name:             "EmptyDockerID",
+			repo:             &MockRepoService{},
+			arch:             &MockArchiveService{},
+			edit:             &MockEditService{},
+			args:             []string{},
+			inputs:           "go\nhttp-service\nvertical\ngithub.com/octocat/service\n\n",
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
@@ -207,17 +261,19 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			arch: &MockArchiveService{},
+			edit: &MockEditService{},
 			args: []string{
-				"-module=github.com/octocat/service",
 				"-language=go",
 				"-type=http-service",
 				"-layout=vertical",
+				"-module=github.com/octocat/service",
+				"-docker=octocat",
 			},
 			inputs:           "",
 			expectedExitCode: command.GitHubError,
 		},
 		{
-			name: "ArchiveWalkFails",
+			name: "ExtractFails",
 			repo: &MockRepoService{
 				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
 					{OutResponse: &github.Response{}},
@@ -228,14 +284,43 @@ func TestCommand_run(t *testing.T) {
 					{OutError: errors.New("error on extracting archive")},
 				},
 			},
+			edit: &MockEditService{},
 			args: []string{
-				"-module=github.com/octocat/service",
 				"-language=go",
 				"-type=http-service",
 				"-layout=vertical",
+				"-module=github.com/octocat/service",
+				"-docker=octocat",
 			},
 			inputs:           "",
 			expectedExitCode: command.ExtractionError,
+		},
+		{
+			name: "ReplaceFails",
+			repo: &MockRepoService{
+				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
+					{OutResponse: &github.Response{}},
+				},
+			},
+			arch: &MockArchiveService{
+				ExtractMocks: []ExtractMock{
+					{OutError: nil},
+				},
+			},
+			edit: &MockEditService{
+				ReplaceInDirMocks: []ReplaceInDirMock{
+					{OutError: errors.New("error on replacing")},
+				},
+			},
+			args: []string{
+				"-language=go",
+				"-type=http-service",
+				"-layout=vertical",
+				"-module=github.com/octocat/service",
+				"-docker=octocat",
+			},
+			inputs:           "",
+			expectedExitCode: command.OSError,
 		},
 	}
 
@@ -253,6 +338,7 @@ func TestCommand_run(t *testing.T) {
 			c := &Command{ui: mockUI}
 			c.services.repo = tc.repo
 			c.services.arch = tc.arch
+			c.services.edit = tc.edit
 
 			exitCode := c.run(tc.args)
 
