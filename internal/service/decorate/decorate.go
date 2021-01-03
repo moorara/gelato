@@ -15,8 +15,8 @@ import (
 
 	"golang.org/x/tools/imports"
 
-	"github.com/moorara/gelato/internal/service/decorate/modifier"
 	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/decorate/modifier"
 )
 
 const (

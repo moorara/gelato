@@ -1,8 +1,7 @@
-package archive
+package edit
 
 import (
-	"io/ioutil"
-	"os"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,7 +9,7 @@ import (
 	"github.com/moorara/gelato/internal/log"
 )
 
-func TestNewTarArchive(t *testing.T) {
+func TestNewEditor(t *testing.T) {
 	tests := []struct {
 		name  string
 		level log.Level
@@ -23,14 +22,14 @@ func TestNewTarArchive(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			arch := NewTarArchive(tc.level)
+			editor := NewEditor(tc.level)
 
-			assert.NotNil(t, arch)
+			assert.NotNil(t, editor)
 		})
 	}
 }
 
-func TestTarArchive_Extract(t *testing.T) {
+func TestEditor_ReplaceInDir(t *testing.T) {
 	logger := log.New(log.None)
 	clogger := &log.ColorfulLogger{
 		Red:     logger,
@@ -44,21 +43,25 @@ func TestTarArchive_Extract(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		archFile      string
-		f             Selector
+		root          string
+		specs         []ReplaceSpec
 		expectedError string
 	}{
 		{
-			name:          "InvalidArchive",
-			archFile:      "test/invalid.tar.gz",
-			f:             nil,
-			expectedError: "error on creating gzip reader: EOF",
+			name:          "DirectoryNotExist",
+			root:          "./foo",
+			specs:         []ReplaceSpec{},
+			expectedError: "lstat ./foo: no such file or directory",
 		},
 		{
-			name:     "Success",
-			archFile: "test/github.tar.gz",
-			f: func(path string) (string, bool) {
-				return path, true
+			name: "Success",
+			root: "./test",
+			specs: []ReplaceSpec{
+				{
+					PathRE: regexp.MustCompile(`\.txt$`),
+					OldRE:  regexp.MustCompile(`foo`),
+					New:    "bar",
+				},
 			},
 			expectedError: "",
 		},
@@ -66,18 +69,11 @@ func TestTarArchive_Extract(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			dest, err := ioutil.TempDir("", "gelato-test-*")
-			assert.NoError(t, err)
-			defer os.RemoveAll(dest)
-
-			f, err := os.Open(tc.archFile)
-			assert.NoError(t, err)
-
-			arch := &TarArchive{
+			editor := &Editor{
 				logger: clogger,
 			}
 
-			err = arch.Extract(dest, f, tc.f)
+			err := editor.ReplaceInDir(tc.root, tc.specs)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)

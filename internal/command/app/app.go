@@ -15,9 +15,10 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/moorara/go-github"
 
-	"github.com/moorara/gelato/internal/service/archive"
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/archive"
+	"github.com/moorara/gelato/internal/service/edit"
 	"github.com/moorara/gelato/internal/spec"
 )
 
@@ -56,6 +57,10 @@ type (
 	archiveService interface {
 		Extract(string, io.Reader, archive.Selector) error
 	}
+
+	editService interface {
+		ReplaceInDir(string, []edit.ReplaceSpec) error
+	}
 )
 
 // Command is the cli.Command implementation for app command.
@@ -65,6 +70,7 @@ type Command struct {
 	services struct {
 		repo repoService
 		arch archiveService
+		edit editService
 	}
 	outputs struct{}
 }
@@ -101,6 +107,7 @@ func (c *Command) Run(args []string) int {
 
 	c.services.repo = repo
 	c.services.arch = archive.NewTarArchive(log.Info)
+	c.services.edit = edit.NewEditor(log.Trace)
 
 	return c.run(args)
 }
@@ -109,10 +116,12 @@ func (c *Command) Run(args []string) int {
 func (c *Command) run(args []string) int {
 	flags := struct {
 		module string
+		docker string
 	}{}
 
 	fs := c.spec.App.FlagSet()
 	fs.StringVar(&flags.module, "module", flags.module, "")
+	fs.StringVar(&flags.docker, "docker", flags.docker, "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -135,19 +144,6 @@ func (c *Command) run(args []string) int {
 	}
 
 	// ==============================> GET INPUTS <==============================
-
-	if flags.module == "" {
-		flags.module, err = c.ui.Ask("Go module name: ")
-		if err != nil {
-			c.ui.Error(fmt.Sprintf("invalid module name: %s", err))
-			return command.InputError
-		}
-
-		if flags.module == "" {
-			c.ui.Error(fmt.Sprintf("unsupported module name: %s", flags.module))
-			return command.UnsupportedError
-		}
-	}
 
 	if c.spec.App.Language == "" {
 		langOptions := strings.Join([]string{spec.AppLanguageGo}, ", ")
@@ -194,6 +190,32 @@ func (c *Command) run(args []string) int {
 		}
 	}
 
+	if flags.module == "" {
+		flags.module, err = c.ui.Ask("Go module name: ")
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid module name: %s", err))
+			return command.InputError
+		}
+
+		if flags.module == "" {
+			c.ui.Error(fmt.Sprintf("unsupported module name: %s", flags.module))
+			return command.UnsupportedError
+		}
+	}
+
+	if flags.docker == "" {
+		flags.docker, err = c.ui.Ask("Docker ID: ")
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid Docker ID: %s", err))
+			return command.InputError
+		}
+
+		if flags.docker == "" {
+			c.ui.Error(fmt.Sprintf("unsupported Docker ID: %s", flags.docker))
+			return command.UnsupportedError
+		}
+	}
+
 	// ==============================> DOWNLOAD REPO ARCHIVE <==============================
 
 	buf := new(bytes.Buffer)
@@ -203,7 +225,7 @@ func (c *Command) run(args []string) int {
 		ref = defaultRef
 	}
 
-	c.ui.Output(fmt.Sprintf("Downloading Templates revision %s ...", ref))
+	c.ui.Output(fmt.Sprintf("Downloading templates revision %s ...", ref))
 
 	_, err = c.services.repo.DownloadTarArchive(ctx, ref, buf)
 	if err != nil {
@@ -213,7 +235,7 @@ func (c *Command) run(args []string) int {
 
 	// ==============================> EXTRACT REPO ARCHIVE <==============================
 
-	c.ui.Output(fmt.Sprintf("Extracting Templates revision %s ...", ref))
+	c.ui.Output(fmt.Sprintf("Extracting templates revision %s ...", ref))
 
 	appName := filepath.Base(flags.module)
 
@@ -241,6 +263,40 @@ func (c *Command) run(args []string) int {
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.ExtractionError
+	}
+
+	// ==============================> EDIT <==============================
+
+	c.ui.Output(fmt.Sprintf("Finishing %s ...", appName))
+
+	specs := []edit.ReplaceSpec{
+		// Edit module name and import paths
+		{
+			PathRE: regexp.MustCompile(`(go.mod|\.go|\.proto)$`),
+			OldRE: regexp.MustCompile(fmt.Sprintf(`%s/%s`,
+				c.spec.App.Layout,
+				c.spec.App.Type,
+			)),
+			New: flags.module,
+		},
+		// Edit application name
+		{
+			PathRE: regexp.MustCompile(`(main\.go|\.gitignore|\.dockerignore|Makefile|Dockerfile|Dockerfile\.test|docker-compose\.yml)$`),
+			OldRE:  regexp.MustCompile(c.spec.App.Type),
+			New:    appName,
+		},
+		// Edit Docker image
+		{
+			PathRE: regexp.MustCompile(`Makefile$`),
+			OldRE:  regexp.MustCompile(`dockerid`),
+			New:    flags.docker,
+		},
+	}
+
+	err = c.services.edit.ReplaceInDir(appName, specs)
+	if err != nil {
+		c.ui.Error(err.Error())
+		return command.OSError
 	}
 
 	// ==============================> DONE <==============================
