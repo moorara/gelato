@@ -115,7 +115,7 @@ This command can be used to get the current semantic version for building artifa
 `gelato build -decorate` decorates an application with a set of decorators.
 Decoration is an experimental feature to decorate the applications with **horizontal layout**.
 It wraps the `controller`, `gateway`, `handler`, and `repository` packages with a set of decorators.
-Decorators can be used for augmenting an application with *observability*, *error reccovery*, etc.
+Decorators can be used for augmenting an application with *observability*, *error recovery*, etc.
 
 ### `release`
 
