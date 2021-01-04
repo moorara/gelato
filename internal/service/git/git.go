@@ -23,26 +23,6 @@ var (
 	sshRE           = regexp.MustCompile(sshPattern)
 )
 
-// Git provides Git functionalities.
-type Git struct {
-	repo *git.Repository
-}
-
-// New creates a new instance of Git.
-func New(path string) (*Git, error) {
-	repo, err := git.PlainOpenWithOptions(path, &git.PlainOpenOptions{
-		DetectDotGit: true,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &Git{
-		repo: repo,
-	}, nil
-}
-
 func parseRemoteURL(url string) (string, string, error) {
 	// Parse the origin remote URL into a domain part a path part
 	if m := httpsRE.FindStringSubmatch(url); len(m) == 6 { // HTTPS Git Remote URL
@@ -58,6 +38,48 @@ func parseRemoteURL(url string) (string, string, error) {
 	}
 
 	return "", "", fmt.Errorf("invalid git remote url: %s", url)
+}
+
+// Git provides Git functionalities.
+type Git struct {
+	repo *git.Repository
+}
+
+// Open creates a new Git service for an existing git repository.
+func Open(path string) (*Git, error) {
+	repo, err := git.PlainOpenWithOptions(path, &git.PlainOpenOptions{
+		DetectDotGit: true,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &Git{
+		repo: repo,
+	}, nil
+}
+
+// Init creates a new git repository and returns a Git service for it.
+func Init(path string) (*Git, error) {
+	repo, err := git.PlainInit(path, false)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Git{
+		repo: repo,
+	}, nil
+}
+
+// Path returns the root path of the Git repository.
+func (g *Git) Path() (string, error) {
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return "", err
+	}
+
+	return worktree.Filesystem.Root(), nil
 }
 
 // Remote returns the domain part and path part of a Git remote repository URL.
@@ -200,25 +222,26 @@ func (g *Git) CreateTag(commit, name, message string) (string, error) {
 	return ref.Hash().String(), nil
 }
 
-func (g *Git) parentCommits(commitsMap map[plumbing.Hash]*object.Commit, h plumbing.Hash) error {
-	if _, ok := commitsMap[h]; ok {
-		return nil
-	}
-
-	c, err := g.repo.CommitObject(h)
+// CreateCommit stages a list of files in the working tree and then creates a new commit with a give message.
+// If successful, it returns the hash of the newly created commit.
+func (g *Git) CreateCommit(message string, paths ...string) (string, error) {
+	worktree, err := g.repo.Worktree()
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	commitsMap[c.Hash] = c
-
-	for _, h := range c.ParentHashes {
-		if err := g.parentCommits(commitsMap, h); err != nil {
-			return err
+	for _, path := range paths {
+		if _, err := worktree.Add(path); err != nil {
+			return "", err
 		}
 	}
 
-	return nil
+	hash, err := worktree.Commit(message, &git.CommitOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return hash.String(), nil
 }
 
 // CommitsIn returns all commits reachable from a revision.
@@ -248,26 +271,39 @@ func (g *Git) CommitsIn(rev string) (Commits, error) {
 	return commits, nil
 }
 
-// CreateCommit stages a list of files in the working tree and then creates a new commit with a give message.
-// If successful, it returns the hash of the newly created commit.
-func (g *Git) CreateCommit(message string, files ...string) (string, error) {
-	worktree, err := g.repo.Worktree()
-	if err != nil {
-		return "", err
+func (g *Git) parentCommits(commitsMap map[plumbing.Hash]*object.Commit, h plumbing.Hash) error {
+	if _, ok := commitsMap[h]; ok {
+		return nil
 	}
 
-	for _, file := range files {
-		if _, err := worktree.Add(file); err != nil {
-			return "", err
+	c, err := g.repo.CommitObject(h)
+	if err != nil {
+		return err
+	}
+
+	commitsMap[c.Hash] = c
+
+	for _, h := range c.ParentHashes {
+		if err := g.parentCommits(commitsMap, h); err != nil {
+			return err
 		}
 	}
 
-	hash, err := worktree.Commit(message, &git.CommitOptions{})
-	if err != nil {
-		return "", err
+	return nil
+}
+
+// AddRemote creates a new remote.
+func (g *Git) AddRemote(name, url string) error {
+	rc := &config.RemoteConfig{
+		Name: name,
+		URLs: []string{url},
 	}
 
-	return hash.String(), nil
+	if _, err := g.repo.CreateRemote(rc); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Pull is same as git pull. It brings the changes from a remote repository into the current branch.
@@ -304,4 +340,26 @@ func (g *Git) PushTag(ctx context.Context, remoteName, tagName string) error {
 			config.RefSpec("+refs/tags/" + tagName + ":refs/tags/" + tagName),
 		},
 	})
+}
+
+// Submodule looks up a git submodule by its name.
+func (g *Git) Submodule(name string) (Submodule, error) {
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return Submodule{}, err
+	}
+
+	submodule, err := worktree.Submodule(name)
+	if err != nil {
+		return Submodule{}, err
+	}
+
+	config := submodule.Config()
+
+	return Submodule{
+		Name:   config.Name,
+		Path:   config.Path,
+		URL:    config.URL,
+		Branch: config.Branch,
+	}, nil
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/service/archive"
 	"github.com/moorara/gelato/internal/service/edit"
+	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/internal/spec"
 )
 
@@ -32,10 +33,12 @@ const (
   Usage:  gelato app [flags]
 
   Flags:
-    -module      The Go module name for the new application
     -language    the programming language of the new application (values: go{{if .App.Language}}, default: {{.App.Language}}{{end}})
     -type        the type of the new application (values: cli|http-service|grpc-service{{if .App.Type}}, default: {{.App.Type}}){{end}})
     -layout      the layout of the new application (values: vertical|horizontal{{if .App.Layout}}, default: {{.App.Layout}}){{end}})
+    -module      the Go module name for the new application
+    -docker      the Docker ID for the Docker image of the new application
+    -monorepo    create the new application in a monorepo setup
 
   Examples:
     gelato app
@@ -47,6 +50,7 @@ const (
 	templateOwner = "moorara"
 	templateRepo  = "gelato"
 	defaultRef    = "main"
+	makeSubmodule = "make"
 )
 
 type (
@@ -61,6 +65,15 @@ type (
 	editService interface {
 		ReplaceInDir(string, []edit.ReplaceSpec) error
 	}
+
+	gitService interface {
+		Path() (string, error)
+		AddRemote(string, string) error
+		Submodule(string) (git.Submodule, error)
+		CreateCommit(string, ...string) (string, error)
+	}
+
+	gitFunc func(string) (gitService, error)
 )
 
 // Command is the cli.Command implementation for app command.
@@ -71,6 +84,10 @@ type Command struct {
 		repo repoService
 		arch archiveService
 		edit editService
+	}
+	funcs struct {
+		gitInit gitFunc
+		gitOpen gitFunc
 	}
 	outputs struct{}
 }
@@ -102,12 +119,17 @@ func (c *Command) Run(args []string) int {
 	// If no access token is provided, we try without it!
 	token := os.Getenv("GELATO_GITHUB_TOKEN")
 
-	client := github.NewClient(token)
-	repo := client.Repo(templateOwner, templateRepo)
-
-	c.services.repo = repo
+	c.services.repo = github.NewClient(token).Repo(templateOwner, templateRepo)
 	c.services.arch = archive.NewTarArchive(log.Info)
-	c.services.edit = edit.NewEditor(log.Trace)
+	c.services.edit = edit.NewEditor(log.Info)
+
+	c.funcs.gitInit = func(path string) (gitService, error) {
+		return git.Init(path)
+	}
+
+	c.funcs.gitOpen = func(path string) (gitService, error) {
+		return git.Open(path)
+	}
 
 	return c.run(args)
 }
@@ -115,13 +137,15 @@ func (c *Command) Run(args []string) int {
 // run in an auxiliary method, so we can test the business logic with mock dependencies.
 func (c *Command) run(args []string) int {
 	flags := struct {
-		module string
-		docker string
+		module   string
+		docker   string
+		monorepo bool
 	}{}
 
 	fs := c.spec.App.FlagSet()
 	fs.StringVar(&flags.module, "module", flags.module, "")
 	fs.StringVar(&flags.docker, "docker", flags.docker, "")
+	fs.BoolVar(&flags.monorepo, "monorepo", flags.monorepo, "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -251,7 +275,7 @@ func (c *Command) run(args []string) int {
 		return command.MiscError
 	}
 
-	err = c.services.arch.Extract(info.Context.WorkingDirectory, buf, func(path string) (string, bool) {
+	err = c.services.arch.Extract(info.WorkingDirectory, buf, func(path string) (string, bool) {
 		if !strings.Contains(path, targetPath) {
 			return "", false
 		}
@@ -265,7 +289,50 @@ func (c *Command) run(args []string) int {
 		return command.ExtractionError
 	}
 
-	// ==============================> EDIT <==============================
+	// ==============================> GET GIT REPO <==============================
+
+	var git gitService
+	var makeRelPath string
+	appPath := filepath.Join(info.WorkingDirectory, appName)
+
+	if !flags.monorepo {
+		if git, err = c.funcs.gitInit(appPath); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to initialize git repo: %s", err))
+			return command.GitError
+		}
+	} else {
+		if git, err = c.funcs.gitOpen(appPath); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to open git repo: %s", err))
+			return command.GitError
+		}
+
+		submodule, err := git.Submodule(makeSubmodule)
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to get make git submodule: %s", err))
+			return command.GitError
+		}
+
+		repoPath, err := git.Path()
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to get git repository path: %s", err))
+			return command.MiscError
+		}
+
+		// Resolve the absolute path for make git submodule
+		makeAbsPath, err := filepath.Abs(filepath.Join(repoPath, submodule.Path))
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to resolve make submodule absolute path: %s", err))
+			return command.MiscError
+		}
+
+		// Resolve the relative path for make git submodule
+		if makeRelPath, err = filepath.Rel(appPath, makeAbsPath); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to resolve make submodule relative path: %s", err))
+			return command.MiscError
+		}
+	}
+
+	// ==============================> EDIT FILES <==============================
 
 	c.ui.Output(fmt.Sprintf("Finishing %s ...", appName))
 
@@ -291,12 +358,37 @@ func (c *Command) run(args []string) int {
 			OldRE:  regexp.MustCompile(`dockerid`),
 			New:    flags.docker,
 		},
+		// Edit make submodule path
+		{
+			PathRE: regexp.MustCompile(`Makefile$`),
+			OldRE:  regexp.MustCompile(`\.\./\.\./make`),
+			New:    makeRelPath,
+		},
 	}
 
-	err = c.services.edit.ReplaceInDir(appName, specs)
-	if err != nil {
+	if err := c.services.edit.ReplaceInDir(appName, specs); err != nil {
 		c.ui.Error(err.Error())
 		return command.OSError
+	}
+
+	// ==============================> PREPARE GIT REPO <==============================
+
+	if !flags.monorepo {
+		message := fmt.Sprintf("🚀 Inception: %s created by Gelato 🍨", appName)
+		if _, err := git.CreateCommit(message, "."); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to create git commit: %s", err))
+			return command.GitError
+		}
+
+		// TODO: Rename branch
+
+		url := fmt.Sprintf("https://%s.git", flags.module)
+		if err := git.AddRemote("origin", url); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to add git remote: %s", err))
+			return command.GitError
+		}
+
+		// TODO: add git submodule
 	}
 
 	// ==============================> DONE <==============================

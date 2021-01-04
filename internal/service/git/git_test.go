@@ -1,44 +1,115 @@
 package git
 
 import (
+	"io/ioutil"
+	"os"
 	"testing"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestNew(t *testing.T) {
-	tests := []struct {
-		name          string
-		path          string
-		expectedError string
-	}{
-		{
-			name:          "Unknown",
-			path:          "/unknown",
-			expectedError: "repository does not exist",
-		},
-		{
-			name:          "Success",
-			path:          ".",
-			expectedError: "",
+const testPath = "./test"
+
+func setupGitRepo() (*git.Repository, func(), error) {
+	repo, err := git.PlainInit(testPath, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cleanup := func() {
+		os.RemoveAll(testPath)
+	}
+
+	c, err := repo.Config()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// Required configs
+	c.Author.Name = "Jane Doe"
+	c.Author.Email = "jane.doe@example.com"
+
+	if err := repo.SetConfig(c); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	worktree, err := repo.Worktree()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// CREATE FIRST COMMIT
+
+	if err := ioutil.WriteFile(testPath+"/README.md", []byte(""), 0755); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	if _, err := worktree.Add("."); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	h1, err := worktree.Commit("First commit", &git.CommitOptions{})
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// CREATE SECOND COMMIT
+
+	if err := ioutil.WriteFile(testPath+"/LICENSE", []byte(""), 0755); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	if _, err := worktree.Add("."); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	h2, err := worktree.Commit("Second commit", &git.CommitOptions{})
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// CREATE TAGS
+
+	if _, err := repo.CreateTag("v0.1.0", h1, nil); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	opts := &git.CreateTagOptions{
+		Message: "second tag",
+	}
+
+	if _, err := repo.CreateTag("v0.2.0", h2, opts); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// ADD REMOTE
+
+	rc := &config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{
+			"https://github.com/octocat/Hello-World",
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			g, err := New(tc.path)
-
-			if tc.expectedError != "" {
-				assert.Nil(t, g)
-				assert.EqualError(t, err, tc.expectedError)
-			} else {
-				assert.NoError(t, err)
-				assert.NotNil(t, g)
-				assert.NotNil(t, g.repo)
-			}
-		})
+	if _, err := repo.CreateRemote(rc); err != nil {
+		cleanup()
+		return nil, nil, err
 	}
+
+	return repo, cleanup, nil
 }
 
 func TestParseRemoteURL(t *testing.T) {
@@ -112,9 +183,96 @@ func TestParseRemoteURL(t *testing.T) {
 	}
 }
 
-func TestGit_Remote(t *testing.T) {
-	repo, err := git.PlainOpen("../../..")
+func TestOpen(t *testing.T) {
+	_, cleanup, err := setupGitRepo()
 	assert.NoError(t, err)
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		path          string
+		expectedError string
+	}{
+		{
+			name:          "PathNotExist",
+			path:          "/foo",
+			expectedError: "repository does not exist",
+		},
+		{
+			name:          "Success",
+			path:          "./test",
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, err := Open(tc.path)
+
+			if tc.expectedError != "" {
+				assert.Nil(t, g)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, g)
+				assert.NotNil(t, g.repo)
+			}
+		})
+	}
+}
+
+func TestInit(t *testing.T) {
+	tests := []struct {
+		name          string
+		path          string
+		expectedError string
+	}{
+		{
+			name:          "InvalidPath",
+			path:          "/dev/null",
+			expectedError: "stat /dev/null/.git/objects/info: not a directory",
+		},
+		{
+			name:          "Success",
+			path:          "./test",
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, err := Init(tc.path)
+			defer os.RemoveAll(tc.path)
+
+			if tc.expectedError != "" {
+				assert.Nil(t, g)
+				assert.EqualError(t, err, tc.expectedError)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, g)
+				assert.NotNil(t, g.repo)
+			}
+		})
+	}
+}
+
+func TestGit_Path(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	g := &Git{repo: repo}
+
+	path, err := g.Path()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "./test", path)
+}
+
+func TestGit_Remote(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
 
 	tests := []struct {
 		name           string
@@ -124,15 +282,15 @@ func TestGit_Remote(t *testing.T) {
 		expectedError  string
 	}{
 		{
-			name:          "Unknown",
-			remoteName:    "unknown",
+			name:          "RemoteNotExist",
+			remoteName:    "foo",
 			expectedError: "remote not found",
 		},
 		{
 			name:           "Success",
 			remoteName:     "origin",
 			expectedDomain: "github.com",
-			expectedPath:   "moorara/gelato",
+			expectedPath:   "octocat/Hello-World",
 		},
 	}
 
@@ -156,78 +314,204 @@ func TestGit_Remote(t *testing.T) {
 }
 
 func TestGit_IsClean(t *testing.T) {
-	repo, err := git.PlainOpen("../../..")
+	repo, cleanup, err := setupGitRepo()
+	defer cleanup()
 	assert.NoError(t, err)
 
-	g := &Git{repo: repo}
+	t.Run("Clean", func(t *testing.T) {
+		g := &Git{repo: repo}
 
-	_, err = g.IsClean()
-	assert.NoError(t, err)
+		b, err := g.IsClean()
+
+		assert.True(t, b)
+		assert.NoError(t, err)
+	})
+
+	t.Run("NotClean", func(t *testing.T) {
+		f, err := os.Create(testPath + "/new_file")
+		assert.NoError(t, err)
+		f.Close()
+
+		g := &Git{repo: repo}
+
+		b, err := g.IsClean()
+
+		assert.False(t, b)
+		assert.NoError(t, err)
+	})
 }
 
 func TestGit_HEAD(t *testing.T) {
-	repo, err := git.PlainOpen("../../..")
+	repo, cleanup, err := setupGitRepo()
 	assert.NoError(t, err)
+	defer cleanup()
 
 	g := &Git{repo: repo}
 
 	hash, branch, err := g.HEAD()
+
 	assert.NoError(t, err)
 	assert.NotEmpty(t, hash)
-	assert.NotEmpty(t, branch)
+	assert.Equal(t, "master", branch)
 }
 
 func TestGit_Tag(t *testing.T) {
-	// TODO: uncomment after releasing
-	// repo, err := git.PlainOpen("../../..")
-	// assert.NoError(t, err)
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
 
-	// g := &Git{repo: repo}
+	tests := []struct {
+		name          string
+		tagName       string
+		expectedError string
+	}{
+		{
+			name:          "LightweightTag",
+			tagName:       "v0.1.0",
+			expectedError: "",
+		},
+		{
+			name:          "AnnotatedTag",
+			tagName:       "v0.2.0",
+			expectedError: "",
+		},
+		{
+			name:          "TagNotExist",
+			tagName:       "v0.3.0",
+			expectedError: "tag not found",
+		},
+	}
 
-	// tag, err := g.Tag("v0.1.0")
-	// assert.NoError(t, err)
-	// assert.NotEmpty(t, tag)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &Git{repo: repo}
+
+			tag, err := g.Tag(tc.tagName)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, tag.Name)
+			} else {
+				assert.Empty(t, tag.Name)
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
 }
 
 func TestGit_Tags(t *testing.T) {
-	// TODO: uncomment after releasing
-	// repo, err := git.PlainOpen("../../..")
-	// assert.NoError(t, err)
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
 
-	// g := &Git{repo: repo}
+	g := &Git{repo: repo}
 
-	// tags, err := g.Tags()
-	// assert.NoError(t, err)
-	// assert.NotEmpty(t, tags)
+	tags, err := g.Tags()
+	assert.NoError(t, err)
+	assert.Len(t, tags, 2)
 }
 
 func TestGit_CreateTag(t *testing.T) {
-	// CreateTag has side effects!
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	g := &Git{repo: repo}
+
+	f, err := os.Create(testPath + "/new_file")
+	assert.NoError(t, err)
+	f.Close()
+
+	commitHash, err := g.CreateCommit("test commit", ".")
+	assert.NoError(t, err)
+	assert.NotEmpty(t, commitHash)
+
+	t.Run("TagExists", func(t *testing.T) {
+		tagHash, err := g.CreateTag(commitHash, "v0.2.0", "test tag")
+		assert.Empty(t, tagHash)
+		assert.EqualError(t, err, "tag already exists")
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		tagHash, err := g.CreateTag(commitHash, "v0.3.0", "test tag")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, tagHash)
+	})
+}
+
+func TestGit_CreateCommit(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	f, err := os.Create(testPath + "/new_file")
+	assert.NoError(t, err)
+	f.Close()
+
+	tests := []struct {
+		name          string
+		message       string
+		paths         []string
+		expectedError string
+	}{
+		{
+			name:          "Success",
+			message:       "Test commit",
+			paths:         []string{"."},
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &Git{repo: repo}
+
+			hash, err := g.CreateCommit(tc.message, tc.paths...)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, hash)
+			} else {
+				assert.Empty(t, hash)
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
 }
 
 func TestGit_CommitsIn(t *testing.T) {
-	repo, err := git.PlainOpen("../../..")
+	repo, cleanup, err := setupGitRepo()
 	assert.NoError(t, err)
+	defer cleanup()
 
 	g := &Git{repo: repo}
 
 	commits, err := g.CommitsIn("HEAD")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, commits)
+	assert.Len(t, commits, 2)
 }
 
-func TestGit_CreateCommit(t *testing.T) {
-	// CreateCommit has side effects!
+func TestGit_AddRemote(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	g := &Git{repo: repo}
+
+	err = g.AddRemote("secondary", "http://github/octocat/Hola Mundo")
+	assert.NoError(t, err)
 }
 
-func TestGit_Pull(t *testing.T) {
-	// Pull has side effects!
-}
+func TestGit_Submodule(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
 
-func TestGit_Push(t *testing.T) {
-	// Push has side effects!
-}
+	g := &Git{repo: repo}
 
-func TestGit_PushTag(t *testing.T) {
-	// PushTag has side effects!
+	t.Run("NotFound", func(t *testing.T) {
+		sm, err := g.Submodule("make")
+		assert.Empty(t, sm)
+		assert.EqualError(t, err, "submodule not found")
+	})
 }

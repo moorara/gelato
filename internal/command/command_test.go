@@ -10,15 +10,13 @@ import (
 
 func TestRunPreflightChecks(t *testing.T) {
 	tests := []struct {
-		name                    string
-		environment             map[string]string
-		ctx                     context.Context
-		checklist               PreflightChecklist
-		expectedError           error
-		expectWorkingDirectory  bool
-		expectGoVersion         bool
-		expectedGitRemoteDomain string
-		expectedGitRemotePath   string
+		name                   string
+		environment            map[string]string
+		ctx                    context.Context
+		checklist              PreflightChecklist
+		expectedError          error
+		expectWorkingDirectory bool
+		expectGoVersion        bool
 	}{
 		{
 			name:                   "NoCheck",
@@ -36,11 +34,9 @@ func TestRunPreflightChecks(t *testing.T) {
 				Go:  true,
 				Git: true,
 			},
-			expectedError:           nil,
-			expectWorkingDirectory:  true,
-			expectGoVersion:         true,
-			expectedGitRemoteDomain: "github.com",
-			expectedGitRemotePath:   "moorara/gelato",
+			expectedError:          nil,
+			expectWorkingDirectory: true,
+			expectGoVersion:        true,
 		},
 	}
 
@@ -59,10 +55,8 @@ func TestRunPreflightChecks(t *testing.T) {
 				assert.Equal(t, tc.expectedError, err)
 			} else {
 				assert.NoError(t, err)
-				assert.Equal(t, tc.expectWorkingDirectory, info.Context.WorkingDirectory != "")
+				assert.Equal(t, tc.expectWorkingDirectory, info.WorkingDirectory != "")
 				assert.Equal(t, tc.expectGoVersion, info.Go.Version != "")
-				assert.Equal(t, tc.expectedGitRemoteDomain, info.Git.Remote.Domain)
-				assert.Equal(t, tc.expectedGitRemotePath, info.Git.Remote.Path)
 			}
 		})
 	}

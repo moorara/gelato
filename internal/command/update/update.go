@@ -71,10 +71,7 @@ func (c *Command) Run(args []string) int {
 	// If no access token is provided, we try without it!
 	token := os.Getenv("GELATO_GITHUB_TOKEN")
 
-	client := github.NewClient(token)
-	repo := client.Repo(updateOwner, updateRepo)
-
-	c.services.repo = repo
+	c.services.repo = github.NewClient(token).Repo(updateOwner, updateRepo)
 
 	return c.run(args)
 }
