@@ -37,6 +37,9 @@ gelato -help
 # Self-update Gelato
 gelato update
 
+# Create a new application
+gelato app
+
 # Show the current semantic version
 gelato semver
 
@@ -100,6 +103,11 @@ var (
 
 `gelato update` updates Gelato to its latest version.
 It downloads the latest release for your system from GitHub and replaces the local binary.
+
+### `app`
+
+`gelato app` creates a new application (CLI, service, etc.) either in a _microrepo_ or _monorepo_ setup.
+For creating an application in a _monorepo_ setup, you should use `-monorepo` flag when running this command.
 
 ### `semver`
 
