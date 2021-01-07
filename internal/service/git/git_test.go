@@ -228,11 +228,6 @@ func TestInit(t *testing.T) {
 		expectedError string
 	}{
 		{
-			name:          "InvalidPath",
-			path:          "/dev/null",
-			expectedError: "stat /dev/null/.git/objects/info: not a directory",
-		},
-		{
 			name:          "Success",
 			path:          "./test",
 			expectedError: "",
