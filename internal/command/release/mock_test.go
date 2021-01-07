@@ -31,7 +31,7 @@ type (
 
 	CreateCommitMock struct {
 		InMessage string
-		InFiles   []string
+		InPaths   []string
 		OutHash   string
 		OutError  error
 	}
@@ -108,11 +108,11 @@ func (m *MockGitService) IsClean() (bool, error) {
 	return m.IsCleanMocks[i].OutBool, m.IsCleanMocks[i].OutError
 }
 
-func (m *MockGitService) CreateCommit(message string, files ...string) (string, error) {
+func (m *MockGitService) CreateCommit(message string, paths ...string) (string, error) {
 	i := m.CreateCommitIndex
 	m.CreateCommitIndex++
 	m.CreateCommitMocks[i].InMessage = message
-	m.CreateCommitMocks[i].InFiles = files
+	m.CreateCommitMocks[i].InPaths = paths
 	return m.CreateCommitMocks[i].OutHash, m.CreateCommitMocks[i].OutError
 }
 

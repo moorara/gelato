@@ -69,7 +69,6 @@ var (
 type (
 	gitService interface {
 		HEAD() (string, string, error)
-		Remote(string) (string, string, error)
 	}
 
 	decorateService interface {
@@ -133,7 +132,7 @@ func (c *Command) Help() string {
 // Run runs the actual command with the given command-line arguments.
 // This method is used as a proxy for creating dependencies and the actual command execution is delegated to the run method for testing purposes.
 func (c *Command) Run(args []string) int {
-	git, err := git.New(".")
+	git, err := git.Open(".")
 	if err != nil {
 		c.ui.Error(err.Error())
 		return command.GitError
@@ -227,7 +226,7 @@ func (c *Command) run(args []string) int {
 	// ==============================> DECORATE <==============================
 
 	if c.spec.Build.Decorate {
-		if err := c.services.decorator.Decorate(info.Context.WorkingDirectory); err != nil {
+		if err := c.services.decorator.Decorate(info.WorkingDirectory); err != nil {
 			c.ui.Error(err.Error())
 			return command.DecorationError
 		}
@@ -266,7 +265,7 @@ func (c *Command) run(args []string) int {
 	// We also assume the current directory is a main package if it contains a main.go file.
 	if _, err = os.Stat("./main.go"); err == nil {
 		mainPkg := "."
-		output := binPath + filepath.Base(info.Context.WorkingDirectory)
+		output := binPath + filepath.Base(info.WorkingDirectory)
 
 		if err := c.buildAll(ctx, ldFlags, mainPkg, output); err != nil {
 			c.ui.Error(err.Error())

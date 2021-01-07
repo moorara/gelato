@@ -8,7 +8,6 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/pkg/shell"
 )
 
@@ -56,17 +55,9 @@ type PreflightChecklist struct {
 
 // PreflightInfo is a list of common preflight information for commands.
 type PreflightInfo struct {
-	Context struct {
-		WorkingDirectory string
-	}
-	Go struct {
+	WorkingDirectory string
+	Go               struct {
 		Version string
-	}
-	Git struct {
-		Remote struct {
-			Domain string
-			Path   string
-		}
 	}
 }
 
@@ -75,7 +66,6 @@ type PreflightInfo struct {
 func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (PreflightInfo, error) {
 	var workingDirectory string
 	var goVersion string
-	var gitDomain, gitPath string
 
 	// RUN PREFLIGHT CHECKS
 
@@ -97,26 +87,13 @@ func RunPreflightChecks(ctx context.Context, checklist PreflightChecklist) (Pref
 		})
 	}
 
-	if checklist.Git {
-		group.Go(func() (err error) {
-			git, err := git.New(".")
-			if err != nil {
-				return err
-			}
-
-			gitDomain, gitPath, err = git.Remote("origin")
-			return err
-		})
-	}
-
 	if err := group.Wait(); err != nil {
 		return PreflightInfo{}, err
 	}
 
 	info := PreflightInfo{}
-	info.Context.WorkingDirectory = workingDirectory
+	info.WorkingDirectory = workingDirectory
 	info.Go.Version = goVersion
-	info.Git.Remote.Domain, info.Git.Remote.Path = gitDomain, gitPath
 
 	return info, nil
 }
