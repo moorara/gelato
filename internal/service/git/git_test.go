@@ -350,6 +350,43 @@ func TestGit_HEAD(t *testing.T) {
 	assert.Equal(t, "master", branch)
 }
 
+func TestGit_MoveBranch(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		branchName    string
+		expectedError string
+	}{
+		{
+			name:          "InvalidName",
+			branchName:    "/",
+			expectedError: "open test/.git/refs/heads: is a directory",
+		},
+		{
+			name:          "Success",
+			branchName:    "main",
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &Git{repo: repo}
+
+			err := g.MoveBranch(tc.branchName)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestGit_Tag(t *testing.T) {
 	repo, cleanup, err := setupGitRepo()
 	assert.NoError(t, err)

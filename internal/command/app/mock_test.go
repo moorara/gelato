@@ -104,6 +104,11 @@ type (
 		OutError  error
 	}
 
+	MoveBranchMock struct {
+		InName   string
+		OutError error
+	}
+
 	MockGitService struct {
 		PathIndex int
 		PathMocks []PathMock
@@ -116,6 +121,9 @@ type (
 
 		CreateCommitIndex int
 		CreateCommitMocks []CreateCommitMock
+
+		MoveBranchIndex int
+		MoveBranchMocks []MoveBranchMock
 	}
 )
 
@@ -146,4 +154,11 @@ func (m *MockGitService) CreateCommit(message string, paths ...string) (string, 
 	m.CreateCommitMocks[i].InMessage = message
 	m.CreateCommitMocks[i].InPaths = paths
 	return m.CreateCommitMocks[i].OutHash, m.CreateCommitMocks[i].OutError
+}
+
+func (m *MockGitService) MoveBranch(name string) error {
+	i := m.MoveBranchIndex
+	m.MoveBranchIndex++
+	m.MoveBranchMocks[i].InName = name
+	return m.MoveBranchMocks[i].OutError
 }
