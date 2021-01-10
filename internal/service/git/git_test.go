@@ -7,10 +7,18 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/stretchr/testify/assert"
 )
 
-const testPath = "./test"
+const (
+	testPath  = "./test"
+	gitmodule = `[submodule "make"]
+	path = make
+	url = git@github.com:octocat/module.git
+	branch = main
+`
+)
 
 func setupGitRepo() (*git.Repository, func(), error) {
 	repo, err := git.PlainInit(testPath, false)
@@ -45,7 +53,7 @@ func setupGitRepo() (*git.Repository, func(), error) {
 
 	// CREATE FIRST COMMIT
 
-	if err := ioutil.WriteFile(testPath+"/README.md", []byte(""), 0755); err != nil {
+	if err := ioutil.WriteFile(testPath+"/README.md", []byte(""), 0644); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
@@ -63,7 +71,7 @@ func setupGitRepo() (*git.Repository, func(), error) {
 
 	// CREATE SECOND COMMIT
 
-	if err := ioutil.WriteFile(testPath+"/LICENSE", []byte(""), 0755); err != nil {
+	if err := ioutil.WriteFile(testPath+"/LICENSE", []byte(""), 0644); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
@@ -75,6 +83,32 @@ func setupGitRepo() (*git.Repository, func(), error) {
 
 	h2, err := worktree.Commit("Second commit", &git.CommitOptions{})
 	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// THIRD COMMIT: ADD SUBMODULE
+
+	if err := ioutil.WriteFile(testPath+"/.gitmodules", []byte(gitmodule), 0644); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	if _, err := worktree.Add("."); err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	h3, err := worktree.Commit("Third commit", &git.CommitOptions{})
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+
+	// CREATE A BRANCH
+
+	br := plumbing.NewHashReference("refs/heads/feature-branch", h3)
+	if err := repo.Storer.SetReference(br); err != nil {
 		cleanup()
 		return nil, nil, err
 	}
@@ -350,6 +384,42 @@ func TestGit_HEAD(t *testing.T) {
 	assert.Equal(t, "master", branch)
 }
 
+func TestGit_CheckoutBranch(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	g := &Git{repo: repo}
+
+	t.Run("InvalidName", func(t *testing.T) {
+		err := g.CheckoutBranch("branch-not-exist")
+		assert.EqualError(t, err, "reference not found")
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		err := g.CheckoutBranch("feature-branch")
+		assert.NoError(t, err)
+	})
+}
+
+func TestGit_CreateBranch(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	g := &Git{repo: repo}
+
+	t.Run("InvalidName", func(t *testing.T) {
+		err := g.CreateBranch("/")
+		assert.EqualError(t, err, "open test/.git/refs/heads: is a directory")
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		err := g.CreateBranch("test-branch")
+		assert.NoError(t, err)
+	})
+}
+
 func TestGit_MoveBranch(t *testing.T) {
 	repo, cleanup, err := setupGitRepo()
 	assert.NoError(t, err)
@@ -520,7 +590,7 @@ func TestGit_CommitsIn(t *testing.T) {
 
 	commits, err := g.CommitsIn("HEAD")
 	assert.NoError(t, err)
-	assert.Len(t, commits, 2)
+	assert.Len(t, commits, 3)
 }
 
 func TestGit_AddRemote(t *testing.T) {
@@ -541,9 +611,28 @@ func TestGit_Submodule(t *testing.T) {
 
 	g := &Git{repo: repo}
 
-	t.Run("NotFound", func(t *testing.T) {
+	t.Run("Success", func(t *testing.T) {
 		sm, err := g.Submodule("make")
+		assert.NoError(t, err)
+		assert.NotEmpty(t, sm)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		sm, err := g.Submodule("foo")
 		assert.Empty(t, sm)
 		assert.EqualError(t, err, "submodule not found")
+	})
+}
+
+func TestGit_UpdateSubmodules(t *testing.T) {
+	repo, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	g := &Git{repo: repo}
+
+	t.Run("Failure", func(t *testing.T) {
+		err := g.UpdateSubmodules()
+		assert.Error(t, err)
 	})
 }

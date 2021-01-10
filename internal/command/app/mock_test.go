@@ -85,27 +85,13 @@ type (
 		OutError error
 	}
 
-	AddRemoteMock struct {
-		InName   string
-		InURL    string
-		OutError error
-	}
-
 	SubmoduleMock struct {
 		InName       string
 		OutSubmodule git.Submodule
 		OutError     error
 	}
 
-	CreateCommitMock struct {
-		InMessage string
-		InPaths   []string
-		OutHash   string
-		OutError  error
-	}
-
-	MoveBranchMock struct {
-		InName   string
+	UpdateSubmodulesMock struct {
 		OutError error
 	}
 
@@ -113,17 +99,11 @@ type (
 		PathIndex int
 		PathMocks []PathMock
 
-		AddRemoteIndex int
-		AddRemoteMocks []AddRemoteMock
-
 		SubmoduleIndex int
 		SubmoduleMocks []SubmoduleMock
 
-		CreateCommitIndex int
-		CreateCommitMocks []CreateCommitMock
-
-		MoveBranchIndex int
-		MoveBranchMocks []MoveBranchMock
+		UpdateSubmodulesIndex int
+		UpdateSubmodulesMocks []UpdateSubmodulesMock
 	}
 )
 
@@ -133,14 +113,6 @@ func (m *MockGitService) Path() (string, error) {
 	return m.PathMocks[i].OutPath, m.PathMocks[i].OutError
 }
 
-func (m *MockGitService) AddRemote(name string, url string) error {
-	i := m.AddRemoteIndex
-	m.AddRemoteIndex++
-	m.AddRemoteMocks[i].InName = name
-	m.AddRemoteMocks[i].InURL = url
-	return m.AddRemoteMocks[i].OutError
-}
-
 func (m *MockGitService) Submodule(name string) (git.Submodule, error) {
 	i := m.SubmoduleIndex
 	m.SubmoduleIndex++
@@ -148,17 +120,8 @@ func (m *MockGitService) Submodule(name string) (git.Submodule, error) {
 	return m.SubmoduleMocks[i].OutSubmodule, m.SubmoduleMocks[i].OutError
 }
 
-func (m *MockGitService) CreateCommit(message string, paths ...string) (string, error) {
-	i := m.CreateCommitIndex
-	m.CreateCommitIndex++
-	m.CreateCommitMocks[i].InMessage = message
-	m.CreateCommitMocks[i].InPaths = paths
-	return m.CreateCommitMocks[i].OutHash, m.CreateCommitMocks[i].OutError
-}
-
-func (m *MockGitService) MoveBranch(name string) error {
-	i := m.MoveBranchIndex
-	m.MoveBranchIndex++
-	m.MoveBranchMocks[i].InName = name
-	return m.MoveBranchMocks[i].OutError
+func (m *MockGitService) UpdateSubmodules() error {
+	i := m.UpdateSubmodulesIndex
+	m.UpdateSubmodulesIndex++
+	return m.UpdateSubmodulesMocks[i].OutError
 }

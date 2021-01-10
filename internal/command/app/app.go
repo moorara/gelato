@@ -49,7 +49,7 @@ const (
 const (
 	templateOwner = "moorara"
 	templateRepo  = "gelato"
-	makeSubmodule = "make"
+	makeSubmod    = "make"
 )
 
 type (
@@ -67,13 +67,12 @@ type (
 
 	gitService interface {
 		Path() (string, error)
-		AddRemote(string, string) error
 		Submodule(string) (git.Submodule, error)
-		CreateCommit(string, ...string) (string, error)
-		MoveBranch(string) error
+		UpdateSubmodules() error
 	}
 
-	gitFunc func(string) (gitService, error)
+	gitFunc    func(string) (gitService, error)
+	removeFunc func(string) error
 )
 
 // Command is the cli.Command implementation for app command.
@@ -88,6 +87,7 @@ type Command struct {
 	funcs struct {
 		gitInit gitFunc
 		gitOpen gitFunc
+		remove  removeFunc
 	}
 	outputs struct{}
 }
@@ -130,6 +130,8 @@ func (c *Command) Run(args []string) int {
 	c.funcs.gitOpen = func(path string) (gitService, error) {
 		return git.Open(path)
 	}
+
+	c.funcs.remove = os.Remove
 
 	return c.run(args)
 }
@@ -221,6 +223,7 @@ func (c *Command) run(args []string) int {
 			return command.InputError
 		}
 
+		// TODO: validate module name using a regular expression
 		if flags.module == "" {
 			c.ui.Error(fmt.Sprintf("unsupported module name: %s", flags.module))
 			return command.UnsupportedError
@@ -239,6 +242,9 @@ func (c *Command) run(args []string) int {
 			return command.UnsupportedError
 		}
 	}
+
+	appName := filepath.Base(flags.module)
+	appPath := filepath.Join(info.WorkingDirectory, appName)
 
 	// ==============================> DOWNLOAD REPO ARCHIVE <==============================
 
@@ -260,8 +266,6 @@ func (c *Command) run(args []string) int {
 	// ==============================> EXTRACT REPO ARCHIVE <==============================
 
 	c.ui.Output(fmt.Sprintf("Extracting templates revision %s ...", ref))
-
-	appName := filepath.Base(flags.module)
 
 	targetPath := filepath.Join("templates",
 		c.spec.App.Language,
@@ -289,47 +293,46 @@ func (c *Command) run(args []string) int {
 		return command.ExtractionError
 	}
 
-	// ==============================> GET GIT REPO <==============================
+	// ==============================> FIND MAKE SUBMODULE <==============================
 
 	var git gitService
-	var makeRelPath string
-	appPath := filepath.Join(info.WorkingDirectory, appName)
 
 	if !flags.monorepo {
 		if git, err = c.funcs.gitInit(appPath); err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to initialize git repo: %s", err))
+			c.ui.Error(fmt.Sprintf("Failed to init git repo: %s", err))
 			return command.GitError
 		}
 	} else {
-		if git, err = c.funcs.gitOpen(appPath); err != nil {
+		if git, err = c.funcs.gitOpen(info.WorkingDirectory); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to open git repo: %s", err))
 			return command.GitError
 		}
+	}
 
-		submodule, err := git.Submodule(makeSubmodule)
-		if err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to get make git submodule: %s", err))
-			return command.GitError
-		}
+	repoPath, err := git.Path()
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Failed to get git repository path: %s", err))
+		return command.GitError
+	}
 
-		repoPath, err := git.Path()
-		if err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to get git repository path: %s", err))
-			return command.MiscError
-		}
+	submod, err := git.Submodule(makeSubmod)
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Failed to get make git submodule: %s", err))
+		return command.GitError
+	}
 
-		// Resolve the absolute path for make git submodule
-		makeAbsPath, err := filepath.Abs(filepath.Join(repoPath, submodule.Path))
-		if err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to resolve make submodule absolute path: %s", err))
-			return command.MiscError
-		}
+	// Resolve the absolute path for make git submodule
+	makeAbsPath, err := filepath.Abs(filepath.Join(repoPath, submod.Path))
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Failed to resolve make submodule absolute path: %s", err))
+		return command.MiscError
+	}
 
-		// Resolve the relative path for make git submodule
-		if makeRelPath, err = filepath.Rel(appPath, makeAbsPath); err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to resolve make submodule relative path: %s", err))
-			return command.MiscError
-		}
+	// Resolve the relative path for make git submodule
+	makeRelPath, err := filepath.Rel(appPath, makeAbsPath)
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Failed to resolve make submodule relative path: %s", err))
+		return command.MiscError
 	}
 
 	// ==============================> EDIT FILES <==============================
@@ -371,27 +374,21 @@ func (c *Command) run(args []string) int {
 		return command.OSError
 	}
 
+	if flags.monorepo {
+		gitmodFile := filepath.Join(appPath, ".gitmodules")
+		if err := c.funcs.remove(gitmodFile); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to remove .gitmodules file: %s", err))
+			return command.OSError
+		}
+	}
+
 	// ==============================> PREPARE GIT REPO <==============================
 
 	if !flags.monorepo {
-		message := fmt.Sprintf("🚀 Inception: %s created by Gelato 🍨", appName)
-		if _, err := git.CreateCommit(message, "."); err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to create git commit: %s", err))
+		if err := git.UpdateSubmodules(); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to add update git submodules: %s", err))
 			return command.GitError
 		}
-
-		if err := git.MoveBranch("main"); err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to rename branch: %s", err))
-			return command.GitError
-		}
-
-		url := fmt.Sprintf("https://%s.git", flags.module)
-		if err := git.AddRemote("origin", url); err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to add git remote: %s", err))
-			return command.GitError
-		}
-
-		// TODO: add git submodule
 	}
 
 	// ==============================> DONE <==============================
