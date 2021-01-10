@@ -503,6 +503,44 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.GitError,
 		},
 		{
+			name: "Microrepo_GitMoveBranchFails",
+			repo: &MockRepoService{
+				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
+					{OutResponse: &github.Response{}},
+				},
+			},
+			arch: &MockArchiveService{
+				ExtractMocks: []ExtractMock{
+					{OutError: nil},
+				},
+			},
+			edit: &MockEditService{
+				ReplaceInDirMocks: []ReplaceInDirMock{
+					{OutError: nil},
+				},
+			},
+			gitInit: func(string) (gitService, error) {
+				return &MockGitService{
+					CreateCommitMocks: []CreateCommitMock{
+						{OutHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+					},
+					MoveBranchMocks: []MoveBranchMock{
+						{OutError: errors.New("git error")},
+					},
+				}, nil
+			},
+			gitOpen: nil,
+			args: []string{
+				"-language=go",
+				"-type=http-service",
+				"-layout=vertical",
+				"-module=github.com/octocat/service",
+				"-docker=octocat",
+			},
+			inputs:           "",
+			expectedExitCode: command.GitError,
+		},
+		{
 			name: "Microrepo_GitAddRemoteFails",
 			repo: &MockRepoService{
 				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
@@ -523,6 +561,9 @@ func TestCommand_run(t *testing.T) {
 				return &MockGitService{
 					CreateCommitMocks: []CreateCommitMock{
 						{OutHash: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+					},
+					MoveBranchMocks: []MoveBranchMock{
+						{OutError: nil},
 					},
 					AddRemoteMocks: []AddRemoteMock{
 						{OutError: errors.New("git error")},

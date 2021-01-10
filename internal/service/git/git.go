@@ -127,6 +127,39 @@ func (g *Git) HEAD() (string, string, error) {
 	return hash, branch, nil
 }
 
+// MoveBranch moves/renames the current branch.
+func (g *Git) MoveBranch(name string) error {
+	headRef, err := g.repo.Head()
+	if err != nil {
+		return err
+	}
+
+	// Create the new branch
+	branchRef := plumbing.NewBranchReferenceName(name)
+	ref := plumbing.NewHashReference(branchRef, headRef.Hash())
+	if err := g.repo.Storer.SetReference(ref); err != nil {
+		return err
+	}
+
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	// Checkout to the new branch
+	opts := &git.CheckoutOptions{Branch: branchRef}
+	if err := worktree.Checkout(opts); err != nil {
+		return err
+	}
+
+	// Remove the current branch
+	if err := g.repo.Storer.RemoveReference(headRef.Name()); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Tag resolves a tag by its name.
 func (g *Git) Tag(name string) (Tag, error) {
 	ref, err := g.repo.Tag(name)

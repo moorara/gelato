@@ -49,7 +49,6 @@ const (
 const (
 	templateOwner = "moorara"
 	templateRepo  = "gelato"
-	defaultRef    = "main"
 	makeSubmodule = "make"
 )
 
@@ -71,6 +70,7 @@ type (
 		AddRemote(string, string) error
 		Submodule(string) (git.Submodule, error)
 		CreateCommit(string, ...string) (string, error)
+		MoveBranch(string) error
 	}
 
 	gitFunc func(string) (gitService, error)
@@ -246,7 +246,7 @@ func (c *Command) run(args []string) int {
 
 	ref := c.spec.Gelato.Revision
 	if ref == "" {
-		ref = defaultRef
+		ref = "main"
 	}
 
 	c.ui.Output(fmt.Sprintf("Downloading templates revision %s ...", ref))
@@ -380,7 +380,10 @@ func (c *Command) run(args []string) int {
 			return command.GitError
 		}
 
-		// TODO: Rename branch
+		if err := git.MoveBranch("main"); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to rename branch: %s", err))
+			return command.GitError
+		}
 
 		url := fmt.Sprintf("https://%s.git", flags.module)
 		if err := git.AddRemote("origin", url); err != nil {
