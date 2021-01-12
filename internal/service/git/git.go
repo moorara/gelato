@@ -127,6 +127,42 @@ func (g *Git) HEAD() (string, string, error) {
 	return hash, branch, nil
 }
 
+// CheckoutBranch checks out to a git branch.
+func (g *Git) CheckoutBranch(name string) error {
+	worktree, err := g.repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	opts := &git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName(name),
+	}
+
+	// Checkout to the new branch
+	if err := worktree.Checkout(opts); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateBranch creates a new git branch.
+func (g *Git) CreateBranch(name string) error {
+	headRef, err := g.repo.Head()
+	if err != nil {
+		return err
+	}
+
+	// Create the new branch
+	branchName := plumbing.NewBranchReferenceName(name)
+	branchRef := plumbing.NewHashReference(branchName, headRef.Hash())
+	if err := g.repo.Storer.SetReference(branchRef); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // MoveBranch moves/renames the current branch.
 func (g *Git) MoveBranch(name string) error {
 	headRef, err := g.repo.Head()
@@ -135,9 +171,9 @@ func (g *Git) MoveBranch(name string) error {
 	}
 
 	// Create the new branch
-	branchRef := plumbing.NewBranchReferenceName(name)
-	ref := plumbing.NewHashReference(branchRef, headRef.Hash())
-	if err := g.repo.Storer.SetReference(ref); err != nil {
+	branchName := plumbing.NewBranchReferenceName(name)
+	branchRef := plumbing.NewHashReference(branchName, headRef.Hash())
+	if err := g.repo.Storer.SetReference(branchRef); err != nil {
 		return err
 	}
 
@@ -147,7 +183,7 @@ func (g *Git) MoveBranch(name string) error {
 	}
 
 	// Checkout to the new branch
-	opts := &git.CheckoutOptions{Branch: branchRef}
+	opts := &git.CheckoutOptions{Branch: branchName}
 	if err := worktree.Checkout(opts); err != nil {
 		return err
 	}
@@ -395,4 +431,40 @@ func (g *Git) Submodule(name string) (Submodule, error) {
 		URL:    config.URL,
 		Branch: config.Branch,
 	}, nil
+}
+
+// UpdateSubmodules pulls down and updates all git submodules.
+func (g *Git) UpdateSubmodules() error {
+	wtree, err := g.repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	submods, err := wtree.Submodules()
+	if err != nil {
+		return err
+	}
+
+	if err := submods.Init(); err != nil {
+		return err
+	}
+
+	for _, submod := range submods {
+		subrepo, err := submod.Repository()
+		if err != nil {
+			return err
+		}
+
+		subwtree, err := subrepo.Worktree()
+		if err != nil {
+			return err
+		}
+
+		opts := &git.PullOptions{RemoteName: "origin"}
+		if err := subwtree.Pull(opts); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
