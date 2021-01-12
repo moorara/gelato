@@ -141,7 +141,7 @@ func (c *Command) Run(args []string) int {
 	semver, _ := semvercmd.NewCommand(&cli.MockUi{})
 
 	c.services.git = git
-	c.services.decorator = decorate.New(decoratedDir, log.Info)
+	c.services.decorator = decorate.New(log.Info)
 	c.funcs.goList = shell.Runner("go", "list", versionPath)
 	c.funcs.goBuild = shell.RunnerWith("go", "build")
 	c.commands.semver = semver

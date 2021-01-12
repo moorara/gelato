@@ -9,6 +9,7 @@ import (
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/command/app"
 	"github.com/moorara/gelato/internal/command/build"
+	"github.com/moorara/gelato/internal/command/gen"
 	"github.com/moorara/gelato/internal/command/release"
 	"github.com/moorara/gelato/internal/command/semver"
 	"github.com/moorara/gelato/internal/command/update"
@@ -48,14 +49,17 @@ func main() {
 		"app": func() (cli.Command, error) {
 			return app.NewCommand(ui, spec)
 		},
-		"semver": func() (cli.Command, error) {
-			return semver.NewCommand(ui)
-		},
 		"build": func() (cli.Command, error) {
 			return build.NewCommand(ui, spec)
 		},
+		"gen": func() (cli.Command, error) {
+			return gen.NewCommand(ui)
+		},
 		"release": func() (cli.Command, error) {
 			return release.NewCommand(ui, spec)
+		},
+		"semver": func() (cli.Command, error) {
+			return semver.NewCommand(ui)
 		},
 		"update": func() (cli.Command, error) {
 			return update.NewCommand(ui)
