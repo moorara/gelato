@@ -8,7 +8,6 @@ import (
 	"go/format"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,9 +16,11 @@ import (
 
 	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/service/decorate/modifier"
+	"github.com/moorara/gelato/internal/service/io"
 )
 
 const (
+	decoratedDir  = ".build"
 	goModFile     = "go.mod"
 	mainPkg       = "main"
 	handlerPkg    = "handler"
@@ -72,7 +73,6 @@ type (
 
 	// Decorator decorates a Go application.
 	Decorator struct {
-		decoratedDir    string
 		logger          *log.ColorfulLogger
 		mainModifier    mainModifier
 		genericModifier genericModifier
@@ -80,38 +80,14 @@ type (
 )
 
 // New creates a new decorator.
-func New(decoratedDir string, level log.Level) *Decorator {
+func New(level log.Level) *Decorator {
 	logger := log.NewColorful(level)
 
 	return &Decorator{
-		decoratedDir:    decoratedDir,
 		logger:          logger,
 		mainModifier:    modifier.NewMain(4, logger),
 		genericModifier: modifier.NewGeneric(4, logger),
 	}
-}
-
-func (d *Decorator) directories(basePath, relPath string, visit func(string, string) error) error {
-	if err := visit(basePath, relPath); err != nil {
-		return err
-	}
-
-	dir := filepath.Join(basePath, relPath)
-	files, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		if file.IsDir() && file.Name() != d.decoratedDir {
-			subdir := filepath.Join(relPath, file.Name())
-			if err := d.directories(basePath, subdir, visit); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 // Decorate decorates a Go application.
@@ -128,9 +104,9 @@ func (d *Decorator) Decorate(path string) error {
 		return err
 	}
 
-	return d.directories(path, ".", func(basePath, relPath string) error {
+	return io.PackageDirectories(path, ".", func(basePath, relPath string) error {
 		pkgDir := filepath.Join(basePath, relPath)
-		newDir := filepath.Join(basePath, d.decoratedDir, relPath)
+		newDir := filepath.Join(basePath, decoratedDir, relPath)
 
 		// Parse all Go packages and files in the currecnt directory
 		d.logger.Cyan.Debugf("  Parsing directory: %s", pkgDir)
@@ -162,7 +138,7 @@ func (d *Decorator) Decorate(path string) error {
 					// Visit all nodes in the current file AST
 					switch {
 					case isMainPackage(pkgs):
-						d.mainModifier.Modify(module, d.decoratedDir, file)
+						d.mainModifier.Modify(module, decoratedDir, file)
 					case isGenericPackage(pkgDir):
 						d.genericModifier.Modify(module, relPath, file)
 					}

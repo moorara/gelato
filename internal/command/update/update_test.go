@@ -152,7 +152,7 @@ func TestCommand_run(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := &Command{ui: new(cli.MockUi)}
+			c := &Command{ui: cli.NewMockUi()}
 			c.services.repo = tc.repo
 
 			exitCode := c.run(tc.args)

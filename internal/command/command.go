@@ -32,6 +32,8 @@ const (
 	ChangelogError
 	// DecorationError is the exit code when decorating an application fails.
 	DecorationError
+	// GenerationError is the exit code when generating mocks and factories fails.
+	GenerationError
 	// InputError is the exist code when a user provides an invalid input.
 	InputError
 	// UnsupportedError is the exit code when a capability is not supported.
