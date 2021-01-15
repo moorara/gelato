@@ -38,6 +38,7 @@ const (
     -layout      the layout of the new application (values: vertical|horizontal{{if .App.Layout}}, default: {{.App.Layout}}){{end}})
     -module      the Go module name for the new application
     -docker      the Docker ID for the Docker image of the new application
+    -owners      a list of GitHub usernames, teams, or emails as code owners separated by space
     -monorepo    create the new application in a monorepo setup
 
   Examples:
@@ -141,12 +142,14 @@ func (c *Command) run(args []string) int {
 	flags := struct {
 		module   string
 		docker   string
+		owners   string
 		monorepo bool
 	}{}
 
 	fs := c.spec.App.FlagSet()
 	fs.StringVar(&flags.module, "module", flags.module, "")
 	fs.StringVar(&flags.docker, "docker", flags.docker, "")
+	fs.StringVar(&flags.owners, "owners", flags.owners, "")
 	fs.BoolVar(&flags.monorepo, "monorepo", flags.monorepo, "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
@@ -239,6 +242,19 @@ func (c *Command) run(args []string) int {
 
 		if flags.docker == "" {
 			c.ui.Error(fmt.Sprintf("unsupported Docker ID: %s", flags.docker))
+			return command.UnsupportedError
+		}
+	}
+
+	if flags.owners == "" {
+		flags.owners, err = c.ui.Ask("GitHub code owners separated by space: ")
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("invalid GitHub code owners: %s", err))
+			return command.InputError
+		}
+
+		if flags.owners == "" {
+			c.ui.Error(fmt.Sprintf("unsupported GitHub code owners: %s", flags.owners))
 			return command.UnsupportedError
 		}
 	}
@@ -351,7 +367,7 @@ func (c *Command) run(args []string) int {
 		},
 		// Edit application name
 		{
-			PathRE: regexp.MustCompile(`(main\.go|\.gitignore|\.dockerignore|Makefile|Dockerfile|Dockerfile\.test|docker-compose\.yml)$`),
+			PathRE: regexp.MustCompile(`(main\.go|\.gitignore|\.dockerignore|Makefile|Dockerfile|Dockerfile\.test|docker-compose\.yml|README\.md|\.md)$`),
 			OldRE:  regexp.MustCompile(c.spec.App.Type),
 			New:    appName,
 		},
@@ -366,6 +382,12 @@ func (c *Command) run(args []string) int {
 			PathRE: regexp.MustCompile(`Makefile$`),
 			OldRE:  regexp.MustCompile(`\.\./\.\./make`),
 			New:    makeRelPath,
+		},
+		// Edit GitHub code owner
+		{
+			PathRE: regexp.MustCompile(`CODEOWNERS$`),
+			OldRE:  regexp.MustCompile(`octocat`),
+			New:    flags.owners,
 		},
 	}
 
