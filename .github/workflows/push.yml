@@ -15,8 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - name: Test
         id: test
         uses: moorara/actions/go-cover@main
@@ -32,8 +30,5 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          submodules: 'true'
       - name: Build Binary
         run: go build ./cmd/gelato
