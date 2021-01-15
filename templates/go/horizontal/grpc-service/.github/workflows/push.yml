@@ -18,17 +18,10 @@ jobs:
       - name: Test
         id: test
         uses: moorara/actions/go-cover@main
-        with:
-          codeclimate_reporter_id: ${{ secrets.CODECLIMATE_REPORTER_ID }}
-      - name: Upload Test Report
-        uses: actions/upload-artifact@v2
-        with:
-          name: coverage-report
-          path: ${{ steps.test.outputs.coverage_report_file }}
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Build Binary
-        run: go build ./cmd/gelato
+        run: go build .

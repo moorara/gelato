@@ -43,7 +43,8 @@ const (
 
   Examples:
     gelato app
-    gelato app -module=github.com/octocat/service -type=http-service -layout=vertical
+    gelato app -monorepo
+    gelato app -type=http-service -layout=vertical -module=github.com/octocat/service -docker=octocat -owners=@octocat
   `
 )
 
@@ -176,7 +177,7 @@ func (c *Command) run(args []string) int {
 
 	if c.spec.App.Language == "" {
 		langOptions := strings.Join([]string{spec.AppLanguageGo}, ", ")
-		c.spec.App.Language, err = c.ui.Ask(fmt.Sprintf("Application Language (%s): ", langOptions))
+		c.spec.App.Language, err = c.ui.Ask(fmt.Sprintf("Application Language (%s):", langOptions))
 		if err != nil {
 			c.ui.Error(fmt.Sprintf("invalid application language: %s", err))
 			return command.InputError
@@ -191,7 +192,7 @@ func (c *Command) run(args []string) int {
 
 	if c.spec.App.Type == "" {
 		typeOptions := strings.Join([]string{spec.AppTypeCLI, spec.AppTypeHTTPService, spec.AppTypeGRPCService}, ", ")
-		c.spec.App.Type, err = c.ui.Ask(fmt.Sprintf("Application Type (%s): ", typeOptions))
+		c.spec.App.Type, err = c.ui.Ask(fmt.Sprintf("Application Type (%s):", typeOptions))
 		if err != nil {
 			c.ui.Error(fmt.Sprintf("invalid application type: %s", err))
 			return command.InputError
@@ -206,7 +207,7 @@ func (c *Command) run(args []string) int {
 
 	if c.spec.App.Layout == "" {
 		layoutOptions := strings.Join([]string{spec.AppLayoutVertical, spec.AppLayoutHorizontal}, ", ")
-		c.spec.App.Layout, err = c.ui.Ask(fmt.Sprintf("Application Layout (%s): ", layoutOptions))
+		c.spec.App.Layout, err = c.ui.Ask(fmt.Sprintf("Application Layout (%s):", layoutOptions))
 		if err != nil {
 			c.ui.Error(fmt.Sprintf("invalid application layout: %s", err))
 			return command.InputError
@@ -220,7 +221,7 @@ func (c *Command) run(args []string) int {
 	}
 
 	if flags.module == "" {
-		flags.module, err = c.ui.Ask("Go module name: ")
+		flags.module, err = c.ui.Ask("Go module name:")
 		if err != nil {
 			c.ui.Error(fmt.Sprintf("invalid module name: %s", err))
 			return command.InputError
@@ -234,7 +235,7 @@ func (c *Command) run(args []string) int {
 	}
 
 	if flags.docker == "" {
-		flags.docker, err = c.ui.Ask("Docker ID: ")
+		flags.docker, err = c.ui.Ask("Docker ID:")
 		if err != nil {
 			c.ui.Error(fmt.Sprintf("invalid Docker ID: %s", err))
 			return command.InputError
@@ -247,7 +248,7 @@ func (c *Command) run(args []string) int {
 	}
 
 	if flags.owners == "" {
-		flags.owners, err = c.ui.Ask("GitHub code owners separated by space: ")
+		flags.owners, err = c.ui.Ask("GitHub code owners separated by space:")
 		if err != nil {
 			c.ui.Error(fmt.Sprintf("invalid GitHub code owners: %s", err))
 			return command.InputError
@@ -386,7 +387,7 @@ func (c *Command) run(args []string) int {
 		// Edit GitHub code owners
 		{
 			PathRE: regexp.MustCompile(`CODEOWNERS$`),
-			OldRE:  regexp.MustCompile(`octocat`),
+			OldRE:  regexp.MustCompile(`@octocat`),
 			New:    flags.owners,
 		},
 	}
