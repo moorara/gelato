@@ -383,7 +383,7 @@ func (c *Command) run(args []string) int {
 			OldRE:  regexp.MustCompile(`\.\./\.\./make`),
 			New:    makeRelPath,
 		},
-		// Edit GitHub code owner
+		// Edit GitHub code owners
 		{
 			PathRE: regexp.MustCompile(`CODEOWNERS$`),
 			OldRE:  regexp.MustCompile(`octocat`),
