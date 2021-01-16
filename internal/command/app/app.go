@@ -359,7 +359,7 @@ func (c *Command) run(args []string) int {
 	specs := []edit.ReplaceSpec{
 		// Edit module name and import paths
 		{
-			PathRE: regexp.MustCompile(`(go.mod|\.go|\.proto)$`),
+			PathRE: regexp.MustCompile(`(\.go|\.proto|go.mod|README.md)$`),
 			OldRE: regexp.MustCompile(fmt.Sprintf(`%s/%s`,
 				c.spec.App.Layout,
 				c.spec.App.Type,
