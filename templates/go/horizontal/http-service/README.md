@@ -62,5 +62,5 @@ Supported features:
 | `docker-compose down` | Removes all containers spun up by the `docker-compose` command. |
 
 
-[workflow-url]: https://github.com/moorara/gelato/actions?workflow=templates/go/horizontal/http-service
-[workflow-image]: https://github.com/moorara/gelato/workflows/templates/go/horizontal/http-service/badge.svg
+[workflow-url]: https://horizontal/http-service/actions?workflow=Main
+[workflow-image]: https://horizontal/http-service/workflows/Main/badge.svg
