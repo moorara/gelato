@@ -2,7 +2,10 @@ package git
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -38,6 +41,34 @@ func parseRemoteURL(url string) (string, string, error) {
 	}
 
 	return "", "", fmt.Errorf("invalid git remote url: %s", url)
+}
+
+// DetectGit determines if a given path or any of its parents has a .git directory.
+func DetectGit(path string) (string, error) {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		return "", err
+	}
+
+	if path == "/" {
+		return "", errors.New("git path not found")
+	}
+
+	gitPath := filepath.Join(path, ".git")
+	if _, err = os.Stat(gitPath); err == nil {
+		return path, nil
+	}
+
+	if os.IsNotExist(err) {
+		topPath := filepath.Dir(path)
+		return DetectGit(topPath)
+	}
+
+	return "", err
 }
 
 // Git provides Git functionalities.

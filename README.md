@@ -107,7 +107,6 @@ It downloads the latest release for your system from GitHub and replaces the loc
 ### `app`
 
 `gelato app` creates a new application (CLI, service, etc.) either in a _microrepo_ or _monorepo_ setup.
-For creating an application in a _monorepo_ setup, you should use `-monorepo` flag when running this command.
 
 ### `semver`
 

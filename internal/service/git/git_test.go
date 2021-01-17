@@ -217,6 +217,48 @@ func TestParseRemoteURL(t *testing.T) {
 	}
 }
 
+func TestDetectGit(t *testing.T) {
+	_, cleanup, err := setupGitRepo()
+	assert.NoError(t, err)
+	defer cleanup()
+
+	tests := []struct {
+		name          string
+		path          string
+		expectedError string
+	}{
+		{
+			name:          "PathNotExist",
+			path:          "/invalid",
+			expectedError: "stat /invalid: no such file or directory",
+		},
+		{
+			name:          "NoGit",
+			path:          "/opt",
+			expectedError: "git path not found",
+		},
+		{
+			name:          "Success",
+			path:          testPath,
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			gitPath, err := DetectGit(tc.path)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+				assert.NotEmpty(t, gitPath)
+			} else {
+				assert.Empty(t, gitPath)
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestOpen(t *testing.T) {
 	_, cleanup, err := setupGitRepo()
 	assert.NoError(t, err)
@@ -234,7 +276,7 @@ func TestOpen(t *testing.T) {
 		},
 		{
 			name:          "Success",
-			path:          "./test",
+			path:          testPath,
 			expectedError: "",
 		},
 	}
@@ -263,7 +305,7 @@ func TestInit(t *testing.T) {
 	}{
 		{
 			name:          "Success",
-			path:          "./test",
+			path:          testPath,
 			expectedError: "",
 		},
 	}
@@ -295,7 +337,7 @@ func TestGit_Path(t *testing.T) {
 	path, err := g.Path()
 
 	assert.NoError(t, err)
-	assert.Equal(t, "./test", path)
+	assert.Equal(t, testPath, path)
 }
 
 func TestGit_Remote(t *testing.T) {

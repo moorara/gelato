@@ -46,6 +46,7 @@ func TestCommand_Run(t *testing.T) {
 	assert.NotNil(t, c.services.repo)
 	assert.NotNil(t, c.services.arch)
 	assert.NotNil(t, c.services.edit)
+	assert.NotNil(t, c.funcs.detectGit)
 	assert.NotNil(t, c.funcs.gitInit)
 	assert.NotNil(t, c.funcs.gitOpen)
 	assert.NotNil(t, c.funcs.remove)
@@ -57,6 +58,7 @@ func TestCommand_run(t *testing.T) {
 		repo             *MockRepoService
 		arch             *MockArchiveService
 		edit             *MockEditService
+		detectGit        detectGitFunc
 		gitInit          gitFunc
 		gitOpen          gitFunc
 		remove           removeFunc
@@ -208,7 +210,7 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.UnsupportedError,
 		},
 		{
-			name: "Microrepo_DownloadTarArchiveFails",
+			name: "DownloadTarArchiveFails",
 			repo: &MockRepoService{
 				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
 					{OutError: errors.New("error on downloading repository archive")},
@@ -228,7 +230,7 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.GitHubError,
 		},
 		{
-			name: "Microrepo_ExtractFails",
+			name: "ExtractFails",
 			repo: &MockRepoService{
 				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
 					{OutResponse: &github.Response{}},
@@ -264,6 +266,9 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			edit: &MockEditService{},
+			detectGit: func(string) (string, error) {
+				return "", errors.New("git not found")
+			},
 			gitInit: func(string) (gitService, error) {
 				return nil, errors.New("git error")
 			},
@@ -291,6 +296,9 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			edit: &MockEditService{},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
 			gitOpen: func(string) (gitService, error) {
 				return nil, errors.New("git error")
 			},
@@ -300,7 +308,6 @@ func TestCommand_run(t *testing.T) {
 				"-layout=vertical",
 				"-module=github.com/octocat/monorepo/services/domain/product/name",
 				"-docker=octocat",
-				"-monorepo",
 				"-owners=octocat",
 			},
 			inputs:           "",
@@ -319,6 +326,9 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			edit: &MockEditService{},
+			detectGit: func(string) (string, error) {
+				return "", errors.New("git not found")
+			},
 			gitInit: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -350,6 +360,9 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			edit: &MockEditService{},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
 			gitOpen: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -363,7 +376,6 @@ func TestCommand_run(t *testing.T) {
 				"-layout=vertical",
 				"-module=github.com/octocat/monorepo/services/domain/product/name",
 				"-docker=octocat",
-				"-monorepo",
 				"-owners=octocat",
 			},
 			inputs:           "",
@@ -382,6 +394,9 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			edit: &MockEditService{},
+			detectGit: func(string) (string, error) {
+				return "", errors.New("git not found")
+			},
 			gitInit: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -416,6 +431,9 @@ func TestCommand_run(t *testing.T) {
 				},
 			},
 			edit: &MockEditService{},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
 			gitOpen: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -432,7 +450,6 @@ func TestCommand_run(t *testing.T) {
 				"-layout=vertical",
 				"-module=github.com/octocat/monorepo/services/domain/product/name",
 				"-docker=octocat",
-				"-monorepo",
 				"-owners=octocat",
 			},
 			inputs:           "",
@@ -454,6 +471,9 @@ func TestCommand_run(t *testing.T) {
 				ReplaceInDirMocks: []ReplaceInDirMock{
 					{OutError: errors.New("error on replacing")},
 				},
+			},
+			detectGit: func(string) (string, error) {
+				return "", errors.New("git not found")
 			},
 			gitInit: func(string) (gitService, error) {
 				return &MockGitService{
@@ -500,6 +520,9 @@ func TestCommand_run(t *testing.T) {
 					{OutError: errors.New("error on replacing")},
 				},
 			},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
 			gitOpen: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -523,7 +546,6 @@ func TestCommand_run(t *testing.T) {
 				"-layout=vertical",
 				"-module=github.com/octocat/monorepo/services/domain/product/name",
 				"-docker=octocat",
-				"-monorepo",
 				"-owners=octocat",
 			},
 			inputs:           "",
@@ -545,6 +567,9 @@ func TestCommand_run(t *testing.T) {
 				ReplaceInDirMocks: []ReplaceInDirMock{
 					{OutError: nil},
 				},
+			},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
 			},
 			gitOpen: func(string) (gitService, error) {
 				return &MockGitService{
@@ -572,7 +597,6 @@ func TestCommand_run(t *testing.T) {
 				"-layout=vertical",
 				"-module=github.com/octocat/monorepo/services/domain/product/name",
 				"-docker=octocat",
-				"-monorepo",
 				"-owners=octocat",
 			},
 			inputs:           "",
@@ -594,6 +618,9 @@ func TestCommand_run(t *testing.T) {
 				ReplaceInDirMocks: []ReplaceInDirMock{
 					{OutError: nil},
 				},
+			},
+			detectGit: func(string) (string, error) {
+				return "", errors.New("git not found")
 			},
 			gitInit: func(string) (gitService, error) {
 				return &MockGitService{
@@ -643,6 +670,9 @@ func TestCommand_run(t *testing.T) {
 					{OutError: nil},
 				},
 			},
+			detectGit: func(string) (string, error) {
+				return "", errors.New("git not found")
+			},
 			gitInit: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -691,6 +721,9 @@ func TestCommand_run(t *testing.T) {
 					{OutError: nil},
 				},
 			},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
 			gitOpen: func(string) (gitService, error) {
 				return &MockGitService{
 					PathMocks: []PathMock{
@@ -717,7 +750,6 @@ func TestCommand_run(t *testing.T) {
 				"-layout=vertical",
 				"-module=github.com/octocat/monorepo/services/domain/product/name",
 				"-docker=octocat",
-				"-monorepo",
 				"-owners=octocat",
 			},
 			inputs:           "",
@@ -740,6 +772,7 @@ func TestCommand_run(t *testing.T) {
 			c.services.repo = tc.repo
 			c.services.arch = tc.arch
 			c.services.edit = tc.edit
+			c.funcs.detectGit = tc.detectGit
 			c.funcs.gitInit = tc.gitInit
 			c.funcs.gitOpen = tc.gitOpen
 			c.funcs.remove = tc.remove

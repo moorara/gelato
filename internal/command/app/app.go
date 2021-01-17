@@ -39,11 +39,9 @@ const (
     -module      the Go module name for the new application
     -docker      the Docker ID for the Docker image of the new application
     -owners      a list of GitHub usernames, teams, or emails as code owners separated by space
-    -monorepo    create the new application in a monorepo setup
 
   Examples:
     gelato app
-    gelato app -monorepo
     gelato app -type=http-service -layout=vertical -module=github.com/octocat/service -docker=octocat -owners=@octocat
   `
 )
@@ -73,8 +71,9 @@ type (
 		UpdateSubmodules() error
 	}
 
-	gitFunc    func(string) (gitService, error)
-	removeFunc func(string) error
+	detectGitFunc func(string) (string, error)
+	gitFunc       func(string) (gitService, error)
+	removeFunc    func(string) error
 )
 
 // Command is the cli.Command implementation for app command.
@@ -87,9 +86,10 @@ type Command struct {
 		edit editService
 	}
 	funcs struct {
-		gitInit gitFunc
-		gitOpen gitFunc
-		remove  removeFunc
+		detectGit detectGitFunc
+		gitInit   gitFunc
+		gitOpen   gitFunc
+		remove    removeFunc
 	}
 	outputs struct{}
 }
@@ -125,6 +125,8 @@ func (c *Command) Run(args []string) int {
 	c.services.arch = archive.NewTarArchive(log.Info)
 	c.services.edit = edit.NewEditor(log.Info)
 
+	c.funcs.detectGit = git.DetectGit
+
 	c.funcs.gitInit = func(path string) (gitService, error) {
 		return git.Init(path)
 	}
@@ -141,17 +143,15 @@ func (c *Command) Run(args []string) int {
 // run in an auxiliary method, so we can test the business logic with mock dependencies.
 func (c *Command) run(args []string) int {
 	flags := struct {
-		module   string
-		docker   string
-		owners   string
-		monorepo bool
+		module string
+		docker string
+		owners string
 	}{}
 
 	fs := c.spec.App.FlagSet()
 	fs.StringVar(&flags.module, "module", flags.module, "")
 	fs.StringVar(&flags.docker, "docker", flags.docker, "")
 	fs.StringVar(&flags.owners, "owners", flags.owners, "")
-	fs.BoolVar(&flags.monorepo, "monorepo", flags.monorepo, "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -314,7 +314,12 @@ func (c *Command) run(args []string) int {
 
 	var git gitService
 
-	if !flags.monorepo {
+	monorepo := false
+	if _, err := c.funcs.detectGit(info.WorkingDirectory); err == nil {
+		monorepo = true
+	}
+
+	if !monorepo {
 		if git, err = c.funcs.gitInit(appPath); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to init git repo: %s", err))
 			return command.GitError
@@ -397,7 +402,7 @@ func (c *Command) run(args []string) int {
 		return command.OSError
 	}
 
-	if flags.monorepo {
+	if monorepo {
 		gitmodFile := filepath.Join(appPath, ".gitmodules")
 		if err := c.funcs.remove(gitmodFile); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to remove .gitmodules file: %s", err))
@@ -407,7 +412,7 @@ func (c *Command) run(args []string) int {
 
 	// ==============================> PREPARE GIT REPO <==============================
 
-	if !flags.monorepo {
+	if !monorepo {
 		if err := git.UpdateSubmodules(); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to add update git submodules: %s", err))
 			return command.GitError
