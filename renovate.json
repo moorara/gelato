@@ -8,20 +8,8 @@
   ],
   "packageRules": [
     {
-      "paths": [ "templates/go/horizontal/grpc-service/**" ],
-      "groupName": "templates/go/horizontal/grpc-service"
-    },
-    {
-      "paths": [ "templates/go/horizontal/http-service/**" ],
-      "groupName": "templates/go/horizontal/http-service"
-    },
-    {
-      "paths": [ "templates/go/vertical/grpc-service/**" ],
-      "groupName": "templates/go/vertical/grpc-service"
-    },
-    {
-      "paths": [ "templates/go/vertical/http-service/**" ],
-      "groupName": "templates/go/vertical/http-service"
+      "paths": [ "templates/go/**" ],
+      "groupName": "go-templates"
     }
   ]
 }
