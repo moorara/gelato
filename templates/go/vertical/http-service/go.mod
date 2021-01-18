@@ -8,6 +8,6 @@ require (
 	github.com/moorara/health v0.1.0
 	github.com/moorara/konfig v0.4.4
 	github.com/moorara/observer v0.3.4
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.16.0
 )
