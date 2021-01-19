@@ -59,6 +59,16 @@ func (m *MockArchiveService) Extract(dest string, reader io.Reader, selector arc
 }
 
 type (
+	RemoveMock struct {
+		InGlobs  []string
+		OutError error
+	}
+
+	MoveMock struct {
+		InSpecs  []edit.MoveSpec
+		OutError error
+	}
+
 	ReplaceInDirMock struct {
 		InRoot   string
 		InSpecs  []edit.ReplaceSpec
@@ -66,12 +76,32 @@ type (
 	}
 
 	MockEditService struct {
+		RemoveIndex int
+		RemoveMocks []RemoveMock
+
+		MoveIndex int
+		MoveMocks []MoveMock
+
 		ReplaceInDirIndex int
 		ReplaceInDirMocks []ReplaceInDirMock
 	}
 )
 
-func (m *MockEditService) ReplaceInDir(root string, specs []edit.ReplaceSpec) error {
+func (m *MockEditService) Remove(globs ...string) error {
+	i := m.RemoveIndex
+	m.RemoveIndex++
+	m.RemoveMocks[i].InGlobs = globs
+	return m.RemoveMocks[i].OutError
+}
+
+func (m *MockEditService) Move(specs ...edit.MoveSpec) error {
+	i := m.MoveIndex
+	m.MoveIndex++
+	m.MoveMocks[i].InSpecs = specs
+	return m.MoveMocks[i].OutError
+}
+
+func (m *MockEditService) ReplaceInDir(root string, specs ...edit.ReplaceSpec) error {
 	i := m.ReplaceInDirIndex
 	m.ReplaceInDirIndex++
 	m.ReplaceInDirMocks[i].InRoot = root

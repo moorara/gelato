@@ -49,7 +49,6 @@ func TestCommand_Run(t *testing.T) {
 	assert.NotNil(t, c.funcs.detectGit)
 	assert.NotNil(t, c.funcs.gitInit)
 	assert.NotNil(t, c.funcs.gitOpen)
-	assert.NotNil(t, c.funcs.remove)
 }
 
 func TestCommand_run(t *testing.T) {
@@ -61,7 +60,6 @@ func TestCommand_run(t *testing.T) {
 		detectGit        detectGitFunc
 		gitInit          gitFunc
 		gitOpen          gitFunc
-		remove           removeFunc
 		args             []string
 		inputs           string
 		expectedExitCode int
@@ -552,57 +550,6 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.OSError,
 		},
 		{
-			name: "Monorepo_RemoveFails",
-			repo: &MockRepoService{
-				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
-					{OutResponse: &github.Response{}},
-				},
-			},
-			arch: &MockArchiveService{
-				ExtractMocks: []ExtractMock{
-					{OutError: nil},
-				},
-			},
-			edit: &MockEditService{
-				ReplaceInDirMocks: []ReplaceInDirMock{
-					{OutError: nil},
-				},
-			},
-			detectGit: func(string) (string, error) {
-				return "/foo/bar", nil
-			},
-			gitOpen: func(string) (gitService, error) {
-				return &MockGitService{
-					PathMocks: []PathMock{
-						{OutPath: "/home/user/code/github.com/octocat/monorepo"},
-					},
-					SubmoduleMocks: []SubmoduleMock{
-						{
-							OutSubmodule: git.Submodule{
-								Name:   "make",
-								Path:   "services/common/make",
-								URL:    "git@github.com:moorara/make.git",
-								Branch: "main",
-							},
-						},
-					},
-				}, nil
-			},
-			remove: func(path string) error {
-				return errors.New("error on removing file")
-			},
-			args: []string{
-				"-language=go",
-				"-type=http-service",
-				"-layout=vertical",
-				"-module=github.com/octocat/monorepo/services/domain/product/name",
-				"-docker=octocat",
-				"-owners=octocat",
-			},
-			inputs:           "",
-			expectedExitCode: command.OSError,
-		},
-		{
 			name: "Microrepo_GitUpdateSubmodulesFails",
 			repo: &MockRepoService{
 				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
@@ -652,6 +599,111 @@ func TestCommand_run(t *testing.T) {
 			},
 			inputs:           "",
 			expectedExitCode: command.GitError,
+		},
+		{
+			name: "Monorepo_MoveFails",
+			repo: &MockRepoService{
+				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
+					{OutResponse: &github.Response{}},
+				},
+			},
+			arch: &MockArchiveService{
+				ExtractMocks: []ExtractMock{
+					{OutError: nil},
+				},
+			},
+			edit: &MockEditService{
+				ReplaceInDirMocks: []ReplaceInDirMock{
+					{OutError: nil},
+				},
+				MoveMocks: []MoveMock{
+					{OutError: errors.New("error on moving")},
+				},
+			},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
+			gitOpen: func(string) (gitService, error) {
+				return &MockGitService{
+					PathMocks: []PathMock{
+						{OutPath: "/home/user/code/github.com/octocat/monorepo"},
+					},
+					SubmoduleMocks: []SubmoduleMock{
+						{
+							OutSubmodule: git.Submodule{
+								Name:   "make",
+								Path:   "services/common/make",
+								URL:    "git@github.com:moorara/make.git",
+								Branch: "main",
+							},
+						},
+					},
+				}, nil
+			},
+			args: []string{
+				"-language=go",
+				"-type=http-service",
+				"-layout=vertical",
+				"-module=github.com/octocat/monorepo/services/domain/product/name",
+				"-docker=octocat",
+				"-owners=octocat",
+			},
+			inputs:           "",
+			expectedExitCode: command.OSError,
+		},
+		{
+			name: "Monorepo_RemoveFails",
+			repo: &MockRepoService{
+				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
+					{OutResponse: &github.Response{}},
+				},
+			},
+			arch: &MockArchiveService{
+				ExtractMocks: []ExtractMock{
+					{OutError: nil},
+				},
+			},
+			edit: &MockEditService{
+				ReplaceInDirMocks: []ReplaceInDirMock{
+					{OutError: nil},
+				},
+				MoveMocks: []MoveMock{
+					{OutError: nil},
+				},
+				RemoveMocks: []RemoveMock{
+					{OutError: errors.New("error on removing")},
+				},
+			},
+			detectGit: func(string) (string, error) {
+				return "/foo/bar", nil
+			},
+			gitOpen: func(string) (gitService, error) {
+				return &MockGitService{
+					PathMocks: []PathMock{
+						{OutPath: "/home/user/code/github.com/octocat/monorepo"},
+					},
+					SubmoduleMocks: []SubmoduleMock{
+						{
+							OutSubmodule: git.Submodule{
+								Name:   "make",
+								Path:   "services/common/make",
+								URL:    "git@github.com:moorara/make.git",
+								Branch: "main",
+							},
+						},
+					},
+				}, nil
+			},
+			args: []string{
+				"-language=go",
+				"-type=http-service",
+				"-layout=vertical",
+				"-module=github.com/octocat/monorepo/services/domain/product/name",
+				"-docker=octocat",
+				"-owners=octocat",
+			},
+			inputs:           "",
+			expectedExitCode: command.OSError,
 		},
 		{
 			name: "Microrepo_Success",
@@ -720,6 +772,12 @@ func TestCommand_run(t *testing.T) {
 				ReplaceInDirMocks: []ReplaceInDirMock{
 					{OutError: nil},
 				},
+				MoveMocks: []MoveMock{
+					{OutError: nil},
+				},
+				RemoveMocks: []RemoveMock{
+					{OutError: nil},
+				},
 			},
 			detectGit: func(string) (string, error) {
 				return "/foo/bar", nil
@@ -740,9 +798,6 @@ func TestCommand_run(t *testing.T) {
 						},
 					},
 				}, nil
-			},
-			remove: func(path string) error {
-				return nil
 			},
 			args: []string{
 				"-language=go",
@@ -775,7 +830,6 @@ func TestCommand_run(t *testing.T) {
 			c.funcs.detectGit = tc.detectGit
 			c.funcs.gitInit = tc.gitInit
 			c.funcs.gitOpen = tc.gitOpen
-			c.funcs.remove = tc.remove
 
 			exitCode := c.run(tc.args)
 
