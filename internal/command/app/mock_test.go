@@ -115,6 +115,13 @@ type (
 		OutError error
 	}
 
+	RemoteMock struct {
+		InName    string
+		OutDomain string
+		OutPath   string
+		OutError  error
+	}
+
 	SubmoduleMock struct {
 		InName       string
 		OutSubmodule git.Submodule
@@ -129,6 +136,9 @@ type (
 		PathIndex int
 		PathMocks []PathMock
 
+		RemoteIndex int
+		RemoteMocks []RemoteMock
+
 		SubmoduleIndex int
 		SubmoduleMocks []SubmoduleMock
 
@@ -141,6 +151,13 @@ func (m *MockGitService) Path() (string, error) {
 	i := m.PathIndex
 	m.PathIndex++
 	return m.PathMocks[i].OutPath, m.PathMocks[i].OutError
+}
+
+func (m *MockGitService) Remote(name string) (string, string, error) {
+	i := m.RemoteIndex
+	m.RemoteIndex++
+	m.RemoteMocks[i].InName = name
+	return m.RemoteMocks[i].OutDomain, m.RemoteMocks[i].OutPath, m.RemoteMocks[i].OutError
 }
 
 func (m *MockGitService) Submodule(name string) (git.Submodule, error) {
