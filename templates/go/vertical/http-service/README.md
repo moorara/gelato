@@ -62,5 +62,5 @@ Supported features:
 | `docker-compose down` | Removes all containers spun up by the `docker-compose` command. |
 
 
-[workflow-url]: https://vertical/http-service/actions?workflow=Main
-[workflow-image]: https://vertical/http-service/workflows/Main/badge.svg
+[workflow-url]: REPO_URL/actions?workflow=WORKFLOW_NAME
+[workflow-image]: REPO_URL/workflows/WORKFLOW_NAME/badge.svg

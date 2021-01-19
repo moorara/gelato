@@ -69,6 +69,7 @@ type (
 
 	gitService interface {
 		Path() (string, error)
+		Remote(string) (string, string, error)
 		Submodule(string) (git.Submodule, error)
 		UpdateSubmodules() error
 	}
@@ -404,29 +405,87 @@ func (c *Command) run(args []string) int {
 		},
 	}
 
-	if err := c.services.edit.ReplaceInDir(appName, specs...); err != nil {
+	if err := c.services.edit.ReplaceInDir(appPath, specs...); err != nil {
 		c.ui.Error(err.Error())
 		return command.OSError
 	}
 
 	// ==============================> PREPARE GIT REPO <==============================
 
+	monorepoWorkflowPath := filepath.Join(appPath, ".github", "workflows", "monorepo.yml")
+
 	if !monorepo {
+		specs := []edit.ReplaceSpec{
+			// Edit README
+			{
+				PathRE: regexp.MustCompile(`README.md$`),
+				OldRE:  regexp.MustCompile(`REPO_URL`),
+				New:    fmt.Sprintf("https://%s", flags.module),
+			},
+			// Edit README
+			{
+				PathRE: regexp.MustCompile(`README.md$`),
+				OldRE:  regexp.MustCompile(`Main`),
+				New:    appName,
+			},
+		}
+
+		if err := c.services.edit.ReplaceInDir(appPath, specs...); err != nil {
+			c.ui.Error(err.Error())
+			return command.OSError
+		}
+
+		if err := c.services.edit.Remove(monorepoWorkflowPath); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to remove: %s", err))
+			return command.OSError
+		}
+
 		if err := git.UpdateSubmodules(); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to add update git submodules: %s", err))
 			return command.GitError
 		}
 	} else {
-		c.ui.Info(relAppPath)
+		repoDomain, repoFullName, err := git.Remote("origin")
+		if err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to get git remote url: %s", err))
+			return command.GitError
+		}
 
-		// TODO: Update CODEOWNERES
+		specs := []edit.ReplaceSpec{
+			// Edit monorepo workflow
+			{
+				PathRE: regexp.MustCompile(`monorepo.yml$`),
+				OldRE:  regexp.MustCompile(`APP_NAME`),
+				New:    appName,
+			},
+			// Edit monorepo workflow
+			{
+				PathRE: regexp.MustCompile(`monorepo.yml$`),
+				OldRE:  regexp.MustCompile(`RELATIVE_PATH`),
+				New:    relAppPath,
+			},
+			// Edit README
+			{
+				PathRE: regexp.MustCompile(`README.md$`),
+				OldRE:  regexp.MustCompile(`REPO_URL`),
+				New:    fmt.Sprintf("https://%s/%s", repoDomain, repoFullName),
+			},
+			// Edit README
+			{
+				PathRE: regexp.MustCompile(`README.md$`),
+				OldRE:  regexp.MustCompile(`WORKFLOW_NAME`),
+				New:    appName,
+			},
+		}
 
-		// TODO: Edit workflow and move it
-		// TODO: Edit README.md badges
+		if err := c.services.edit.ReplaceInDir(appPath, specs...); err != nil {
+			c.ui.Error(err.Error())
+			return command.OSError
+		}
 
 		// Move workflow file
 		moveWorkflow := edit.MoveSpec{
-			Src:  filepath.Join(appPath, ".github", "workflows", "push.yml"),
+			Src:  monorepoWorkflowPath,
 			Dest: filepath.Join(repoPath, ".github", "workflows", fmt.Sprintf("%s.yml", appName)),
 		}
 
@@ -434,6 +493,8 @@ func (c *Command) run(args []string) int {
 			c.ui.Error(fmt.Sprintf("Failed to move: %s", err))
 			return command.OSError
 		}
+
+		// TODO: Update CODEOWNERES
 
 		githubDir := filepath.Join(appPath, ".github")
 		gitmodFile := filepath.Join(appPath, ".gitmodules")

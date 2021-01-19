@@ -1,8 +1,11 @@
-name: Main
-on: push
+name: APP_NAME
+on:
+  push:
+    paths:
+      - 'RELATIVE_PATH/**'
 jobs:
   lint:
-    name: Lint
+    name: Lint APP_NAME
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -10,29 +13,35 @@ jobs:
           fetch-depth: 2
       - name: Lint
         uses: moorara/actions/go-lint@main
+        with:
+          path: RELATIVE_PATH
   test:
-    name: Test
+    name: Test APP_NAME
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Test
         id: test
         uses: moorara/actions/go-cover@main
+        with:
+          path: RELATIVE_PATH
   build:
-    name: Build
+    name: Build APP_NAME
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: 'true'
       - name: Build Binary
+        working-directory: RELATIVE_PATH
         run: make build
   docker:
-    name: Docker
+    name: Docker APP_NAME
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
         with:
           submodules: 'true'
       - name: Build Docker Image
+        working-directory: RELATIVE_PATH
         run: make docker save-docker
