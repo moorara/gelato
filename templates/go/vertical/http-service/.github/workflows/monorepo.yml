@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'RELATIVE_PATH/**'
+      - '.github/workflows/APP_NAME.yml'
 jobs:
   lint:
     name: Lint APP_NAME

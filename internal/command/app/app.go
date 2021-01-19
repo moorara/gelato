@@ -425,8 +425,8 @@ func (c *Command) run(args []string) int {
 			// Edit README
 			{
 				PathRE: regexp.MustCompile(`README.md$`),
-				OldRE:  regexp.MustCompile(`Main`),
-				New:    appName,
+				OldRE:  regexp.MustCompile(`WORKFLOW_NAME`),
+				New:    "Main",
 			},
 		}
 
@@ -505,6 +505,15 @@ func (c *Command) run(args []string) int {
 	}
 
 	// ==============================> DONE <==============================
+
+	c.ui.Info(fmt.Sprintf("%s is ready.", appName))
+
+	if !monorepo {
+		c.ui.Warn("Please create the first commit and rename your branch to main.")
+		c.ui.Warn("Make sure you configure the remote repository (description, topics, settings, etc.).")
+	} else {
+		c.ui.Warn("Please create a new commit on a new branch.")
+	}
 
 	return command.Success
 }
