@@ -870,6 +870,67 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.OSError,
 		},
 		{
+			name: "Monorepo_AppendFails",
+			repo: &MockRepoService{
+				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
+					{OutResponse: &github.Response{}},
+				},
+			},
+			arch: &MockArchiveService{
+				ExtractMocks: []ExtractMock{
+					{OutError: nil},
+				},
+			},
+			edit: &MockEditService{
+				ReplaceInDirMocks: []ReplaceInDirMock{
+					{OutError: nil},
+					{OutError: nil},
+				},
+				MoveMocks: []MoveMock{
+					{OutError: nil},
+				},
+				AppendMocks: []AppendMock{
+					{OutError: errors.New("append error")},
+				},
+			},
+			detectGit: func(string) (string, error) {
+				return "/home/user/code/github.com/octocat/monorepo", nil
+			},
+			gitOpen: func(string) (gitService, error) {
+				return &MockGitService{
+					PathMocks: []PathMock{
+						{OutPath: "/home/user/code/github.com/octocat/monorepo"},
+					},
+					SubmoduleMocks: []SubmoduleMock{
+						{
+							OutSubmodule: git.Submodule{
+								Name:   "make",
+								Path:   "services/common/make",
+								URL:    "git@github.com:moorara/make.git",
+								Branch: "main",
+							},
+						},
+					},
+					RemoteMocks: []RemoteMock{
+						{
+							OutDomain: "github.com",
+							OutPath:   "octocat/monorepo",
+						},
+					},
+				}, nil
+			},
+			args: []string{
+				"-language=go",
+				"-type=http-service",
+				"-layout=vertical",
+				"-module=github.com/octocat/monorepo/services/domain/product/name",
+				"-docker=octocat",
+				"-owners=octocat",
+			},
+			inputs:           "",
+			expectedExitCode: command.OSError,
+		},
+		{
 			name: "Monorepo_RemoveFails",
 			repo: &MockRepoService{
 				DownloadTarArchiveMocks: []DownloadTarArchiveMock{
@@ -887,6 +948,9 @@ func TestCommand_run(t *testing.T) {
 					{OutError: nil},
 				},
 				MoveMocks: []MoveMock{
+					{OutError: nil},
+				},
+				AppendMocks: []AppendMock{
 					{OutError: nil},
 				},
 				RemoveMocks: []RemoveMock{
@@ -1003,6 +1067,9 @@ func TestCommand_run(t *testing.T) {
 					{OutError: nil},
 				},
 				MoveMocks: []MoveMock{
+					{OutError: nil},
+				},
+				AppendMocks: []AppendMock{
 					{OutError: nil},
 				},
 				RemoveMocks: []RemoveMock{

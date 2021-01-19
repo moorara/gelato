@@ -109,16 +109,19 @@ func TestEditor_Move(t *testing.T) {
 
 	tests := []struct {
 		name          string
+		mkdir         bool
 		specs         []MoveSpec
 		expectedError string
 	}{
 		{
 			name:          "NoSpec",
+			mkdir:         false,
 			specs:         []MoveSpec{},
 			expectedError: "",
 		},
 		{
-			name: "InvalidSpec",
+			name:  "InvalidSpec",
+			mkdir: false,
 			specs: []MoveSpec{
 				{
 					Src:  "./foo",
@@ -128,11 +131,23 @@ func TestEditor_Move(t *testing.T) {
 			expectedError: "rename ./foo ./bar: no such file or directory",
 		},
 		{
-			name: "Success",
+			name:  "Success",
+			mkdir: false,
 			specs: []MoveSpec{
 				{
 					Src:  "./temp/foo",
 					Dest: "./temp/bar",
+				},
+			},
+			expectedError: "",
+		},
+		{
+			name:  "Success_CreateDir",
+			mkdir: true,
+			specs: []MoveSpec{
+				{
+					Src:  "./temp/bar",
+					Dest: "./temp/new/foo",
 				},
 			},
 			expectedError: "",
@@ -145,7 +160,72 @@ func TestEditor_Move(t *testing.T) {
 				logger: clogger,
 			}
 
-			err := editor.Move(tc.specs...)
+			err := editor.Move(tc.mkdir, tc.specs...)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
+func TestEditor_Append(t *testing.T) {
+	err := os.Mkdir("./temp", 0755)
+	assert.NoError(t, err)
+	_, err = os.Create("./temp/foo")
+	assert.NoError(t, err)
+	defer os.RemoveAll("./temp")
+
+	logger := log.New(log.None)
+	clogger := &log.ColorfulLogger{
+		Red:     logger,
+		Green:   logger,
+		Yellow:  logger,
+		Blue:    logger,
+		Magenta: logger,
+		Cyan:    logger,
+		White:   logger,
+	}
+
+	tests := []struct {
+		name          string
+		create        bool
+		specs         []AppendSpec
+		expectedError string
+	}{
+		{
+			name:   "Success_Open",
+			create: false,
+			specs: []AppendSpec{
+				{
+					Path:    "./temp/foo",
+					Content: "Hello, World!",
+				},
+			},
+			expectedError: "",
+		},
+		{
+			name:   "Success_Create",
+			create: true,
+			specs: []AppendSpec{
+				{
+					Path:    "./temp/bar",
+					Content: "Hello, World!",
+				},
+			},
+			expectedError: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			editor := &Editor{
+				logger: clogger,
+			}
+
+			err := editor.Append(tc.create, tc.specs...)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)

@@ -65,7 +65,14 @@ type (
 	}
 
 	MoveMock struct {
+		InMkdir  bool
 		InSpecs  []edit.MoveSpec
+		OutError error
+	}
+
+	AppendMock struct {
+		InCreate bool
+		InSpecs  []edit.AppendSpec
 		OutError error
 	}
 
@@ -82,6 +89,9 @@ type (
 		MoveIndex int
 		MoveMocks []MoveMock
 
+		AppendIndex int
+		AppendMocks []AppendMock
+
 		ReplaceInDirIndex int
 		ReplaceInDirMocks []ReplaceInDirMock
 	}
@@ -94,11 +104,20 @@ func (m *MockEditService) Remove(globs ...string) error {
 	return m.RemoveMocks[i].OutError
 }
 
-func (m *MockEditService) Move(specs ...edit.MoveSpec) error {
+func (m *MockEditService) Move(mkdir bool, specs ...edit.MoveSpec) error {
 	i := m.MoveIndex
 	m.MoveIndex++
+	m.MoveMocks[i].InMkdir = mkdir
 	m.MoveMocks[i].InSpecs = specs
 	return m.MoveMocks[i].OutError
+}
+
+func (m *MockEditService) Append(create bool, specs ...edit.AppendSpec) error {
+	i := m.AppendIndex
+	m.AppendIndex++
+	m.AppendMocks[i].InCreate = create
+	m.AppendMocks[i].InSpecs = specs
+	return m.AppendMocks[i].OutError
 }
 
 func (m *MockEditService) ReplaceInDir(root string, specs ...edit.ReplaceSpec) error {

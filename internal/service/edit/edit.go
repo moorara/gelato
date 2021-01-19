@@ -1,6 +1,7 @@
 package edit
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -41,15 +42,23 @@ func (e *Editor) Remove(globs ...string) error {
 	return nil
 }
 
-// MoveSpec has the input parameters for the MoveFile method.
+// MoveSpec has the input parameters for the Move method.
 type MoveSpec struct {
 	Src  string
 	Dest string
 }
 
-// Move moves a file from a destination to a source
-func (e *Editor) Move(specs ...MoveSpec) error {
+// Move moves files from a destination to a source.
+// If mkdir is true, the destination path will be created.
+func (e *Editor) Move(mkdir bool, specs ...MoveSpec) error {
 	for _, s := range specs {
+		if mkdir {
+			dir := filepath.Dir(s.Dest)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				return err
+			}
+		}
+
 		if err := os.Rename(s.Src, s.Dest); err != nil {
 			return err
 		}
@@ -58,7 +67,35 @@ func (e *Editor) Move(specs ...MoveSpec) error {
 	return nil
 }
 
-// ReplaceSpec has the input parameters for the Replace method.
+// AppendSpec has the input parameters for the Append method.
+type AppendSpec struct {
+	Path    string
+	Content string
+}
+
+// Append appends new lines to files.
+// If create is true, the target file will be created if it does not exist.
+func (e *Editor) Append(create bool, specs ...AppendSpec) error {
+	for _, s := range specs {
+		flag := os.O_WRONLY
+		if create {
+			flag |= os.O_CREATE
+		}
+
+		f, err := os.OpenFile(s.Path, flag, 0644)
+		if err != nil {
+			return err
+		}
+
+		if _, err := fmt.Fprintln(f, s.Content); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// ReplaceSpec has the input parameters for the ReplaceInDir method.
 type ReplaceSpec struct {
 	PathRE *regexp.Regexp
 	OldRE  *regexp.Regexp
