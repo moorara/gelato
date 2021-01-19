@@ -63,7 +63,8 @@ type (
 
 	editService interface {
 		Remove(...string) error
-		Move(...edit.MoveSpec) error
+		Move(bool, ...edit.MoveSpec) error
+		Append(bool, ...edit.AppendSpec) error
 		ReplaceInDir(string, ...edit.ReplaceSpec) error
 	}
 
@@ -489,13 +490,23 @@ func (c *Command) run(args []string) int {
 			Dest: filepath.Join(repoPath, ".github", "workflows", fmt.Sprintf("%s.yml", appName)),
 		}
 
-		if err := c.services.edit.Move(moveWorkflow); err != nil {
+		if err := c.services.edit.Move(true, moveWorkflow); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to move: %s", err))
 			return command.OSError
 		}
 
-		// TODO: Update CODEOWNERES
+		// Add code owners
+		appendCodeOwner := edit.AppendSpec{
+			Path:    filepath.Join(repoPath, ".github", "CODEOWNERS"),
+			Content: fmt.Sprintf("/%s/  %s", relAppPath, flags.owners),
+		}
 
+		if err := c.services.edit.Append(true, appendCodeOwner); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to append: %s", err))
+			return command.OSError
+		}
+
+		// Remove irrelevant directories and files
 		githubDir := filepath.Join(appPath, ".github")
 		gitmodFile := filepath.Join(appPath, ".gitmodules")
 		if err := c.services.edit.Remove(githubDir, gitmodFile); err != nil {
