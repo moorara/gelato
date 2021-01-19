@@ -62,7 +62,9 @@ type (
 	}
 
 	editService interface {
-		ReplaceInDir(string, []edit.ReplaceSpec) error
+		Remove(...string) error
+		Move(...edit.MoveSpec) error
+		ReplaceInDir(string, ...edit.ReplaceSpec) error
 	}
 
 	gitService interface {
@@ -73,7 +75,6 @@ type (
 
 	detectGitFunc func(string) (string, error)
 	gitFunc       func(string) (gitService, error)
-	removeFunc    func(string) error
 )
 
 // Command is the cli.Command implementation for app command.
@@ -89,7 +90,6 @@ type Command struct {
 		detectGit detectGitFunc
 		gitInit   gitFunc
 		gitOpen   gitFunc
-		remove    removeFunc
 	}
 	outputs struct{}
 }
@@ -134,8 +134,6 @@ func (c *Command) Run(args []string) int {
 	c.funcs.gitOpen = func(path string) (gitService, error) {
 		return git.Open(path)
 	}
-
-	c.funcs.remove = os.Remove
 
 	return c.run(args)
 }
@@ -310,7 +308,7 @@ func (c *Command) run(args []string) int {
 		return command.ExtractionError
 	}
 
-	// ==============================> FIND MAKE SUBMODULE <==============================
+	// ==============================> OPEN GIT REPO <==============================
 
 	var git gitService
 
@@ -330,6 +328,8 @@ func (c *Command) run(args []string) int {
 			return command.GitError
 		}
 	}
+
+	// ==============================> RESOLVE MAKE SUBMODULE <==============================
 
 	repoPath, err := git.Path()
 	if err != nil {
@@ -357,6 +357,13 @@ func (c *Command) run(args []string) int {
 		return command.MiscError
 	}
 
+	// Resolve the relative path of application
+	relAppPath, err := filepath.Rel(repoPath, appPath)
+	if err != nil {
+		c.ui.Error(fmt.Sprintf("Failed to resolve application relative path: %s", err))
+		return command.MiscError
+	}
+
 	// ==============================> EDIT FILES <==============================
 
 	c.ui.Output(fmt.Sprintf("Finishing %s ...", appName))
@@ -373,7 +380,7 @@ func (c *Command) run(args []string) int {
 		},
 		// Edit application name
 		{
-			PathRE: regexp.MustCompile(`(main\.go|\.gitignore|\.dockerignore|Makefile|Dockerfile|Dockerfile\.test|docker-compose\.yml|README\.md|\.md)$`),
+			PathRE: regexp.MustCompile(`(main\.go|\.gitignore|\.dockerignore|Makefile|Dockerfile|Dockerfile\.test|docker-compose\.yml|\.md)$`),
 			OldRE:  regexp.MustCompile(c.spec.App.Type),
 			New:    appName,
 		},
@@ -397,17 +404,9 @@ func (c *Command) run(args []string) int {
 		},
 	}
 
-	if err := c.services.edit.ReplaceInDir(appName, specs); err != nil {
+	if err := c.services.edit.ReplaceInDir(appName, specs...); err != nil {
 		c.ui.Error(err.Error())
 		return command.OSError
-	}
-
-	if monorepo {
-		gitmodFile := filepath.Join(appPath, ".gitmodules")
-		if err := c.funcs.remove(gitmodFile); err != nil {
-			c.ui.Error(fmt.Sprintf("Failed to remove .gitmodules file: %s", err))
-			return command.OSError
-		}
 	}
 
 	// ==============================> PREPARE GIT REPO <==============================
@@ -416,6 +415,31 @@ func (c *Command) run(args []string) int {
 		if err := git.UpdateSubmodules(); err != nil {
 			c.ui.Error(fmt.Sprintf("Failed to add update git submodules: %s", err))
 			return command.GitError
+		}
+	} else {
+		c.ui.Info(relAppPath)
+
+		// TODO: Update CODEOWNERES
+
+		// TODO: Edit workflow and move it
+		// TODO: Edit README.md badges
+
+		// Move workflow file
+		moveWorkflow := edit.MoveSpec{
+			Src:  filepath.Join(appPath, ".github", "workflows", "push.yml"),
+			Dest: filepath.Join(repoPath, ".github", "workflows", fmt.Sprintf("%s.yml", appName)),
+		}
+
+		if err := c.services.edit.Move(moveWorkflow); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to move: %s", err))
+			return command.OSError
+		}
+
+		githubDir := filepath.Join(appPath, ".github")
+		gitmodFile := filepath.Join(appPath, ".gitmodules")
+		if err := c.services.edit.Remove(githubDir, gitmodFile); err != nil {
+			c.ui.Error(fmt.Sprintf("Failed to remove: %s", err))
+			return command.OSError
 		}
 	}
 
