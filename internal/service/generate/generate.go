@@ -1,16 +1,12 @@
 package generate
 
 import (
-	"bytes"
 	"go/ast"
-	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/tools/imports"
 
 	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/service/generate/factory"
@@ -92,7 +88,7 @@ func (g *Generator) Generate(path string, mock, factory bool) error {
 					if factory {
 						factoryFile := g.factory.Generate(pkgPath, pkg.Name, file)
 						factoryFilePath := filepath.Join(mockPkgDir, filepath.Base(name))
-						if err := g.writeFile(fset, factoryFile, factoryFilePath); err != nil {
+						if err := io.WriteASTFile(factoryFilePath, factoryFile, fset); err != nil {
 							return err
 						}
 						g.logger.Green.Debugf("        Factories written: %s", factoryFilePath)
@@ -102,7 +98,7 @@ func (g *Generator) Generate(path string, mock, factory bool) error {
 					if mock {
 						mockFile := g.mock.Generate(pkgPath, pkg.Name, file)
 						mockFilePath := filepath.Join(factoryPkgDir, filepath.Base(name))
-						if err := g.writeFile(fset, mockFile, mockFilePath); err != nil {
+						if err := io.WriteASTFile(mockFilePath, mockFile, fset); err != nil {
 							return err
 						}
 						g.logger.Green.Debugf("        Mocks written: %s", mockFilePath)
@@ -113,40 +109,4 @@ func (g *Generator) Generate(path string, mock, factory bool) error {
 
 		return nil
 	})
-}
-
-func (g *Generator) writeFile(fset *token.FileSet, file *ast.File, path string) error {
-	buf := new(bytes.Buffer)
-	if err := format.Node(buf, fset, file); err != nil {
-		return err
-	}
-
-	// Format the modified Go file
-	b, err := imports.Process(path, buf.Bytes(), &imports.Options{
-		TabWidth:  8,
-		TabIndent: true,
-		Comments:  true,
-		Fragment:  true,
-	})
-
-	if err != nil {
-		return err
-	}
-
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-
-	// Write the Go file to disk
-	f, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-
-	if _, err := f.Write(b); err != nil {
-		return err
-	}
-
-	return nil
 }

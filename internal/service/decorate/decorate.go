@@ -1,16 +1,12 @@
 package decorate
 
 import (
-	"bytes"
 	"go/ast"
-	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/tools/imports"
 
 	"github.com/moorara/gelato/internal/log"
 	"github.com/moorara/gelato/internal/service/decorate/modifier"
@@ -119,35 +115,13 @@ func (d *Decorator) Decorate(path string) error {
 						d.genericModifier.Modify(module, relPath, file)
 					}
 
-					buf := new(bytes.Buffer)
-					if err := format.Node(buf, fset, file); err != nil {
+					// Write file to disk
+					newPath := filepath.Join(newDir, filepath.Base(name))
+					if err := io.WriteASTFile(newPath, file, fset); err != nil {
 						return err
 					}
 
-					// Format the modified Go file
-					newName := filepath.Join(newDir, filepath.Base(name))
-					b, err := imports.Process(newName, buf.Bytes(), &imports.Options{
-						TabWidth:  8,
-						TabIndent: true,
-						Comments:  true,
-						Fragment:  true,
-					})
-
-					if err != nil {
-						return err
-					}
-
-					// Write the Go file to disk
-					f, err := os.Create(newName)
-					if err != nil {
-						return err
-					}
-
-					if _, err := f.Write(b); err != nil {
-						return err
-					}
-
-					d.logger.Green.Debugf("      File written: %s", newName)
+					d.logger.Green.Debugf("      File written: %s", newPath)
 				}
 			}
 			d.logger.White.Infof("  Decorated %s package", pkg.Name)
