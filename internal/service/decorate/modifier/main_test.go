@@ -147,7 +147,6 @@ func TestMainModifier(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		depth        int
 		module       string
 		decDir       string
 		node         ast.Node
@@ -155,7 +154,6 @@ func TestMainModifier(t *testing.T) {
 	}{
 		{
 			name:         "OK",
-			depth:        2,
 			module:       "github.com/octocat/service",
 			decDir:       "./build",
 			node:         fileNode,
@@ -165,7 +163,7 @@ func TestMainModifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			m := NewMain(tc.depth, clogger)
+			m := NewMain(clogger)
 
 			node := m.Modify(tc.module, tc.decDir, tc.node)
 

@@ -1,9 +1,7 @@
 package decorate
 
 import (
-	"bufio"
 	"bytes"
-	"errors"
 	"go/ast"
 	"go/format"
 	"go/parser"
@@ -21,7 +19,6 @@ import (
 
 const (
 	decoratedDir  = ".build"
-	goModFile     = "go.mod"
 	mainPkg       = "main"
 	handlerPkg    = "handler"
 	controllerPkg = "controller"
@@ -39,27 +36,6 @@ func isGenericPackage(pkgPath string) bool {
 		strings.HasSuffix(pkgPath, "/"+controllerPkg) || strings.Contains(pkgPath, "/"+controllerPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+gatewayPkg) || strings.Contains(pkgPath, "/"+gatewayPkg+"/") ||
 		strings.HasSuffix(pkgPath, "/"+repositoryPkg) || strings.Contains(pkgPath, "/"+repositoryPkg+"/")
-}
-
-func getGoModule(path string) (string, error) {
-	f, err := os.Open(filepath.Join(path, goModFile))
-	if err != nil {
-		return "", err
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		if line := scanner.Text(); strings.HasPrefix(line, "module ") {
-			return strings.TrimPrefix(line, "module "), nil
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return "", err
-	}
-
-	return "", errors.New("invalid go.mod file: no module name found")
 }
 
 type (
@@ -85,8 +61,8 @@ func New(level log.Level) *Decorator {
 
 	return &Decorator{
 		logger:          logger,
-		mainModifier:    modifier.NewMain(4, logger),
-		genericModifier: modifier.NewGeneric(4, logger),
+		mainModifier:    modifier.NewMain(logger),
+		genericModifier: modifier.NewGeneric(logger),
 	}
 }
 
@@ -99,7 +75,7 @@ func (d *Decorator) Decorate(path string) error {
 
 	d.logger.White.Infof("Decorating ...")
 
-	module, err := getGoModule(path)
+	module, err := io.GoModule(path)
 	if err != nil {
 		return err
 	}

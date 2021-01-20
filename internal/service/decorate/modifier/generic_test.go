@@ -317,7 +317,6 @@ func TestGenericModifier(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		depth        int
 		module       string
 		relPath      string
 		node         ast.Node
@@ -325,7 +324,6 @@ func TestGenericModifier(t *testing.T) {
 	}{
 		{
 			name:         "OK",
-			depth:        2,
 			module:       "github.com/octocat/service",
 			relPath:      "internal/controller",
 			node:         fileNode,
@@ -335,7 +333,7 @@ func TestGenericModifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			m := NewGeneric(tc.depth, clogger)
+			m := NewGeneric(clogger)
 
 			node := m.Modify(tc.module, tc.relPath, tc.node)
 
@@ -372,7 +370,6 @@ func TestGenericImportModifier(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		depth        int
 		origPkgName  string
 		origPkgPath  string
 		node         ast.Node
@@ -380,7 +377,6 @@ func TestGenericImportModifier(t *testing.T) {
 	}{
 		{
 			name:        "InvalidGenDecl",
-			depth:       2,
 			origPkgName: "_controller",
 			origPkgPath: "github.com/octocat/service/internal/controller",
 			node: &ast.GenDecl{
@@ -392,7 +388,6 @@ func TestGenericImportModifier(t *testing.T) {
 		},
 		{
 			name:         "ImportGenDecl",
-			depth:        2,
 			origPkgName:  "_controller",
 			origPkgPath:  "github.com/octocat/service/internal/controller",
 			node:         importGenDecl,
@@ -404,7 +399,6 @@ func TestGenericImportModifier(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := &genericImportModifier{
 				modifier: modifier{
-					depth:  tc.depth,
 					logger: clogger,
 				},
 			}
@@ -509,7 +503,6 @@ func TestGenericTypeModifier(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		depth             int
 		origPkgName       string
 		interfaceName     string
 		node              ast.Node
@@ -519,7 +512,6 @@ func TestGenericTypeModifier(t *testing.T) {
 	}{
 		{
 			name:          "InvalidGenDecl",
-			depth:         2,
 			origPkgName:   "controller",
 			interfaceName: "Controller",
 			node: &ast.GenDecl{
@@ -533,7 +525,6 @@ func TestGenericTypeModifier(t *testing.T) {
 		},
 		{
 			name:          "InterfaceGenDecl",
-			depth:         2,
 			origPkgName:   "controller",
 			interfaceName: "Controller",
 			node:          interfaceGenDecl,
@@ -546,7 +537,6 @@ func TestGenericTypeModifier(t *testing.T) {
 		},
 		{
 			name:              "StructGenDecl",
-			depth:             2,
 			origPkgName:       "controller",
 			interfaceName:     "Controller",
 			node:              structGenDecl,
@@ -563,7 +553,6 @@ func TestGenericTypeModifier(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := &genericTypeModifier{
 				modifier: modifier{
-					depth:  tc.depth,
 					logger: clogger,
 				},
 			}
@@ -865,7 +854,6 @@ func TestGenericFuncModifier(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		depth         int
 		origPkgName   string
 		interfaceName string
 		structName    string
@@ -875,7 +863,6 @@ func TestGenericFuncModifier(t *testing.T) {
 	}{
 		{
 			name:          "ExportedFunc",
-			depth:         2,
 			origPkgName:   "_controller",
 			interfaceName: "Controller",
 			structName:    "controller",
@@ -911,7 +898,6 @@ func TestGenericFuncModifier(t *testing.T) {
 		},
 		{
 			name:         "UnexportedFunc",
-			depth:        2,
 			node:         unexportedFunc,
 			expectedNode: unexportedFunc,
 			expectedFunc: funcType{
@@ -944,7 +930,6 @@ func TestGenericFuncModifier(t *testing.T) {
 		},
 		{
 			name:         "ExportedMethod",
-			depth:        2,
 			node:         exportedMethod,
 			expectedNode: exportedMethod,
 			expectedFunc: funcType{
@@ -981,7 +966,6 @@ func TestGenericFuncModifier(t *testing.T) {
 		},
 		{
 			name:         "UnexportedMethod",
-			depth:        2,
 			node:         unexportedMethod,
 			expectedNode: unexportedMethod,
 			expectedFunc: funcType{
@@ -1018,7 +1002,6 @@ func TestGenericFuncModifier(t *testing.T) {
 		},
 		{
 			name:         "VoidMethod",
-			depth:        2,
 			node:         voidMethod,
 			expectedNode: voidMethod,
 			expectedFunc: funcType{
@@ -1052,7 +1035,6 @@ func TestGenericFuncModifier(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := &genericFuncModifier{
 				modifier: modifier{
-					depth:  tc.depth,
 					logger: clogger,
 				},
 			}

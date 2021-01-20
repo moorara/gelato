@@ -1,3 +1,3 @@
-module github.com/moorara/test/horizontal
+module test/horizontal
 
 go 1.15

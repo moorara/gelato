@@ -21,39 +21,33 @@ func TestDebugModifier(t *testing.T) {
 	}
 
 	tests := []struct {
-		name  string
-		depth int
-		node  ast.Node
+		name string
+		node ast.Node
 	}{
 		{
-			name:  "FileNode",
-			depth: 2,
-			node:  &ast.File{},
+			name: "FileNode",
+			node: &ast.File{},
 		},
 		{
-			name:  "BasicLitNode",
-			depth: 2,
+			name: "BasicLitNode",
 			node: &ast.BasicLit{
 				Value: "context",
 			},
 		},
 		{
-			name:  "GenDeclNode",
-			depth: 2,
+			name: "GenDeclNode",
 			node: &ast.GenDecl{
 				Tok: token.IMPORT,
 			},
 		},
 		{
-			name:  "IdentNode",
-			depth: 2,
+			name: "IdentNode",
 			node: &ast.Ident{
 				Name: "id",
 			},
 		},
 		{
-			name:  "ImportSpecNode",
-			depth: 2,
+			name: "ImportSpecNode",
 			node: &ast.ImportSpec{
 				Path: &ast.BasicLit{
 					Value: "context",
@@ -64,7 +58,7 @@ func TestDebugModifier(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			m := NewDebug(tc.depth, clogger)
+			m := NewDebug(clogger)
 
 			m.Modify(tc.node)
 		})

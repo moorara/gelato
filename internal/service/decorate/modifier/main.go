@@ -52,9 +52,9 @@ type MainModifier struct {
 }
 
 // NewMain creates a new main modifier.
-func NewMain(depth int, logger *log.ColorfulLogger) *MainModifier {
+func NewMain(logger *log.ColorfulLogger) *MainModifier {
 	m := modifier{
-		depth:  depth,
+		depth:  0,
 		logger: logger,
 	}
 

@@ -1,14 +1,41 @@
 package io
 
 import (
+	"bufio"
+	"errors"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"strings"
 )
+
+// GoModule returns the name of go module in a give path.
+func GoModule(path string) (string, error) {
+	f, err := os.Open(filepath.Join(path, "go.mod"))
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		if line := scanner.Text(); strings.HasPrefix(line, "module ") {
+			return strings.TrimPrefix(line, "module "), nil
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return "", errors.New("invalid go.mod file: no module name found")
+}
 
 type visitFunc func(basePath, relPath string) error
 
 func isPackageDir(name string) bool {
-	return name != "bin" && name != ".build" && name != ".gen"
+	startsWithDot := strings.HasPrefix(name, ".")
+	return !startsWithDot && name != "bin"
 }
 
 // PackageDirectories visits all package directories in a given path.

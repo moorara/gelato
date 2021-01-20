@@ -31,9 +31,9 @@ type GenericModifier struct {
 }
 
 // NewGeneric creates a new generic modifier.
-func NewGeneric(depth int, logger *log.ColorfulLogger) *GenericModifier {
+func NewGeneric(logger *log.ColorfulLogger) *GenericModifier {
 	m := modifier{
-		depth:  depth,
+		depth:  0,
 		logger: logger,
 	}
 

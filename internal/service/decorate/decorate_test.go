@@ -109,50 +109,6 @@ func TestIsGenericPackage(t *testing.T) {
 	}
 }
 
-func TestGetGoModule(t *testing.T) {
-	tests := []struct {
-		name           string
-		path           string
-		expectedModule string
-		expectedError  string
-	}{
-		{
-			name:          "NoModFile",
-			path:          "./test",
-			expectedError: "open test/go.mod: no such file or directory",
-		},
-		{
-			name:          "InvalidModFile",
-			path:          "./test/invalid",
-			expectedError: "invalid go.mod file: no module name found",
-		},
-		{
-			name:           "Success_Horizontal",
-			path:           "./test/horizontal",
-			expectedModule: "github.com/moorara/test/horizontal",
-		},
-		{
-			name:           "Success_Vertical",
-			path:           "./test/vertical",
-			expectedModule: "github.com/moorara/test/vertical",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			module, err := getGoModule(tc.path)
-
-			if tc.expectedError == "" {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedModule, module)
-			} else {
-				assert.Empty(t, module)
-				assert.EqualError(t, err, tc.expectedError)
-			}
-		})
-	}
-}
-
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name  string
