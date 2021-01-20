@@ -16,23 +16,17 @@ const (
 	genTimeout  = time.Minute
 	genSynopsis = `Generate test helpers`
 	genHelp     = `
-  Use this command for generating mocks and factories for testing.
+  Use this command for generating test helpers (mocks, factories, builders, etc.).
 
-  Usage:  gelato gen [flags]
-
-  Flags:
-    -mock       generate mocks for interfaces  (default: true)
-    -factory    generate factories for structs (default: true)
+  Usage:  gelato gen
 
   Examples:
     gelato gen
-    gelato gen -mock=false
-    gelato gen -factory=false
   `
 )
 
 type generateService interface {
-	Generate(string, bool, bool) error
+	Generate(string) error
 }
 
 // Command is the cli.Command implementation for gen command.
@@ -71,17 +65,7 @@ func (c *Command) Run(args []string) int {
 
 // run in an auxiliary method, so we can test the business logic with mock dependencies.
 func (c *Command) run(args []string) int {
-	flags := struct {
-		mock    bool
-		factory bool
-	}{
-		mock:    true,
-		factory: true,
-	}
-
 	fs := flag.NewFlagSet("gen", flag.ContinueOnError)
-	fs.BoolVar(&flags.mock, "mock", flags.mock, "")
-	fs.BoolVar(&flags.factory, "factory", flags.factory, "")
 	fs.Usage = func() {
 		c.ui.Output(c.Help())
 	}
@@ -105,7 +89,7 @@ func (c *Command) run(args []string) int {
 
 	// ==============================> TODO: <==============================
 
-	if err := c.services.generator.Generate(info.WorkingDirectory, flags.mock, flags.factory); err != nil {
+	if err := c.services.generator.Generate(info.WorkingDirectory); err != nil {
 		c.ui.Error(err.Error())
 		return command.GenerationError
 	}

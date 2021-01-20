@@ -1,4 +1,4 @@
-package factory
+package compile
 
 import (
 	"fmt"
@@ -10,26 +10,26 @@ import (
 	"github.com/moorara/gelato/internal/log"
 )
 
-// Generator is used for generating factories for structs.
-type Generator struct {
+// Compiler creates test helpers (mocks, factories, builders, etc.) for a Go file.
+type Compiler struct {
 	logger  *log.ColorfulLogger
 	outputs struct {
 		file *ast.File
 	}
 }
 
-// NewGenerator creates a new factory generator.
-func NewGenerator(logger *log.ColorfulLogger) *Generator {
-	return &Generator{
+// New creates a new compiler.
+func New(logger *log.ColorfulLogger) *Compiler {
+	return &Compiler{
 		logger: logger,
 	}
 }
 
-// Generate takes an ast.File node and generates a new ast.File node with factories.
-func (g *Generator) Generate(pkgPath, pkgName string, file *ast.File) *ast.File {
-	g.outputs.file = &ast.File{
+// Compile takes an ast.File node and generates a new ast.File node with test helpers (mocks, factories, builders, etc.).
+func (c *Compiler) Compile(pkgPath, pkgName string, file *ast.File) *ast.File {
+	c.outputs.file = &ast.File{
 		Name: &ast.Ident{
-			Name: pkgName + "factory",
+			Name: pkgName + "test",
 		},
 		Decls: []ast.Decl{
 			// Imports
@@ -46,17 +46,17 @@ func (g *Generator) Generate(pkgPath, pkgName string, file *ast.File) *ast.File 
 		},
 	}
 
-	astutil.Apply(file, g.pre, g.post)
+	astutil.Apply(file, c.pre, c.post)
 
-	return g.outputs.file
+	return c.outputs.file
 }
 
 // Pre is called for each node before the node's children are traversed (pre-order).
-func (g *Generator) pre(c *astutil.Cursor) bool {
+func (c *Compiler) pre(cursor *astutil.Cursor) bool {
 	return true
 }
 
 // Post is called for each node after its children are traversed (post-order).
-func (g *Generator) post(c *astutil.Cursor) bool {
+func (c *Compiler) post(cursor *astutil.Cursor) bool {
 	return true
 }

@@ -9,8 +9,7 @@ import (
 	"strings"
 
 	"github.com/moorara/gelato/internal/log"
-	"github.com/moorara/gelato/internal/service/generate/factory"
-	"github.com/moorara/gelato/internal/service/generate/mock"
+	"github.com/moorara/gelato/internal/service/generate/compile"
 	"github.com/moorara/gelato/internal/service/io"
 )
 
@@ -20,15 +19,14 @@ const (
 )
 
 type (
-	generator interface {
-		Generate(string, string, *ast.File) *ast.File
+	compiler interface {
+		Compile(string, string, *ast.File) *ast.File
 	}
 
-	// Generator generates mocks and factories for a Go application.
+	// Generator generates test helpers (mocks, factories, builders, etc.) for a Go application.
 	Generator struct {
-		logger  *log.ColorfulLogger
-		factory generator
-		mock    generator
+		logger   *log.ColorfulLogger
+		compiler compiler
 	}
 )
 
@@ -37,14 +35,13 @@ func New(level log.Level) *Generator {
 	logger := log.NewColorful(level)
 
 	return &Generator{
-		logger:  logger,
-		factory: factory.NewGenerator(logger),
-		mock:    mock.NewGenerator(logger),
+		logger:   logger,
+		compiler: compile.New(logger),
 	}
 }
 
-// Generate generates mocks and factories for a Go application.
-func (g *Generator) Generate(path string, mock, factory bool) error {
+// Generate generates test helpers (mocks, factories, builders, etc.) for a Go application.
+func (g *Generator) Generate(path string) error {
 	// Sanitize the path
 	if _, err := os.Stat(path); err != nil {
 		return err
@@ -60,8 +57,7 @@ func (g *Generator) Generate(path string, mock, factory bool) error {
 	return io.PackageDirectories(path, ".", func(basePath, relPath string) error {
 		pkgPath := filepath.Join(module, relPath)
 		pkgDir := filepath.Join(basePath, relPath)
-		mockPkgDir := filepath.Join(basePath, genDir, relPath+"mock")
-		factoryPkgDir := filepath.Join(basePath, genDir, relPath+"factory")
+		testPkgDir := filepath.Join(basePath, genDir, relPath+"test")
 
 		// Parse all Go packages and files in the currecnt directory
 		g.logger.Cyan.Debugf("  Parsing directory: %s", pkgDir)
@@ -84,25 +80,14 @@ func (g *Generator) Generate(path string, mock, factory bool) error {
 				if !strings.HasSuffix(name, "_test.go") {
 					g.logger.Green.Debugf("      File: %s", name)
 
-					// Generate a new file for factories
-					if factory {
-						factoryFile := g.factory.Generate(pkgPath, pkg.Name, file)
-						factoryFilePath := filepath.Join(mockPkgDir, filepath.Base(name))
-						if err := io.WriteASTFile(factoryFilePath, factoryFile, fset); err != nil {
-							return err
-						}
-						g.logger.Green.Debugf("        Factories written: %s", factoryFilePath)
+					// Generate a new file for test helpers
+					newFile := g.compiler.Compile(pkgPath, pkg.Name, file)
+					newFilePath := filepath.Join(testPkgDir, filepath.Base(name))
+					if err := io.WriteASTFile(newFilePath, newFile, fset); err != nil {
+						return err
 					}
 
-					// Generate a new file for mocks
-					if mock {
-						mockFile := g.mock.Generate(pkgPath, pkg.Name, file)
-						mockFilePath := filepath.Join(factoryPkgDir, filepath.Base(name))
-						if err := io.WriteASTFile(mockFilePath, mockFile, fset); err != nil {
-							return err
-						}
-						g.logger.Green.Debugf("        Mocks written: %s", mockFilePath)
-					}
+					g.logger.Green.Debugf("        File written: %s", newFilePath)
 				}
 			}
 		}

@@ -1,4 +1,4 @@
-package mock
+package compile
 
 import (
 	"go/ast"
@@ -10,7 +10,7 @@ import (
 	"github.com/moorara/gelato/internal/log"
 )
 
-func TestGenerator(t *testing.T) {
+func TestCompiler(t *testing.T) {
 	logger := log.New(log.None)
 	clogger := &log.ColorfulLogger{
 		Red:     logger,
@@ -36,7 +36,7 @@ func TestGenerator(t *testing.T) {
 			file:    &ast.File{},
 			expectedFile: &ast.File{
 				Name: &ast.Ident{
-					Name: "examplemock",
+					Name: "exampletest",
 				},
 				Decls: []ast.Decl{
 					// Imports
@@ -57,9 +57,9 @@ func TestGenerator(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			g := NewGenerator(clogger)
+			c := New(clogger)
 
-			file := g.Generate(tc.pkgPath, tc.pkgName, tc.file)
+			file := c.Compile(tc.pkgPath, tc.pkgName, tc.file)
 
 			assert.Equal(t, tc.expectedFile, file)
 		})
