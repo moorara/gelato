@@ -1,6 +1,7 @@
 package generate
 
 import (
+	"go/ast"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,6 +28,8 @@ func TestNew(t *testing.T) {
 
 			assert.NotNil(t, g)
 			assert.NotNil(t, g.logger)
+			assert.NotNil(t, g.factory)
+			assert.NotNil(t, g.mock)
 		})
 	}
 }
@@ -43,12 +46,26 @@ func TestGenerator_Generate(t *testing.T) {
 		White:   logger,
 	}
 
+	factoryFile := &ast.File{
+		Name: &ast.Ident{
+			Name: "examplefactory",
+		},
+	}
+
+	mockFile := &ast.File{
+		Name: &ast.Ident{
+			Name: "examplemock",
+		},
+	}
+
 	tests := []struct {
-		name          string
-		path          string
-		mock          bool
-		factory       bool
-		expectedError string
+		name             string
+		factoryGenerator *MockGenerator
+		mockGenerator    *MockGenerator
+		path             string
+		mock             bool
+		factory          bool
+		expectedError    string
 	}{
 		{
 			name:          "PathNotExist",
@@ -58,21 +75,41 @@ func TestGenerator_Generate(t *testing.T) {
 			expectedError: "stat /invalid/path: no such file or directory",
 		},
 		{
-			name:          "Success_Mock",
-			path:          "./test",
-			mock:          true,
-			factory:       false,
-			expectedError: "",
-		},
-		{
-			name:          "Success_Factory",
+			name: "Success_Factory",
+			factoryGenerator: &MockGenerator{
+				GenerateMocks: []GenerateMock{
+					{OutFile: factoryFile},
+				},
+			},
 			path:          "./test",
 			mock:          false,
 			factory:       true,
 			expectedError: "",
 		},
 		{
-			name:          "Success_Mock_Factory",
+			name: "Success_Mock",
+			mockGenerator: &MockGenerator{
+				GenerateMocks: []GenerateMock{
+					{OutFile: mockFile},
+				},
+			},
+			path:          "./test",
+			mock:          true,
+			factory:       false,
+			expectedError: "",
+		},
+		{
+			name: "Success_Factory_Mock",
+			factoryGenerator: &MockGenerator{
+				GenerateMocks: []GenerateMock{
+					{OutFile: factoryFile},
+				},
+			},
+			mockGenerator: &MockGenerator{
+				GenerateMocks: []GenerateMock{
+					{OutFile: mockFile},
+				},
+			},
 			path:          "./test",
 			mock:          true,
 			factory:       true,
@@ -85,6 +122,9 @@ func TestGenerator_Generate(t *testing.T) {
 			g := &Generator{
 				logger: clogger,
 			}
+
+			g.factory = tc.factoryGenerator
+			g.mock = tc.mockGenerator
 
 			// Clean-up
 			defer os.RemoveAll(filepath.Join(tc.path, genDir))
