@@ -1,3 +1,3 @@
-module github.com/moorara/test/vertical
+module test/vertical
 
 go 1.15

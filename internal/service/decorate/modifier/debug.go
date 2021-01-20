@@ -16,16 +16,16 @@ type DebugModifier struct {
 }
 
 // NewDebug creates a new debug modifier.
-func NewDebug(depth int, logger *log.ColorfulLogger) *DebugModifier {
+func NewDebug(logger *log.ColorfulLogger) *DebugModifier {
 	return &DebugModifier{
 		modifier: modifier{
-			depth:  depth,
+			depth:  0,
 			logger: logger,
 		},
 	}
 }
 
-// Modify prints debugging information for a ast.File node.
+// Modify prints debugging information for an ast.File node.
 func (m *DebugModifier) Modify(n ast.Node) ast.Node {
 	return astutil.Apply(n, m.pre, m.post)
 }
