@@ -7,6 +7,45 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestGetGoModule(t *testing.T) {
+	tests := []struct {
+		name           string
+		path           string
+		expectedModule string
+		expectedError  string
+	}{
+		{
+			name:          "NoModFile",
+			path:          "./test",
+			expectedError: "open test/go.mod: no such file or directory",
+		},
+		{
+			name:          "InvalidModFile",
+			path:          "./test/invalid",
+			expectedError: "invalid go.mod file: no module name found",
+		},
+		{
+			name:           "Success",
+			path:           "./test/valid",
+			expectedModule: "test",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			module, err := GoModule(tc.path)
+
+			if tc.expectedError == "" {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedModule, module)
+			} else {
+				assert.Empty(t, module)
+				assert.EqualError(t, err, tc.expectedError)
+			}
+		})
+	}
+}
+
 func TestPackageDirectories(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -26,7 +65,7 @@ func TestPackageDirectories(t *testing.T) {
 		},
 		{
 			name:     "Success",
-			basePath: "./test",
+			basePath: "./test/valid",
 			relPath:  ".",
 			visit: func(_, _ string) error {
 				return nil
@@ -35,7 +74,7 @@ func TestPackageDirectories(t *testing.T) {
 		},
 		{
 			name:     "VisitFails_FirstTime",
-			basePath: "./test",
+			basePath: "./test/valid",
 			relPath:  ".",
 			visit: func(_, _ string) error {
 				return errors.New("generic error")
@@ -44,7 +83,7 @@ func TestPackageDirectories(t *testing.T) {
 		},
 		{
 			name:     "VisitFails_SecondTime",
-			basePath: "./test",
+			basePath: "./test/valid",
 			relPath:  ".",
 			visit: func(_, relPath string) error {
 				if relPath == "." {
