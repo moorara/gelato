@@ -10,7 +10,27 @@ import (
 	"github.com/moorara/gelato/internal/log"
 )
 
-func TestCompiler(t *testing.T) {
+func TestNew(t *testing.T) {
+	logger := log.New(log.None)
+	clogger := &log.ColorfulLogger{
+		Red:     logger,
+		Green:   logger,
+		Yellow:  logger,
+		Blue:    logger,
+		Magenta: logger,
+		Cyan:    logger,
+		White:   logger,
+	}
+
+	c := New(clogger)
+
+	assert.NotNil(t, c)
+	assert.NotNil(t, c.logger)
+	assert.NotNil(t, c.funcs.createBuilderDecls)
+	assert.NotNil(t, c.funcs.createMockerDecls)
+}
+
+func TestCompiler_Compile(t *testing.T) {
 	logger := log.New(log.None)
 	clogger := &log.ColorfulLogger{
 		Red:     logger,
@@ -127,7 +147,7 @@ func TestCompiler(t *testing.T) {
 
 	expectedFile := &ast.File{
 		Name: &ast.Ident{
-			Name: "exampletest",
+			Name: "lookuptest",
 		},
 		Decls: []ast.Decl{
 			// Imports
@@ -141,61 +161,26 @@ func TestCompiler(t *testing.T) {
 					},
 				},
 			},
-			// Structs
-			&ast.GenDecl{
-				Tok: token.TYPE,
-				Specs: []ast.Spec{
-					&ast.TypeSpec{
-						Name: &ast.Ident{Name: "RequestBuilder"},
-						Type: &ast.StructType{
-							Fields: &ast.FieldList{
-								List: []*ast.Field{
-									{
-										Type: &ast.SelectorExpr{
-											X:   &ast.Ident{Name: "example"},
-											Sel: &ast.Ident{Name: "Request"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			&ast.GenDecl{
-				Tok: token.TYPE,
-				Specs: []ast.Spec{
-					&ast.TypeSpec{
-						Name: &ast.Ident{Name: "ResponseBuilder"},
-						Type: &ast.StructType{
-							Fields: &ast.FieldList{
-								List: []*ast.Field{
-									{
-										Type: &ast.SelectorExpr{
-											X:   &ast.Ident{Name: "example"},
-											Sel: &ast.Ident{Name: "Response"},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
 		},
 	}
 
 	tests := []struct {
-		name         string
-		pkgPath      string
-		pkgName      string
-		file         *ast.File
-		expectedFile *ast.File
+		name               string
+		createBuilderDecls createBuilderDeclsFunc
+		createMockerDecls  createMockerDeclsFunc
+		pkgPath            string
+		file               *ast.File
+		expectedFile       *ast.File
 	}{
 		{
-			name:         "OK",
+			name: "OK",
+			createBuilderDecls: func(pkgName, typeName string, node *ast.StructType) []ast.Decl {
+				return []ast.Decl{}
+			},
+			createMockerDecls: func(pkgName, typeName string, node *ast.InterfaceType) []ast.Decl {
+				return []ast.Decl{}
+			},
 			pkgPath:      "github.com/octocat/app/example",
-			pkgName:      "example",
 			file:         inputFile,
 			expectedFile: expectedFile,
 		},
@@ -203,9 +188,11 @@ func TestCompiler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			c := New(clogger)
+			c := &Compiler{logger: clogger}
+			c.funcs.createBuilderDecls = tc.createBuilderDecls
+			c.funcs.createMockerDecls = tc.createMockerDecls
 
-			file := c.Compile(tc.pkgPath, tc.pkgName, tc.file)
+			file := c.Compile(tc.pkgPath, tc.file)
 
 			assert.Equal(t, tc.expectedFile, file)
 		})

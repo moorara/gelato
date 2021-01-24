@@ -20,7 +20,7 @@ const (
 
 type (
 	compiler interface {
-		Compile(string, string, *ast.File) *ast.File
+		Compile(string, *ast.File) *ast.File
 	}
 
 	// Generator generates test helpers (mocks, factories, builders, etc.) for a Go application.
@@ -81,7 +81,7 @@ func (g *Generator) Generate(path string) error {
 					g.logger.Green.Debugf("      File: %s", name)
 
 					// Generate a new file for test helpers
-					newFile := g.compiler.Compile(pkgPath, pkg.Name, file)
+					newFile := g.compiler.Compile(pkgPath, file)
 					newFilePath := filepath.Join(testPkgDir, filepath.Base(name))
 					if err := io.WriteASTFile(newFilePath, newFile, fset); err != nil {
 						return err
