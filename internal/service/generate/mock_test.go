@@ -1,28 +1,24 @@
 package generate
 
-import (
-	"go/ast"
-)
+import "go/ast"
 
 type (
-	GenerateMock struct {
+	CompileMock struct {
 		InPkgPath string
-		InPkgName string
 		InFile    *ast.File
 		OutFile   *ast.File
 	}
 
-	MockGenerator struct {
-		GenerateIndex int
-		GenerateMocks []GenerateMock
+	MockCompiler struct {
+		CompileIndex int
+		CompileMocks []CompileMock
 	}
 )
 
-func (m *MockGenerator) Generate(pkgPath, pkgName string, file *ast.File) *ast.File {
-	i := m.GenerateIndex
-	m.GenerateIndex++
-	m.GenerateMocks[i].InPkgPath = pkgPath
-	m.GenerateMocks[i].InPkgName = pkgName
-	m.GenerateMocks[i].InFile = file
-	return m.GenerateMocks[i].OutFile
+func (m *MockCompiler) Compile(pkgPath string, file *ast.File) *ast.File {
+	i := m.CompileIndex
+	m.CompileIndex++
+	m.CompileMocks[i].InPkgPath = pkgPath
+	m.CompileMocks[i].InFile = file
+	return m.CompileMocks[i].OutFile
 }

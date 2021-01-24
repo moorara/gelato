@@ -28,8 +28,7 @@ func TestNew(t *testing.T) {
 
 			assert.NotNil(t, g)
 			assert.NotNil(t, g.logger)
-			assert.NotNil(t, g.factory)
-			assert.NotNil(t, g.mock)
+			assert.NotNil(t, g.compiler)
 		})
 	}
 }
@@ -46,73 +45,31 @@ func TestGenerator_Generate(t *testing.T) {
 		White:   logger,
 	}
 
-	factoryFile := &ast.File{
+	testFile := &ast.File{
 		Name: &ast.Ident{
-			Name: "examplefactory",
-		},
-	}
-
-	mockFile := &ast.File{
-		Name: &ast.Ident{
-			Name: "examplemock",
+			Name: "exampletest",
 		},
 	}
 
 	tests := []struct {
-		name             string
-		factoryGenerator *MockGenerator
-		mockGenerator    *MockGenerator
-		path             string
-		mock             bool
-		factory          bool
-		expectedError    string
+		name          string
+		compiler      *MockCompiler
+		path          string
+		expectedError string
 	}{
 		{
 			name:          "PathNotExist",
 			path:          "/invalid/path",
-			mock:          true,
-			factory:       true,
 			expectedError: "stat /invalid/path: no such file or directory",
 		},
 		{
-			name: "Success_Factory",
-			factoryGenerator: &MockGenerator{
-				GenerateMocks: []GenerateMock{
-					{OutFile: factoryFile},
+			name: "Success",
+			compiler: &MockCompiler{
+				CompileMocks: []CompileMock{
+					{OutFile: testFile},
 				},
 			},
 			path:          "./test",
-			mock:          false,
-			factory:       true,
-			expectedError: "",
-		},
-		{
-			name: "Success_Mock",
-			mockGenerator: &MockGenerator{
-				GenerateMocks: []GenerateMock{
-					{OutFile: mockFile},
-				},
-			},
-			path:          "./test",
-			mock:          true,
-			factory:       false,
-			expectedError: "",
-		},
-		{
-			name: "Success_Factory_Mock",
-			factoryGenerator: &MockGenerator{
-				GenerateMocks: []GenerateMock{
-					{OutFile: factoryFile},
-				},
-			},
-			mockGenerator: &MockGenerator{
-				GenerateMocks: []GenerateMock{
-					{OutFile: mockFile},
-				},
-			},
-			path:          "./test",
-			mock:          true,
-			factory:       true,
 			expectedError: "",
 		},
 	}
@@ -120,16 +77,14 @@ func TestGenerator_Generate(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &Generator{
-				logger: clogger,
+				logger:   clogger,
+				compiler: tc.compiler,
 			}
-
-			g.factory = tc.factoryGenerator
-			g.mock = tc.mockGenerator
 
 			// Clean-up
 			defer os.RemoveAll(filepath.Join(tc.path, genDir))
 
-			err := g.Generate(tc.path, tc.mock, tc.factory)
+			err := g.Generate(tc.path)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)

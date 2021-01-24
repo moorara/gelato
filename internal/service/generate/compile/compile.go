@@ -1,0 +1,123 @@
+package compile
+
+import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"strings"
+
+	"golang.org/x/tools/go/ast/astutil"
+
+	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/generate/compile/builder"
+	"github.com/moorara/gelato/internal/service/generate/compile/mocker"
+)
+
+type (
+	createBuilderDeclsFunc func(pkgName, typeName string, node *ast.StructType) []ast.Decl
+	createMockerDeclsFunc  func(pkgName, typeName string, node *ast.InterfaceType) []ast.Decl
+
+	// Compiler creates test helpers (mocks, factories, builders, etc.) for a Go file.
+	Compiler struct {
+		logger *log.ColorfulLogger
+		funcs  struct {
+			createBuilderDecls createBuilderDeclsFunc
+			createMockerDecls  createMockerDeclsFunc
+		}
+		vars struct {
+			pkgName  string
+			typeName string
+		}
+		inputs struct {
+			pkgPath string
+		}
+		outputs struct {
+			file *ast.File
+		}
+	}
+)
+
+// New creates a new compiler.
+func New(logger *log.ColorfulLogger) *Compiler {
+	c := &Compiler{
+		logger: logger,
+	}
+
+	c.funcs.createBuilderDecls = builder.CreateBuilderDecls
+	c.funcs.createMockerDecls = mocker.CreateMockerDecls
+
+	return c
+}
+
+// Compile takes an ast.File node and generates a new ast.File node with test helpers (mocks, factories, builders, etc.).
+func (c *Compiler) Compile(pkgPath string, file *ast.File) *ast.File {
+	c.inputs.pkgPath = pkgPath
+
+	astutil.Apply(file, c.pre, c.post)
+	return c.outputs.file
+}
+
+func createFile(pkgPath, pkgName string) *ast.File {
+	return &ast.File{
+		Name: &ast.Ident{
+			Name: pkgName + "test",
+		},
+		Decls: []ast.Decl{
+			// Imports
+			&ast.GenDecl{
+				Tok: token.IMPORT,
+				Specs: []ast.Spec{
+					&ast.ImportSpec{
+						Path: &ast.BasicLit{
+							Value: fmt.Sprintf("%q", pkgPath),
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// Pre is called for each node before the node's children are traversed (pre-order).
+func (c *Compiler) pre(cr *astutil.Cursor) bool {
+	switch n := cr.Node().(type) {
+	case *ast.File:
+		if n.Name != nil { // Package name must exist
+			c.vars.pkgName = n.Name.Name
+			c.outputs.file = createFile(c.inputs.pkgPath, c.vars.pkgName)
+			return true
+		}
+
+	case *ast.GenDecl:
+		switch n.Tok {
+		case token.IMPORT:
+			// TODO:
+			return true
+		case token.TYPE:
+			return true
+		}
+
+	case *ast.TypeSpec:
+		if n.Name != nil { // Type must have a name
+			if name := n.Name.Name; name == strings.Title(name) { // Only consider exported types
+				c.vars.typeName = name
+				return true
+			}
+		}
+
+	case *ast.StructType:
+		builderDecls := c.funcs.createBuilderDecls(c.vars.pkgName, c.vars.typeName, n)
+		c.outputs.file.Decls = append(c.outputs.file.Decls, builderDecls...)
+
+	case *ast.InterfaceType:
+		mockerDecls := c.funcs.createMockerDecls(c.vars.pkgName, c.vars.typeName, n)
+		c.outputs.file.Decls = append(c.outputs.file.Decls, mockerDecls...)
+	}
+
+	return false
+}
+
+// Post is called for each node after its children are traversed (post-order).
+func (c *Compiler) post(cr *astutil.Cursor) bool {
+	return true
+}

@@ -2,10 +2,8 @@ package gen
 
 type (
 	GenerateMock struct {
-		InPath    string
-		InMock    bool
-		InFactory bool
-		OutError  error
+		InPath   string
+		OutError error
 	}
 
 	MockGenerateService struct {
@@ -14,11 +12,9 @@ type (
 	}
 )
 
-func (m *MockGenerateService) Generate(path string, mock, factory bool) error {
+func (m *MockGenerateService) Generate(path string) error {
 	i := m.GenerateIndex
 	m.GenerateIndex++
 	m.GenerateMocks[i].InPath = path
-	m.GenerateMocks[i].InMock = mock
-	m.GenerateMocks[i].InFactory = factory
 	return m.GenerateMocks[i].OutError
 }

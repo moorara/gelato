@@ -1,0 +1,744 @@
+package mocker
+
+import (
+	"go/ast"
+	"go/token"
+
+	"github.com/moorara/gelato/internal/service/generate/compile/namer"
+)
+
+// TODO: Handle embedde interfaces where IsMethod is used
+
+func CreateMockerDecls(pkgName, typeName string, node *ast.InterfaceType) []ast.Decl {
+	decls := []ast.Decl{}
+	decls = append(decls, createMockerStructDecl(typeName))
+	decls = append(decls, createMockFuncDecl(typeName))
+	decls = append(decls, createMockerExpectMethodDecl(typeName))
+	decls = append(decls, createMockerAssertMethodDecl(typeName))
+	decls = append(decls, createMockerImplMethodDecl(pkgName, typeName))
+	decls = append(decls, createExpectationsStructDecl(typeName, node.Methods))
+	decls = append(decls, createExpectationsMethodDecls(typeName, node.Methods)...)
+
+	for _, method := range node.Methods.List {
+		if isMethod(method) {
+			decls = append(decls, createExpectationStructDecl(method)...)
+			decls = append(decls, createExpectationWithArgsMethodDecl(method))
+			decls = append(decls, createExpectationReturnMethodDecl(method))
+			decls = append(decls, createExpectationCallMethodDecl(method))
+		}
+	}
+
+	decls = append(decls, createImplStructDecl(typeName))
+
+	for _, method := range node.Methods.List {
+		if isMethod(method) {
+			decls = append(decls, createImplMethodDecl(typeName, method))
+		}
+	}
+
+	return decls
+}
+
+func createMockerStructDecl(typeName string) ast.Decl {
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: &ast.Ident{
+					Name: typeName + "Mocker",
+				},
+				Type: &ast.StructType{
+					Fields: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Names: []*ast.Ident{
+									{Name: "t"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "testing"},
+										Sel: &ast.Ident{Name: "T"},
+									},
+								},
+							},
+							{
+								Names: []*ast.Ident{
+									{Name: "exps"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: typeName + "Expectations"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createMockFuncDecl(typeName string) ast.Decl {
+	return &ast.FuncDecl{
+		Name: &ast.Ident{
+			Name: "Mock" + typeName,
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							{Name: "t"},
+						},
+						Type: &ast.StarExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "testing"},
+								Sel: &ast.Ident{Name: "T"},
+							},
+						},
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: typeName + "Mocker"},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.CompositeLit{
+								Type: &ast.Ident{Name: typeName + "Mocker"},
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key:   &ast.Ident{Name: "t"},
+										Value: &ast.Ident{Name: "t"},
+									},
+									&ast.KeyValueExpr{
+										Key: &ast.Ident{Name: "exps"},
+										Value: &ast.CallExpr{
+											Fun: &ast.Ident{Name: "new"},
+											Args: []ast.Expr{
+												&ast.Ident{Name: typeName + "Expectations"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createMockerExpectMethodDecl(typeName string) ast.Decl {
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "m"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: typeName + "Mocker"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{
+			Name: "Expect",
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: typeName + "Expectations"},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   &ast.Ident{Name: "m"},
+							Sel: &ast.Ident{Name: "exps"},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createMockerAssertMethodDecl(typeName string) ast.Decl {
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "m"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: typeName + "Mocker"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{
+			Name: "Assert",
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+		},
+		Body: &ast.BlockStmt{
+			// TODO:
+		},
+	}
+}
+
+func createMockerImplMethodDecl(pkgName, typeName string) ast.Decl {
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "m"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: typeName + "Mocker"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{
+			Name: "Impl",
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: pkgName},
+							Sel: &ast.Ident{Name: typeName},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.CompositeLit{
+								Type: &ast.Ident{Name: typeName + "Impl"},
+								Elts: []ast.Expr{
+									&ast.KeyValueExpr{
+										Key: &ast.Ident{Name: "t"},
+										Value: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "m"},
+											Sel: &ast.Ident{Name: "t"},
+										},
+									},
+									&ast.KeyValueExpr{
+										Key: &ast.Ident{Name: "exps"},
+										Value: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "m"},
+											Sel: &ast.Ident{Name: "exps"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createExpectationsStructDecl(typeName string, methods *ast.FieldList) ast.Decl {
+	fields := &ast.FieldList{}
+
+	for _, method := range methods.List {
+		if isMethod(method) {
+			if methodName := method.Names[0].Name; namer.IsExported(methodName) {
+				unexportedName := namer.ConvertToUnexported(methodName)
+				fields.List = append(fields.List, &ast.Field{
+					Names: []*ast.Ident{
+						{Name: unexportedName + "Expectations"},
+					},
+					Type: &ast.ArrayType{
+						Elt: &ast.StarExpr{
+							X: &ast.Ident{Name: methodName + "Expectation"},
+						},
+					},
+				})
+			}
+		}
+	}
+
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: &ast.Ident{
+					Name: typeName + "Expectations",
+				},
+				Type: &ast.StructType{
+					Fields: fields,
+				},
+			},
+		},
+	}
+}
+
+func createExpectationsMethodDecls(typeName string, methods *ast.FieldList) []ast.Decl {
+	decls := []ast.Decl{}
+
+	for _, method := range methods.List {
+		if isMethod(method) {
+			if methodName := method.Names[0].Name; namer.IsExported(methodName) {
+				unexportedName := namer.ConvertToUnexported(methodName)
+				decls = append(decls, &ast.FuncDecl{
+					Recv: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Names: []*ast.Ident{
+									{Name: "e"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: typeName + "Expectations"},
+								},
+							},
+						},
+					},
+					Name: &ast.Ident{Name: methodName},
+					Type: &ast.FuncType{
+						Params: &ast.FieldList{},
+						Results: &ast.FieldList{
+							List: []*ast.Field{
+								{
+									Type: &ast.StarExpr{
+										X: &ast.Ident{Name: methodName + "Expectation"},
+									},
+								},
+							},
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{
+									&ast.Ident{Name: "exp"},
+								},
+								Tok: token.ASSIGN,
+								Rhs: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.Ident{Name: "new"},
+										Args: []ast.Expr{
+											&ast.Ident{Name: methodName + "Expectation"},
+										},
+									},
+								},
+							},
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{
+									&ast.SelectorExpr{
+										X:   &ast.Ident{Name: "e"},
+										Sel: &ast.Ident{Name: unexportedName + "Expectations"},
+									},
+								},
+								Tok: token.ASSIGN,
+								Rhs: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.Ident{Name: "append"},
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   &ast.Ident{Name: "e"},
+												Sel: &ast.Ident{Name: unexportedName + "Expectations"},
+											},
+											&ast.Ident{Name: "exp"},
+										},
+									},
+								},
+							},
+							&ast.ReturnStmt{
+								Results: []ast.Expr{
+									&ast.Ident{Name: "exp"},
+								},
+							},
+						},
+					},
+				})
+			}
+		}
+	}
+
+	return decls
+}
+
+func createExpectationStructDecl(method *ast.Field) []ast.Decl {
+	exportedName := method.Names[0].Name
+	unexportedName := namer.ConvertToUnexported(exportedName)
+
+	// isMethod guarantees method.Type is *ast.FuncType
+	funcType := method.Type.(*ast.FuncType)
+	inputFields := normalizeFieldList(funcType.Params)
+	outputFields := normalizeFieldList(funcType.Results)
+
+	return []ast.Decl{
+		// Struct
+		&ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: &ast.Ident{
+						Name: exportedName + "Expectation",
+					},
+					Type: &ast.StructType{
+						Fields: &ast.FieldList{
+							List: []*ast.Field{
+								{
+									Names: []*ast.Ident{
+										{Name: "inputs"},
+									},
+									Type: &ast.StarExpr{
+										X: &ast.Ident{Name: unexportedName + "Inputs"},
+									},
+								},
+								{
+									Names: []*ast.Ident{
+										{Name: "outputs"},
+									},
+									Type: &ast.StarExpr{
+										X: &ast.Ident{Name: unexportedName + "Outputs"},
+									},
+								},
+								{
+									Names: []*ast.Ident{
+										{Name: "callback"},
+									},
+									Type: method.Type,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		// Inputs struct
+		&ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: &ast.Ident{
+						Name: unexportedName + "Inputs",
+					},
+					Type: &ast.StructType{
+						Fields: inputFields,
+					},
+				},
+			},
+		},
+		// Outputs struct
+		&ast.GenDecl{
+			Tok: token.TYPE,
+			Specs: []ast.Spec{
+				&ast.TypeSpec{
+					Name: &ast.Ident{
+						Name: unexportedName + "Outputs",
+					},
+					Type: &ast.StructType{
+						Fields: outputFields,
+					},
+				},
+			},
+		},
+	}
+}
+
+func createExpectationWithArgsMethodDecl(method *ast.Field) ast.Decl {
+	exportedName := method.Names[0].Name
+	unexportedName := namer.ConvertToUnexported(exportedName)
+
+	// isMethod guarantees method.Type is *ast.FuncType
+	funcType := method.Type.(*ast.FuncType)
+	inputFields := normalizeFieldList(funcType.Params)
+	keyValueList := createKeyValueExprList(funcType.Params)
+
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "e"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: exportedName + "Expectation"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{Name: "WithArgs"},
+		Type: &ast.FuncType{
+			Params: inputFields,
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: exportedName + "Expectation"},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   &ast.Ident{Name: "e"},
+							Sel: &ast.Ident{Name: "inputs"},
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.CompositeLit{
+								Type: &ast.Ident{Name: unexportedName + "Inputs"},
+								Elts: keyValueList,
+							},
+						},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.Ident{Name: "e"},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createExpectationReturnMethodDecl(method *ast.Field) ast.Decl {
+	exportedName := method.Names[0].Name
+	unexportedName := namer.ConvertToUnexported(exportedName)
+
+	// isMethod guarantees method.Type is *ast.FuncType
+	funcType := method.Type.(*ast.FuncType)
+	outputFields := normalizeFieldList(funcType.Results)
+	keyValueList := createKeyValueExprList(funcType.Results)
+
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "e"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: exportedName + "Expectation"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{Name: "Return"},
+		Type: &ast.FuncType{
+			Params: outputFields,
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: exportedName + "Expectation"},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   &ast.Ident{Name: "e"},
+							Sel: &ast.Ident{Name: "outputs"},
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.CompositeLit{
+								Type: &ast.Ident{Name: unexportedName + "Outputs"},
+								Elts: keyValueList,
+							},
+						},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.Ident{Name: "e"},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createExpectationCallMethodDecl(method *ast.Field) ast.Decl {
+	exportedName := method.Names[0].Name
+
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "e"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: exportedName + "Expectation"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{Name: "Call"},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							{Name: "callback"},
+						},
+						Type: method.Type,
+					},
+				},
+			},
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.StarExpr{
+							X: &ast.Ident{Name: exportedName + "Expectation"},
+						},
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.SelectorExpr{
+							X:   &ast.Ident{Name: "e"},
+							Sel: &ast.Ident{Name: "callback"},
+						},
+					},
+					Tok: token.ASSIGN,
+					Rhs: []ast.Expr{
+						&ast.Ident{Name: "callback"},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.Ident{Name: "e"},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createImplStructDecl(typeName string) ast.Decl {
+	return &ast.GenDecl{
+		Tok: token.TYPE,
+		Specs: []ast.Spec{
+			&ast.TypeSpec{
+				Name: &ast.Ident{
+					Name: typeName + "Impl",
+				},
+				Type: &ast.StructType{
+					Fields: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Names: []*ast.Ident{
+									{Name: "t"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "testing"},
+										Sel: &ast.Ident{Name: "T"},
+									},
+								},
+							},
+							{
+								Names: []*ast.Ident{
+									{Name: "exps"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: typeName + "Expectations"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func createImplMethodDecl(typeName string, method *ast.Field) ast.Decl {
+	exportedName := method.Names[0].Name
+	// unexportedName := namer.ConvertToUnexported(exportedName)
+
+	// isMethod guarantees method.Type is *ast.FuncType
+	funcType := method.Type.(*ast.FuncType)
+	inputFields := normalizeFieldList(funcType.Params)
+
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "i"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: typeName + "Impl"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{Name: exportedName},
+		Type: &ast.FuncType{
+			Params:  inputFields,
+			Results: funcType.Results,
+		},
+		Body: &ast.BlockStmt{
+			List: []ast.Stmt{
+				&ast.ReturnStmt{
+					Results: []ast.Expr{
+						&ast.Ident{Name: "nil"},
+						&ast.Ident{Name: "nil"},
+					},
+				},
+			},
+		},
+	}
+}
