@@ -154,6 +154,7 @@ func TestWriteASTFile(t *testing.T) {
 
 			// Cleanup
 			defer os.Remove(tc.path)
+			defer os.Remove(debugFile)
 
 			if tc.expectedError == "" {
 				assert.NoError(t, err)

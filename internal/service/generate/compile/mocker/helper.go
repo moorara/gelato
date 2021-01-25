@@ -37,6 +37,13 @@ func normalizeFieldList(fieldList *ast.FieldList) *ast.FieldList {
 			}
 		}
 
+		// Trailing arguments (for variadic functions)
+		if e, ok := f.Type.(*ast.Ellipsis); ok {
+			f.Type = &ast.ArrayType{
+				Elt: e.Elt,
+			}
+		}
+
 		new.List = append(new.List, f)
 	}
 

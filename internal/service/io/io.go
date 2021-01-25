@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/format"
 	"go/token"
@@ -14,6 +15,8 @@ import (
 
 	"golang.org/x/tools/imports"
 )
+
+const debugFile = "gelato-debug.log"
 
 // GoModule returns the name of go module in a give path.
 func GoModule(path string) (string, error) {
@@ -73,7 +76,7 @@ func PackageDirectories(basePath, relPath string, visit visitFunc) error {
 func WriteASTFile(path string, file *ast.File, fset *token.FileSet) error {
 	buf := new(bytes.Buffer)
 	if err := format.Node(buf, fset, file); err != nil {
-		return err
+		return fmt.Errorf("gofmt error: %s", err)
 	}
 
 	// Format the modified Go file
@@ -85,7 +88,10 @@ func WriteASTFile(path string, file *ast.File, fset *token.FileSet) error {
 	})
 
 	if err != nil {
-		return err
+		// Try writing a log file for debugging purposes
+		_ = ioutil.WriteFile(debugFile, buf.Bytes(), 0644)
+
+		return fmt.Errorf("goimports error: %s", err)
 	}
 
 	dir := filepath.Dir(path)

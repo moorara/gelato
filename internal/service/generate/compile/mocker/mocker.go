@@ -21,7 +21,7 @@ func CreateMockerDecls(pkgName, typeName string, node *ast.InterfaceType) []ast.
 
 	for _, method := range node.Methods.List {
 		if isMethod(method) {
-			decls = append(decls, createExpectationStructDecl(method)...)
+			decls = append(decls, createExpectationStructDecls(method)...)
 			decls = append(decls, createExpectationWithArgsMethodDecl(method))
 			decls = append(decls, createExpectationReturnMethodDecl(method))
 			decls = append(decls, createExpectationCallMethodDecl(method))
@@ -205,7 +205,68 @@ func createMockerAssertMethodDecl(typeName string) ast.Decl {
 			Params: &ast.FieldList{},
 		},
 		Body: &ast.BlockStmt{
-			// TODO:
+			List: []ast.Stmt{
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.Ident{Name: "errs"},
+					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.CallExpr{
+							Fun: &ast.Ident{Name: "new"},
+							Args: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   &ast.Ident{Name: "bytes"},
+									Sel: &ast.Ident{Name: "Buffer"},
+								},
+							},
+						},
+					},
+				},
+				// &ast.RangeStmt{ TODO: },
+				&ast.IfStmt{
+					Init: &ast.AssignStmt{
+						Lhs: []ast.Expr{
+							&ast.Ident{Name: "s"},
+						},
+						Tok: token.DEFINE,
+						Rhs: []ast.Expr{
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X:   &ast.Ident{Name: "errs"},
+									Sel: &ast.Ident{Name: "String"},
+								},
+							},
+						},
+					},
+					Cond: &ast.BinaryExpr{
+						X:  &ast.Ident{Name: "s"},
+						Op: token.NEQ,
+						Y: &ast.BasicLit{
+							Kind:  token.STRING,
+							Value: `""`,
+						},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.ExprStmt{
+								X: &ast.CallExpr{
+									Fun: &ast.SelectorExpr{
+										X: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "m"},
+											Sel: &ast.Ident{Name: "t"},
+										},
+										Sel: &ast.Ident{Name: "Fatal"},
+									},
+									Args: []ast.Expr{
+										&ast.Ident{Name: "s"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -346,7 +407,7 @@ func createExpectationsMethodDecls(typeName string, methods *ast.FieldList) []as
 						List: []ast.Stmt{
 							&ast.AssignStmt{
 								Lhs: []ast.Expr{
-									&ast.Ident{Name: "exp"},
+									&ast.Ident{Name: "expectation"},
 								},
 								Tok: token.ASSIGN,
 								Rhs: []ast.Expr{
@@ -374,14 +435,14 @@ func createExpectationsMethodDecls(typeName string, methods *ast.FieldList) []as
 												X:   &ast.Ident{Name: "e"},
 												Sel: &ast.Ident{Name: unexportedName + "Expectations"},
 											},
-											&ast.Ident{Name: "exp"},
+											&ast.Ident{Name: "expectation"},
 										},
 									},
 								},
 							},
 							&ast.ReturnStmt{
 								Results: []ast.Expr{
-									&ast.Ident{Name: "exp"},
+									&ast.Ident{Name: "expectation"},
 								},
 							},
 						},
@@ -394,7 +455,7 @@ func createExpectationsMethodDecls(typeName string, methods *ast.FieldList) []as
 	return decls
 }
 
-func createExpectationStructDecl(method *ast.Field) []ast.Decl {
+func createExpectationStructDecls(method *ast.Field) []ast.Decl {
 	exportedName := method.Names[0].Name
 	unexportedName := namer.ConvertToUnexported(exportedName)
 
@@ -415,6 +476,12 @@ func createExpectationStructDecl(method *ast.Field) []ast.Decl {
 					Type: &ast.StructType{
 						Fields: &ast.FieldList{
 							List: []*ast.Field{
+								{
+									Names: []*ast.Ident{
+										{Name: "isCalled"},
+									},
+									Type: &ast.Ident{Name: "bool"},
+								},
 								{
 									Names: []*ast.Ident{
 										{Name: "inputs"},
