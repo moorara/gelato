@@ -152,7 +152,7 @@ func TestCreateMockerDecls(t *testing.T) {
 						},
 					},
 				},
-				// Mocker methods
+				// Mocker Expect method
 				&ast.FuncDecl{
 					Recv: &ast.FieldList{
 						List: []*ast.Field{
@@ -194,6 +194,7 @@ func TestCreateMockerDecls(t *testing.T) {
 						},
 					},
 				},
+				// Mocker Assert method
 				&ast.FuncDecl{
 					Recv: &ast.FieldList{
 						List: []*ast.Field{
@@ -214,9 +215,71 @@ func TestCreateMockerDecls(t *testing.T) {
 						Params: &ast.FieldList{},
 					},
 					Body: &ast.BlockStmt{
-						// TODO:
+						List: []ast.Stmt{
+							&ast.AssignStmt{
+								Lhs: []ast.Expr{
+									&ast.Ident{Name: "errs"},
+								},
+								Tok: token.DEFINE,
+								Rhs: []ast.Expr{
+									&ast.CallExpr{
+										Fun: &ast.Ident{Name: "new"},
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   &ast.Ident{Name: "bytes"},
+												Sel: &ast.Ident{Name: "Buffer"},
+											},
+										},
+									},
+								},
+							},
+							// &ast.RangeStmt{ TODO: },
+							&ast.IfStmt{
+								Init: &ast.AssignStmt{
+									Lhs: []ast.Expr{
+										&ast.Ident{Name: "s"},
+									},
+									Tok: token.DEFINE,
+									Rhs: []ast.Expr{
+										&ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X:   &ast.Ident{Name: "errs"},
+												Sel: &ast.Ident{Name: "String"},
+											},
+										},
+									},
+								},
+								Cond: &ast.BinaryExpr{
+									X:  &ast.Ident{Name: "s"},
+									Op: token.NEQ,
+									Y: &ast.BasicLit{
+										Kind:  token.STRING,
+										Value: `""`,
+									},
+								},
+								Body: &ast.BlockStmt{
+									List: []ast.Stmt{
+										&ast.ExprStmt{
+											X: &ast.CallExpr{
+												Fun: &ast.SelectorExpr{
+													X: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "m"},
+														Sel: &ast.Ident{Name: "t"},
+													},
+													Sel: &ast.Ident{Name: "Fatal"},
+												},
+												Args: []ast.Expr{
+													&ast.Ident{Name: "s"},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
 					},
 				},
+				// Mocker Impl method
 				&ast.FuncDecl{
 					Recv: &ast.FieldList{
 						List: []*ast.Field{
@@ -335,7 +398,7 @@ func TestCreateMockerDecls(t *testing.T) {
 						List: []ast.Stmt{
 							&ast.AssignStmt{
 								Lhs: []ast.Expr{
-									&ast.Ident{Name: "exp"},
+									&ast.Ident{Name: "expectation"},
 								},
 								Tok: token.ASSIGN,
 								Rhs: []ast.Expr{
@@ -363,14 +426,14 @@ func TestCreateMockerDecls(t *testing.T) {
 												X:   &ast.Ident{Name: "e"},
 												Sel: &ast.Ident{Name: "lookupExpectations"},
 											},
-											&ast.Ident{Name: "exp"},
+											&ast.Ident{Name: "expectation"},
 										},
 									},
 								},
 							},
 							&ast.ReturnStmt{
 								Results: []ast.Expr{
-									&ast.Ident{Name: "exp"},
+									&ast.Ident{Name: "expectation"},
 								},
 							},
 						},
@@ -387,6 +450,12 @@ func TestCreateMockerDecls(t *testing.T) {
 							Type: &ast.StructType{
 								Fields: &ast.FieldList{
 									List: []*ast.Field{
+										{
+											Names: []*ast.Ident{
+												{Name: "isCalled"},
+											},
+											Type: &ast.Ident{Name: "bool"},
+										},
 										{
 											Names: []*ast.Ident{
 												{Name: "inputs"},
