@@ -1,10 +1,7 @@
-package io
+package goutil
 
 import (
 	"errors"
-	"go/ast"
-	"go/token"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,60 +103,6 @@ func TestPackageDirectories(t *testing.T) {
 				assert.NoError(t, err)
 			} else {
 				assert.EqualError(t, err, tc.expectedError)
-			}
-		})
-	}
-}
-
-func TestWriteASTFile(t *testing.T) {
-	mainFile := &ast.File{
-		Name: &ast.Ident{
-			Name: "main",
-		},
-	}
-
-	tests := []struct {
-		name          string
-		path          string
-		file          *ast.File
-		expectedError string
-	}{
-		{
-			name: "InvalidFile",
-			path: "./test/foo.go",
-			file: &ast.File{
-				Name: &ast.Ident{},
-			},
-			expectedError: "expected 'IDENT', found 'EOF'",
-		},
-		{
-			name:          "InvalidPath",
-			path:          "./test",
-			file:          mainFile,
-			expectedError: "open ./test: is a directory",
-		},
-		{
-			name:          "Success",
-			path:          "./test/foo.go",
-			file:          mainFile,
-			expectedError: "",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			fset := token.NewFileSet()
-
-			err := WriteASTFile(tc.path, tc.file, fset)
-
-			// Cleanup
-			defer os.Remove(tc.path)
-			defer os.Remove(debugFile)
-
-			if tc.expectedError == "" {
-				assert.NoError(t, err)
-			} else {
-				assert.Contains(t, err.Error(), tc.expectedError)
 			}
 		})
 	}

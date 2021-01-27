@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/astutil"
 	"github.com/moorara/gelato/internal/service/generate/compile"
-	"github.com/moorara/gelato/internal/service/io"
+	"github.com/moorara/gelato/internal/service/goutil"
 )
 
 const (
@@ -49,12 +50,12 @@ func (g *Generator) Generate(path string) error {
 
 	g.logger.White.Infof("Generating ...")
 
-	module, err := io.GoModule(path)
+	module, err := goutil.GoModule(path)
 	if err != nil {
 		return err
 	}
 
-	return io.PackageDirectories(path, ".", func(basePath, relPath string) error {
+	return goutil.PackageDirectories(path, ".", func(basePath, relPath string) error {
 		pkgPath := filepath.Join(module, relPath)
 		pkgDir := filepath.Join(basePath, relPath)
 		testPkgDir := filepath.Join(basePath, genDir, relPath+"test")
@@ -83,7 +84,7 @@ func (g *Generator) Generate(path string) error {
 					// Generate a new file for test helpers
 					newFile := g.compiler.Compile(pkgPath, file)
 					newFilePath := filepath.Join(testPkgDir, filepath.Base(name))
-					if err := io.WriteASTFile(newFilePath, newFile, fset); err != nil {
+					if err := astutil.WriteFile(newFilePath, newFile, fset); err != nil {
 						return err
 					}
 
