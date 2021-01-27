@@ -9,8 +9,9 @@ import (
 	"strings"
 
 	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/astutil"
 	"github.com/moorara/gelato/internal/service/decorate/modifier"
-	"github.com/moorara/gelato/internal/service/io"
+	"github.com/moorara/gelato/internal/service/goutil"
 )
 
 const (
@@ -71,12 +72,12 @@ func (d *Decorator) Decorate(path string) error {
 
 	d.logger.White.Infof("Decorating ...")
 
-	module, err := io.GoModule(path)
+	module, err := goutil.GoModule(path)
 	if err != nil {
 		return err
 	}
 
-	return io.PackageDirectories(path, ".", func(basePath, relPath string) error {
+	return goutil.PackageDirectories(path, ".", func(basePath, relPath string) error {
 		pkgDir := filepath.Join(basePath, relPath)
 		newDir := filepath.Join(basePath, decoratedDir, relPath)
 
@@ -117,7 +118,7 @@ func (d *Decorator) Decorate(path string) error {
 
 					// Write file to disk
 					newPath := filepath.Join(newDir, filepath.Base(name))
-					if err := io.WriteASTFile(newPath, file, fset); err != nil {
+					if err := astutil.WriteFile(newPath, file, fset); err != nil {
 						return err
 					}
 
