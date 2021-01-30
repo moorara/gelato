@@ -6,11 +6,25 @@ import (
 	"go/token"
 
 	"github.com/moorara/gelato/internal/service/generate/compile/namer"
+	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 // TODO: provide an option for handling unexported fields?
 
-func CreateBuilderDecls(pkgName, typeName string, node *ast.StructType) []ast.Decl {
+// Builder is used for creating declarations for a struct builder.
+type Builder struct {
+	factory *node.Factory
+}
+
+// New creates a new builder.
+func New(factory *node.Factory) *Builder {
+	return &Builder{
+		factory: factory,
+	}
+}
+
+// CreateDecls creates all declarations for a struct builder.
+func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []ast.Decl {
 	decls := []ast.Decl{}
 	decls = append(decls, createFuncDecl(pkgName, typeName))
 	decls = append(decls, createBuilderStructDecl(pkgName, typeName))

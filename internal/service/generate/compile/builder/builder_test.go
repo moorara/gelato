@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 func TestCreateBuilderDecls(t *testing.T) {
@@ -961,7 +963,9 @@ func TestCreateBuilderDecls(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			decls := CreateBuilderDecls(tc.pkgName, tc.typeName, tc.node)
+			factory := node.NewFactory()
+			builder := New(factory)
+			decls := builder.CreateDecls(tc.pkgName, tc.typeName, tc.node)
 
 			assert.Equal(t, tc.expectedDecls, decls)
 		})
