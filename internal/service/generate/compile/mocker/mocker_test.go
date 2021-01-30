@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 func TestCreateMockerDecls(t *testing.T) {
@@ -886,7 +888,9 @@ func TestCreateMockerDecls(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			decls := CreateMockerDecls(tc.pkgName, tc.typeName, tc.node)
+			factory := node.NewFactory()
+			mocker := New(factory)
+			decls := mocker.CreateDecls(tc.pkgName, tc.typeName, tc.node)
 
 			assert.Equal(t, tc.expectedDecls, decls)
 		})

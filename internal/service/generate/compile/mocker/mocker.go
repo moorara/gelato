@@ -5,11 +5,25 @@ import (
 	"go/token"
 
 	"github.com/moorara/gelato/internal/service/generate/compile/namer"
+	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 // TODO: Handle embedde interfaces where IsMethod is used
 
-func CreateMockerDecls(pkgName, typeName string, node *ast.InterfaceType) []ast.Decl {
+// Mocker is used for creating declarations for an interface mocker.
+type Mocker struct {
+	factory *node.Factory
+}
+
+// New creates a new mocker.
+func New(factory *node.Factory) *Mocker {
+	return &Mocker{
+		factory: factory,
+	}
+}
+
+// CreateDecls creates all declarations for an interface mocker.
+func (m *Mocker) CreateDecls(pkgName, typeName string, node *ast.InterfaceType) []ast.Decl {
 	decls := []ast.Decl{}
 	decls = append(decls, createMockerStructDecl(typeName))
 	decls = append(decls, createMockFuncDecl(typeName))

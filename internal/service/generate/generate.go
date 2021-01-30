@@ -83,6 +83,8 @@ func (g *Generator) Generate(path string) error {
 
 					// Generate a new file for test helpers
 					newFile := g.compiler.Compile(pkgPath, file)
+
+					// Write file to disk
 					newFilePath := filepath.Join(testPkgDir, filepath.Base(name))
 					if err := astutil.WriteFile(newFilePath, newFile, fset); err != nil {
 						return err
