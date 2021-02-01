@@ -37,37 +37,63 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{Name: "Request"},
+					Name: &ast.Ident{
+						NamePos: 7,
+						Name:    "Request",
+					},
 					Type: &ast.FuncType{
-						Params: &ast.FieldList{},
+						Func: 2,
+						Params: &ast.FieldList{
+							Opening: 14,
+							Closing: 15,
+						},
 						Results: &ast.FieldList{
+							Opening: 17,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X:   &ast.Ident{Name: "lookup"},
-										Sel: &ast.Ident{Name: "Request"},
+										X: &ast.Ident{
+											NamePos: 18,
+											Name:    "lookup",
+										},
+										Sel: &ast.Ident{
+											NamePos: 25,
+											Name:    "Request",
+										},
 									},
 								},
 							},
+							Closing: 33,
 						},
 					},
 					Body: &ast.BlockStmt{
+						Lbrace: 35,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
+								Return: 38,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													Name: "BuildRequest",
+													NamePos: 45,
+													Name:    "BuildRequest",
 												},
+												Lparen: 57,
+												Rparen: 58,
 											},
-											Sel: &ast.Ident{Name: "Value"},
+											Sel: &ast.Ident{
+												NamePos: 60,
+												Name:    "Value",
+											},
 										},
+										Lparen: 65,
+										Rparen: 66,
 									},
 								},
 							},
 						},
+						Rbrace: 68,
 					},
 				},
 				// Builder struct
@@ -286,37 +312,63 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{Name: "Response"},
+					Name: &ast.Ident{
+						NamePos: 7,
+						Name:    "Response",
+					},
 					Type: &ast.FuncType{
-						Params: &ast.FieldList{},
+						Func: 2,
+						Params: &ast.FieldList{
+							Opening: 15,
+							Closing: 16,
+						},
 						Results: &ast.FieldList{
+							Opening: 18,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X:   &ast.Ident{Name: "lookup"},
-										Sel: &ast.Ident{Name: "Response"},
+										X: &ast.Ident{
+											NamePos: 19,
+											Name:    "lookup",
+										},
+										Sel: &ast.Ident{
+											NamePos: 26,
+											Name:    "Response",
+										},
 									},
 								},
 							},
+							Closing: 35,
 						},
 					},
 					Body: &ast.BlockStmt{
+						Lbrace: 37,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
+								Return: 40,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													Name: "BuildResponse",
+													NamePos: 47,
+													Name:    "BuildResponse",
 												},
+												Lparen: 60,
+												Rparen: 61,
 											},
-											Sel: &ast.Ident{Name: "Value"},
+											Sel: &ast.Ident{
+												NamePos: 63,
+												Name:    "Value",
+											},
 										},
+										Lparen: 68,
+										Rparen: 69,
 									},
 								},
 							},
 						},
+						Rbrace: 71,
 					},
 				},
 				// Builder struct
@@ -535,37 +587,63 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{Name: "Account"},
+					Name: &ast.Ident{
+						NamePos: 7,
+						Name:    "Account",
+					},
 					Type: &ast.FuncType{
-						Params: &ast.FieldList{},
+						Func: 2,
+						Params: &ast.FieldList{
+							Opening: 14,
+							Closing: 15,
+						},
 						Results: &ast.FieldList{
+							Opening: 17,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X:   &ast.Ident{Name: "account"},
-										Sel: &ast.Ident{Name: "Account"},
+										X: &ast.Ident{
+											NamePos: 18,
+											Name:    "account",
+										},
+										Sel: &ast.Ident{
+											NamePos: 26,
+											Name:    "Account",
+										},
 									},
 								},
 							},
+							Closing: 34,
 						},
 					},
 					Body: &ast.BlockStmt{
+						Lbrace: 36,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
+								Return: 39,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													Name: "BuildAccount",
+													NamePos: 46,
+													Name:    "BuildAccount",
 												},
+												Lparen: 58,
+												Rparen: 59,
 											},
-											Sel: &ast.Ident{Name: "Value"},
+											Sel: &ast.Ident{
+												NamePos: 61,
+												Name:    "Value",
+											},
 										},
+										Lparen: 66,
+										Rparen: 67,
 									},
 								},
 							},
 						},
+						Rbrace: 69,
 					},
 				},
 				// Builder struct
@@ -787,37 +865,63 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{Name: "Example"},
+					Name: &ast.Ident{
+						NamePos: 7,
+						Name:    "Example",
+					},
 					Type: &ast.FuncType{
-						Params: &ast.FieldList{},
+						Func: 2,
+						Params: &ast.FieldList{
+							Opening: 14,
+							Closing: 15,
+						},
 						Results: &ast.FieldList{
+							Opening: 17,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X:   &ast.Ident{Name: "example"},
-										Sel: &ast.Ident{Name: "Example"},
+										X: &ast.Ident{
+											NamePos: 18,
+											Name:    "example",
+										},
+										Sel: &ast.Ident{
+											NamePos: 26,
+											Name:    "Example",
+										},
 									},
 								},
 							},
+							Closing: 34,
 						},
 					},
 					Body: &ast.BlockStmt{
+						Lbrace: 36,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
+								Return: 39,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													Name: "BuildExample",
+													NamePos: 46,
+													Name:    "BuildExample",
 												},
+												Lparen: 58,
+												Rparen: 59,
 											},
-											Sel: &ast.Ident{Name: "Value"},
+											Sel: &ast.Ident{
+												NamePos: 61,
+												Name:    "Value",
+											},
 										},
+										Lparen: 66,
+										Rparen: 67,
 									},
 								},
 							},
 						},
+						Rbrace: 69,
 					},
 				},
 				// Builder struct

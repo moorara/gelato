@@ -26,7 +26,7 @@ func New(factory *node.Factory) *Builder {
 // CreateDecls creates all declarations for a struct builder.
 func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []ast.Decl {
 	decls := []ast.Decl{}
-	decls = append(decls, createFuncDecl(pkgName, typeName))
+	decls = append(decls, b.createFuncDecl(pkgName, typeName))
 	decls = append(decls, createBuilderStructDecl(pkgName, typeName))
 	decls = append(decls, createBuildFuncDecl(typeName))
 
@@ -57,8 +57,8 @@ func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []
 	return decls
 }
 
-func createFuncDecl(pkgName, typeName string) ast.Decl {
-	return &ast.FuncDecl{
+func (b *Builder) createFuncDecl(pkgName, typeName string) ast.Decl {
+	decl := &ast.FuncDecl{
 		Name: &ast.Ident{Name: typeName},
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{},
@@ -80,9 +80,7 @@ func createFuncDecl(pkgName, typeName string) ast.Decl {
 						&ast.CallExpr{
 							Fun: &ast.SelectorExpr{
 								X: &ast.CallExpr{
-									Fun: &ast.Ident{
-										Name: "Build" + typeName,
-									},
+									Fun: &ast.Ident{Name: "Build" + typeName},
 								},
 								Sel: &ast.Ident{Name: "Value"},
 							},
@@ -92,6 +90,10 @@ func createFuncDecl(pkgName, typeName string) ast.Decl {
 			},
 		},
 	}
+
+	b.factory.AnnotateFuncDecl(decl)
+
+	return decl
 }
 
 func createBuilderStructDecl(pkgName, typeName string) ast.Decl {
