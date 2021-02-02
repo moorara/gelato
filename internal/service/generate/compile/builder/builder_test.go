@@ -63,60 +63,74 @@ func TestCreateBuilderDecls(t *testing.T) {
 									},
 								},
 							},
-							Closing: 33,
+							Closing: 34,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 35,
+						Lbrace: 36,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 38,
+								Return: 39,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													NamePos: 45,
+													NamePos: 46,
 													Name:    "BuildRequest",
 												},
-												Lparen: 57,
-												Rparen: 58,
+												Lparen: 58,
+												Rparen: 59,
 											},
 											Sel: &ast.Ident{
-												NamePos: 60,
+												NamePos: 61,
 												Name:    "Value",
 											},
 										},
-										Lparen: 65,
-										Rparen: 66,
+										Lparen: 66,
+										Rparen: 67,
 									},
 								},
 							},
 						},
-						Rbrace: 68,
+						Rbrace: 70,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					Tok: token.TYPE,
+					TokPos: 73,
+					Tok:    token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
 							Name: &ast.Ident{
-								Name: "RequestBuilder",
+								NamePos: 78,
+								Name:    "RequestBuilder",
 							},
 							Type: &ast.StructType{
+								Struct: 93,
 								Fields: &ast.FieldList{
+									Opening: 100,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{Name: "v"},
+												{
+													NamePos: 101,
+													Name:    "v",
+												},
 											},
 											Type: &ast.SelectorExpr{
-												X:   &ast.Ident{Name: "lookup"},
-												Sel: &ast.Ident{Name: "Request"},
+												X: &ast.Ident{
+													NamePos: 103,
+													Name:    "lookup",
+												},
+												Sel: &ast.Ident{
+													NamePos: 110,
+													Name:    "Request",
+												},
 											},
 										},
 									},
+									Closing: 119,
 								},
 							},
 						},
@@ -338,60 +352,74 @@ func TestCreateBuilderDecls(t *testing.T) {
 									},
 								},
 							},
-							Closing: 35,
+							Closing: 36,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 37,
+						Lbrace: 38,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 40,
+								Return: 41,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													NamePos: 47,
+													NamePos: 48,
 													Name:    "BuildResponse",
 												},
-												Lparen: 60,
-												Rparen: 61,
+												Lparen: 61,
+												Rparen: 62,
 											},
 											Sel: &ast.Ident{
-												NamePos: 63,
+												NamePos: 64,
 												Name:    "Value",
 											},
 										},
-										Lparen: 68,
-										Rparen: 69,
+										Lparen: 69,
+										Rparen: 70,
 									},
 								},
 							},
 						},
-						Rbrace: 71,
+						Rbrace: 73,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					Tok: token.TYPE,
+					TokPos: 76,
+					Tok:    token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
 							Name: &ast.Ident{
-								Name: "ResponseBuilder",
+								NamePos: 81,
+								Name:    "ResponseBuilder",
 							},
 							Type: &ast.StructType{
+								Struct: 97,
 								Fields: &ast.FieldList{
+									Opening: 104,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{Name: "v"},
+												{
+													NamePos: 105,
+													Name:    "v",
+												},
 											},
 											Type: &ast.SelectorExpr{
-												X:   &ast.Ident{Name: "lookup"},
-												Sel: &ast.Ident{Name: "Response"},
+												X: &ast.Ident{
+													NamePos: 107,
+													Name:    "lookup",
+												},
+												Sel: &ast.Ident{
+													NamePos: 114,
+													Name:    "Response",
+												},
 											},
 										},
 									},
+									Closing: 124,
 								},
 							},
 						},
@@ -613,60 +641,74 @@ func TestCreateBuilderDecls(t *testing.T) {
 									},
 								},
 							},
-							Closing: 34,
+							Closing: 35,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 36,
+						Lbrace: 37,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 39,
+								Return: 40,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													NamePos: 46,
+													NamePos: 47,
 													Name:    "BuildAccount",
 												},
-												Lparen: 58,
-												Rparen: 59,
+												Lparen: 59,
+												Rparen: 60,
 											},
 											Sel: &ast.Ident{
-												NamePos: 61,
+												NamePos: 62,
 												Name:    "Value",
 											},
 										},
-										Lparen: 66,
-										Rparen: 67,
+										Lparen: 67,
+										Rparen: 68,
 									},
 								},
 							},
 						},
-						Rbrace: 69,
+						Rbrace: 71,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					Tok: token.TYPE,
+					TokPos: 74,
+					Tok:    token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
 							Name: &ast.Ident{
-								Name: "AccountBuilder",
+								NamePos: 79,
+								Name:    "AccountBuilder",
 							},
 							Type: &ast.StructType{
+								Struct: 94,
 								Fields: &ast.FieldList{
+									Opening: 101,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{Name: "v"},
+												{
+													NamePos: 102,
+													Name:    "v",
+												},
 											},
 											Type: &ast.SelectorExpr{
-												X:   &ast.Ident{Name: "account"},
-												Sel: &ast.Ident{Name: "Account"},
+												X: &ast.Ident{
+													NamePos: 104,
+													Name:    "account",
+												},
+												Sel: &ast.Ident{
+													NamePos: 112,
+													Name:    "Account",
+												},
 											},
 										},
 									},
+									Closing: 121,
 								},
 							},
 						},
@@ -891,60 +933,74 @@ func TestCreateBuilderDecls(t *testing.T) {
 									},
 								},
 							},
-							Closing: 34,
+							Closing: 35,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 36,
+						Lbrace: 37,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 39,
+								Return: 40,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
 												Fun: &ast.Ident{
-													NamePos: 46,
+													NamePos: 47,
 													Name:    "BuildExample",
 												},
-												Lparen: 58,
-												Rparen: 59,
+												Lparen: 59,
+												Rparen: 60,
 											},
 											Sel: &ast.Ident{
-												NamePos: 61,
+												NamePos: 62,
 												Name:    "Value",
 											},
 										},
-										Lparen: 66,
-										Rparen: 67,
+										Lparen: 67,
+										Rparen: 68,
 									},
 								},
 							},
 						},
-						Rbrace: 69,
+						Rbrace: 71,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					Tok: token.TYPE,
+					TokPos: 74,
+					Tok:    token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
 							Name: &ast.Ident{
-								Name: "ExampleBuilder",
+								NamePos: 79,
+								Name:    "ExampleBuilder",
 							},
 							Type: &ast.StructType{
+								Struct: 94,
 								Fields: &ast.FieldList{
+									Opening: 101,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{Name: "v"},
+												{
+													NamePos: 102,
+													Name:    "v",
+												},
 											},
 											Type: &ast.SelectorExpr{
-												X:   &ast.Ident{Name: "example"},
-												Sel: &ast.Ident{Name: "Example"},
+												X: &ast.Ident{
+													NamePos: 104,
+													Name:    "example",
+												},
+												Sel: &ast.Ident{
+													NamePos: 112,
+													Name:    "Example",
+												},
 											},
 										},
 									},
+									Closing: 121,
 								},
 							},
 						},

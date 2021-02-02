@@ -27,7 +27,7 @@ func New(factory *node.Factory) *Builder {
 func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []ast.Decl {
 	decls := []ast.Decl{}
 	decls = append(decls, b.createFuncDecl(pkgName, typeName))
-	decls = append(decls, createBuilderStructDecl(pkgName, typeName))
+	decls = append(decls, b.createBuilderStructDecl(pkgName, typeName))
 	decls = append(decls, createBuildFuncDecl(typeName))
 
 	for _, field := range node.Fields.List {
@@ -96,8 +96,8 @@ func (b *Builder) createFuncDecl(pkgName, typeName string) ast.Decl {
 	return decl
 }
 
-func createBuilderStructDecl(pkgName, typeName string) ast.Decl {
-	return &ast.GenDecl{
+func (b *Builder) createBuilderStructDecl(pkgName, typeName string) ast.Decl {
+	decl := &ast.GenDecl{
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
@@ -122,6 +122,10 @@ func createBuilderStructDecl(pkgName, typeName string) ast.Decl {
 			},
 		},
 	}
+
+	b.factory.AnnotateStructDecl(decl)
+
+	return decl
 }
 
 func createBuildFuncDecl(typeName string) ast.Decl {

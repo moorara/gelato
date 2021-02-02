@@ -86,6 +86,46 @@ func (f *Factory) ImportDecl(pkgs ...string) *ast.GenDecl {
 	return decl
 }
 
+// AnnotateStructDecl adds positional information to an ast.GenDecl node that defines a struct.
+func (f *Factory) AnnotateStructDecl(node *ast.GenDecl) {
+	f.offset++ // newline
+
+	astutil.Apply(node,
+		// Pre-order traversal
+		func(c *astutil.Cursor) bool {
+			switch n := c.Node().(type) {
+			case *ast.GenDecl:
+				if n.Tok == token.TYPE {
+					n.TokPos = token.Pos(f.offset)
+					f.offset += len("type") + 1 // space
+					return true
+				}
+
+			case *ast.TypeSpec:
+				if n.Name != nil {
+					n.Name.NamePos = token.Pos(f.offset)
+					f.offset += len(n.Name.Name) + 1 // space
+					return true
+				}
+
+			case *ast.StructType:
+				n.Struct = token.Pos(f.offset)
+				f.offset += len("struct") + 1 // space
+				return true
+
+			case *ast.FieldList:
+				f.AnnotateFieldList(n)
+			}
+
+			return false
+		},
+		// Post-order traversal
+		func(c *astutil.Cursor) bool {
+			return true
+		},
+	)
+}
+
 // AnnotateFuncDecl adds positional information to an ast.FuncDecl node.
 func (f *Factory) AnnotateFuncDecl(node *ast.FuncDecl) {
 	f.offset++ // newline
@@ -131,32 +171,35 @@ func (f *Factory) AnnotateFieldList(node *ast.FieldList) {
 			switch n := c.Node().(type) {
 			case *ast.FieldList:
 				n.Opening = token.Pos(f.offset)
-				f.offset++ // (
+				f.offset++ // ( or {
 				return true
 
 			case *ast.Field:
 				return true
 
 			case *ast.StarExpr:
+				f.offset++ // *
 				return true
 
 			case *ast.SelectorExpr:
 				return true
 
 			case *ast.Ident:
-				n.NamePos = token.Pos(f.offset)
-				f.offset += len(n.Name)
-
 				switch c.Name() {
 				case "Names":
-					f.offset++ // space or comma
+					n.NamePos = token.Pos(f.offset)
+					f.offset += len(n.Name) + 1 // space or comma
 				case "Type":
+					n.NamePos = token.Pos(f.offset)
+					f.offset += len(n.Name)
 				case "X":
-					f.offset++ // dot
+					n.NamePos = token.Pos(f.offset)
+					f.offset += len(n.Name)
 				case "Sel":
+					f.offset++ // dot
+					n.NamePos = token.Pos(f.offset)
+					f.offset += len(n.Name)
 				}
-
-				return true
 			}
 
 			return false
@@ -166,10 +209,10 @@ func (f *Factory) AnnotateFieldList(node *ast.FieldList) {
 			switch n := c.Node().(type) {
 			case *ast.FieldList:
 				n.Closing = token.Pos(f.offset)
-				f.offset += 2 // ), space
+				f.offset += 2 // ), space or }, newline
 
 			case *ast.Field:
-				f.offset++ // comma
+				f.offset += 2 // comma, space or newline
 			}
 
 			return true
@@ -211,8 +254,9 @@ func (f *Factory) AnnotateBlockStmt(node *ast.BlockStmt) {
 		func(c *astutil.Cursor) bool {
 			switch n := c.Node().(type) {
 			case *ast.BlockStmt:
+				f.offset++ // newline
 				n.Rbrace = token.Pos(f.offset)
-				f.offset += 3 // newline, }, newline
+				f.offset += 2 // }, newline
 
 			case *ast.CallExpr:
 				n.Rparen = token.Pos(f.offset)
