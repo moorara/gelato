@@ -94,6 +94,154 @@ func TestFactory_ImportDecl(t *testing.T) {
 	}
 }
 
+func TestFactory_AnnotateStructDecl(t *testing.T) {
+	tests := []struct {
+		name         string
+		node         *ast.GenDecl
+		expectedNode *ast.GenDecl
+	}{
+		{
+			name: "Request",
+			node: &ast.GenDecl{
+				Tok: token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: &ast.Ident{Name: "RequestBuilder"},
+						Type: &ast.StructType{
+							Fields: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Names: []*ast.Ident{
+											{Name: "v"},
+										},
+										Type: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "lookup"},
+											Sel: &ast.Ident{Name: "Request"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedNode: &ast.GenDecl{
+				TokPos: 2,
+				Tok:    token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: &ast.Ident{
+							NamePos: 7,
+							Name:    "RequestBuilder",
+						},
+						Type: &ast.StructType{
+							Struct: 22,
+							Fields: &ast.FieldList{
+								Opening: 29,
+								List: []*ast.Field{
+									{
+										Names: []*ast.Ident{
+											{
+												NamePos: 30,
+												Name:    "v",
+											},
+										},
+										Type: &ast.SelectorExpr{
+											X: &ast.Ident{
+												NamePos: 32,
+												Name:    "lookup",
+											},
+											Sel: &ast.Ident{
+												NamePos: 39,
+												Name:    "Request",
+											},
+										},
+									},
+								},
+								Closing: 48,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Respose",
+			node: &ast.GenDecl{
+				Tok: token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: &ast.Ident{Name: "ResponseBuilder"},
+						Type: &ast.StructType{
+							Fields: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Names: []*ast.Ident{
+											{Name: "v"},
+										},
+										Type: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "lookup"},
+											Sel: &ast.Ident{Name: "Response"},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expectedNode: &ast.GenDecl{
+				TokPos: 2,
+				Tok:    token.TYPE,
+				Specs: []ast.Spec{
+					&ast.TypeSpec{
+						Name: &ast.Ident{
+							NamePos: 7,
+							Name:    "ResponseBuilder",
+						},
+						Type: &ast.StructType{
+							Struct: 23,
+							Fields: &ast.FieldList{
+								Opening: 30,
+								List: []*ast.Field{
+									{
+										Names: []*ast.Ident{
+											{
+												NamePos: 31,
+												Name:    "v",
+											},
+										},
+										Type: &ast.SelectorExpr{
+											X: &ast.Ident{
+												NamePos: 33,
+												Name:    "lookup",
+											},
+											Sel: &ast.Ident{
+												NamePos: 40,
+												Name:    "Response",
+											},
+										},
+									},
+								},
+								Closing: 50,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			f := &Factory{offset: 1}
+			f.AnnotateStructDecl(tc.node)
+
+			assert.Equal(t, tc.expectedNode, tc.node)
+		})
+	}
+}
+
 func TestFactory_AnnotateFuncDecl(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -187,38 +335,38 @@ func TestFactory_AnnotateFuncDecl(t *testing.T) {
 							{
 								Names: []*ast.Ident{
 									{
-										NamePos: 31,
+										NamePos: 32,
 										Name:    "req",
 									},
 								},
 								Type: &ast.StarExpr{
 									X: &ast.SelectorExpr{
 										X: &ast.Ident{
-											NamePos: 35,
+											NamePos: 37,
 											Name:    "entity",
 										},
 										Sel: &ast.Ident{
-											NamePos: 42,
+											NamePos: 44,
 											Name:    "Request",
 										},
 									},
 								},
 							},
 						},
-						Closing: 50,
+						Closing: 53,
 					},
 					Results: &ast.FieldList{
-						Opening: 52,
+						Opening: 55,
 						List: []*ast.Field{
 							{
 								Type: &ast.StarExpr{
 									X: &ast.SelectorExpr{
 										X: &ast.Ident{
-											NamePos: 53,
+											NamePos: 57,
 											Name:    "entity",
 										},
 										Sel: &ast.Ident{
-											NamePos: 60,
+											NamePos: 64,
 											Name:    "Response",
 										},
 									},
@@ -226,32 +374,32 @@ func TestFactory_AnnotateFuncDecl(t *testing.T) {
 							},
 							{
 								Type: &ast.Ident{
-									NamePos: 69,
+									NamePos: 74,
 									Name:    "error",
 								},
 							},
 						},
-						Closing: 75,
+						Closing: 81,
 					},
 				},
 				Body: &ast.BlockStmt{
-					Lbrace: 77,
+					Lbrace: 83,
 					List: []ast.Stmt{
 						&ast.ReturnStmt{
-							Return: 80,
+							Return: 86,
 							Results: []ast.Expr{
 								&ast.Ident{
-									NamePos: 87,
+									NamePos: 93,
 									Name:    "nil",
 								},
 								&ast.Ident{
-									NamePos: 91,
+									NamePos: 97,
 									Name:    "nil",
 								},
 							},
 						},
 					},
-					Rbrace: 95,
+					Rbrace: 102,
 				},
 			},
 		},
@@ -323,25 +471,25 @@ func TestFactory_AnnotateFieldList(t *testing.T) {
 					{
 						Names: []*ast.Ident{
 							{
-								NamePos: 22,
+								NamePos: 23,
 								Name:    "req",
 							},
 						},
 						Type: &ast.StarExpr{
 							X: &ast.SelectorExpr{
 								X: &ast.Ident{
-									NamePos: 26,
+									NamePos: 28,
 									Name:    "entity",
 								},
 								Sel: &ast.Ident{
-									NamePos: 33,
+									NamePos: 35,
 									Name:    "Request",
 								},
 							},
 						},
 					},
 				},
-				Closing: 41,
+				Closing: 44,
 			},
 		},
 		{
@@ -368,11 +516,11 @@ func TestFactory_AnnotateFieldList(t *testing.T) {
 						Type: &ast.StarExpr{
 							X: &ast.SelectorExpr{
 								X: &ast.Ident{
-									NamePos: 2,
+									NamePos: 3,
 									Name:    "entity",
 								},
 								Sel: &ast.Ident{
-									NamePos: 9,
+									NamePos: 10,
 									Name:    "Response",
 								},
 							},
@@ -380,12 +528,12 @@ func TestFactory_AnnotateFieldList(t *testing.T) {
 					},
 					{
 						Type: &ast.Ident{
-							NamePos: 18,
+							NamePos: 20,
 							Name:    "error",
 						},
 					},
 				},
-				Closing: 24,
+				Closing: 27,
 			},
 		},
 	}
@@ -451,7 +599,7 @@ func TestFactory_AnnotateBlockStmt(t *testing.T) {
 						},
 					},
 				},
-				Rbrace: 30,
+				Rbrace: 31,
 			},
 		},
 	}
