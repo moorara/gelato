@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/moorara/gelato/internal/log"
-	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 func TestNew(t *testing.T) {
@@ -167,18 +166,14 @@ func TestCompiler_Compile(t *testing.T) {
 		Decls: []ast.Decl{
 			// Imports
 			&ast.GenDecl{
-				TokPos: 65,
-				Tok:    token.IMPORT,
-				Lparen: 72,
+				Tok: token.IMPORT,
 				Specs: []ast.Spec{
 					&ast.ImportSpec{
 						Path: &ast.BasicLit{
-							ValuePos: 75,
-							Value:    `"github.com/octocat/app/example"`,
+							Value: `"github.com/octocat/app/example"`,
 						},
 					},
 				},
-				Rparen: 109,
 			},
 		},
 	}
@@ -214,7 +209,6 @@ func TestCompiler_Compile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &Compiler{
 				logger:  clogger,
-				factory: node.NewFactory(),
 				builder: tc.builder,
 				mocker:  tc.mocker,
 			}

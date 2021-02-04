@@ -6,28 +6,23 @@ import (
 	"go/token"
 
 	"github.com/moorara/gelato/internal/service/generate/compile/namer"
-	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 // TODO: provide an option for handling unexported fields?
 
 // Builder is used for creating declarations for a struct builder.
-type Builder struct {
-	factory *node.Factory
-}
+type Builder struct{}
 
 // New creates a new builder.
-func New(factory *node.Factory) *Builder {
-	return &Builder{
-		factory: factory,
-	}
+func New() *Builder {
+	return &Builder{}
 }
 
 // CreateDecls creates all declarations for a struct builder.
 func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []ast.Decl {
 	decls := []ast.Decl{}
-	decls = append(decls, b.createFuncDecl(pkgName, typeName))
-	decls = append(decls, b.createBuilderStructDecl(pkgName, typeName))
+	decls = append(decls, createFuncDecl(pkgName, typeName))
+	decls = append(decls, createBuilderStructDecl(pkgName, typeName))
 	decls = append(decls, createBuildFuncDecl(typeName))
 
 	for _, field := range node.Fields.List {
@@ -57,8 +52,8 @@ func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []
 	return decls
 }
 
-func (b *Builder) createFuncDecl(pkgName, typeName string) ast.Decl {
-	decl := &ast.FuncDecl{
+func createFuncDecl(pkgName, typeName string) ast.Decl {
+	return &ast.FuncDecl{
 		Name: &ast.Ident{Name: typeName},
 		Type: &ast.FuncType{
 			Params: &ast.FieldList{},
@@ -90,14 +85,10 @@ func (b *Builder) createFuncDecl(pkgName, typeName string) ast.Decl {
 			},
 		},
 	}
-
-	b.factory.AnnotateFuncDecl(decl)
-
-	return decl
 }
 
-func (b *Builder) createBuilderStructDecl(pkgName, typeName string) ast.Decl {
-	decl := &ast.GenDecl{
+func createBuilderStructDecl(pkgName, typeName string) ast.Decl {
+	return &ast.GenDecl{
 		Tok: token.TYPE,
 		Specs: []ast.Spec{
 			&ast.TypeSpec{
@@ -122,10 +113,6 @@ func (b *Builder) createBuilderStructDecl(pkgName, typeName string) ast.Decl {
 			},
 		},
 	}
-
-	b.factory.AnnotateStructDecl(decl)
-
-	return decl
 }
 
 func createBuildFuncDecl(typeName string) ast.Decl {
@@ -147,7 +134,6 @@ func createBuildFuncDecl(typeName string) ast.Decl {
 			List: []ast.Stmt{
 				&ast.ReturnStmt{
 					Results: []ast.Expr{
-						// TODO:
 						&ast.CompositeLit{
 							Type: &ast.Ident{Name: typeName + "Builder"},
 						},
@@ -178,7 +164,7 @@ func createBuilderMethodDecl(typeName string, typ ast.Expr, id *ast.Ident) ast.D
 				List: []*ast.Field{
 					{
 						Names: []*ast.Ident{
-							&ast.Ident{Name: namer.ConvertToUnexported(id.Name)},
+							{Name: namer.ConvertToUnexported(id.Name)},
 						},
 						Type: typ,
 					},
@@ -206,7 +192,7 @@ func createBuilderMethodDecl(typeName string, typ ast.Expr, id *ast.Ident) ast.D
 					},
 					Tok: token.ASSIGN,
 					Rhs: []ast.Expr{
-						&ast.Ident{Name: id.Name},
+						&ast.Ident{Name: namer.ConvertToUnexported(id.Name)},
 					},
 				},
 				&ast.ReturnStmt{

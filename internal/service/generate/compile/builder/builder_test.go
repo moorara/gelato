@@ -6,8 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/moorara/gelato/internal/service/generate/compile/node"
 )
 
 func TestCreateBuilderDecls(t *testing.T) {
@@ -37,100 +35,56 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						NamePos: 7,
-						Name:    "Request",
-					},
+					Name: &ast.Ident{Name: "Request"},
 					Type: &ast.FuncType{
-						Func: 2,
-						Params: &ast.FieldList{
-							Opening: 14,
-							Closing: 15,
-						},
+						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
-							Opening: 17,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X: &ast.Ident{
-											NamePos: 18,
-											Name:    "lookup",
-										},
-										Sel: &ast.Ident{
-											NamePos: 25,
-											Name:    "Request",
-										},
+										X:   &ast.Ident{Name: "lookup"},
+										Sel: &ast.Ident{Name: "Request"},
 									},
 								},
 							},
-							Closing: 34,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 36,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 39,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
-												Fun: &ast.Ident{
-													NamePos: 46,
-													Name:    "BuildRequest",
-												},
-												Lparen: 58,
-												Rparen: 59,
+												Fun: &ast.Ident{Name: "BuildRequest"},
 											},
-											Sel: &ast.Ident{
-												NamePos: 61,
-												Name:    "Value",
-											},
+											Sel: &ast.Ident{Name: "Value"},
 										},
-										Lparen: 66,
-										Rparen: 67,
 									},
 								},
 							},
 						},
-						Rbrace: 70,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					TokPos: 73,
-					Tok:    token.TYPE,
+					Tok: token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
-							Name: &ast.Ident{
-								NamePos: 78,
-								Name:    "RequestBuilder",
-							},
+							Name: &ast.Ident{Name: "RequestBuilder"},
 							Type: &ast.StructType{
-								Struct: 93,
 								Fields: &ast.FieldList{
-									Opening: 100,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{
-													NamePos: 101,
-													Name:    "v",
-												},
+												{Name: "v"},
 											},
 											Type: &ast.SelectorExpr{
-												X: &ast.Ident{
-													NamePos: 103,
-													Name:    "lookup",
-												},
-												Sel: &ast.Ident{
-													NamePos: 110,
-													Name:    "Request",
-												},
+												X:   &ast.Ident{Name: "lookup"},
+												Sel: &ast.Ident{Name: "Request"},
 											},
 										},
 									},
-									Closing: 119,
 								},
 							},
 						},
@@ -138,9 +92,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 				},
 				// Build func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						Name: "BuildRequest",
-					},
+					Name: &ast.Ident{Name: "BuildRequest"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
@@ -175,15 +127,13 @@ func TestCreateBuilderDecls(t *testing.T) {
 							},
 						},
 					},
-					Name: &ast.Ident{
-						Name: "WithID",
-					},
+					Name: &ast.Ident{Name: "WithID"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{
 							List: []*ast.Field{
 								{
 									Names: []*ast.Ident{
-										&ast.Ident{Name: "id"},
+										{Name: "id"},
 									},
 									Type: &ast.Ident{Name: "string"},
 								},
@@ -211,7 +161,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 								},
 								Tok: token.ASSIGN,
 								Rhs: []ast.Expr{
-									&ast.Ident{Name: "ID"},
+									&ast.Ident{Name: "id"},
 								},
 							},
 							&ast.ReturnStmt{
@@ -326,100 +276,56 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						NamePos: 7,
-						Name:    "Response",
-					},
+					Name: &ast.Ident{Name: "Response"},
 					Type: &ast.FuncType{
-						Func: 2,
-						Params: &ast.FieldList{
-							Opening: 15,
-							Closing: 16,
-						},
+						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
-							Opening: 18,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X: &ast.Ident{
-											NamePos: 19,
-											Name:    "lookup",
-										},
-										Sel: &ast.Ident{
-											NamePos: 26,
-											Name:    "Response",
-										},
+										X:   &ast.Ident{Name: "lookup"},
+										Sel: &ast.Ident{Name: "Response"},
 									},
 								},
 							},
-							Closing: 36,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 38,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 41,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
-												Fun: &ast.Ident{
-													NamePos: 48,
-													Name:    "BuildResponse",
-												},
-												Lparen: 61,
-												Rparen: 62,
+												Fun: &ast.Ident{Name: "BuildResponse"},
 											},
-											Sel: &ast.Ident{
-												NamePos: 64,
-												Name:    "Value",
-											},
+											Sel: &ast.Ident{Name: "Value"},
 										},
-										Lparen: 69,
-										Rparen: 70,
 									},
 								},
 							},
 						},
-						Rbrace: 73,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					TokPos: 76,
-					Tok:    token.TYPE,
+					Tok: token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
-							Name: &ast.Ident{
-								NamePos: 81,
-								Name:    "ResponseBuilder",
-							},
+							Name: &ast.Ident{Name: "ResponseBuilder"},
 							Type: &ast.StructType{
-								Struct: 97,
 								Fields: &ast.FieldList{
-									Opening: 104,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{
-													NamePos: 105,
-													Name:    "v",
-												},
+												{Name: "v"},
 											},
 											Type: &ast.SelectorExpr{
-												X: &ast.Ident{
-													NamePos: 107,
-													Name:    "lookup",
-												},
-												Sel: &ast.Ident{
-													NamePos: 114,
-													Name:    "Response",
-												},
+												X:   &ast.Ident{Name: "lookup"},
+												Sel: &ast.Ident{Name: "Response"},
 											},
 										},
 									},
-									Closing: 124,
 								},
 							},
 						},
@@ -427,9 +333,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 				},
 				// Build func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						Name: "BuildResponse",
-					},
+					Name: &ast.Ident{Name: "BuildResponse"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
@@ -464,15 +368,13 @@ func TestCreateBuilderDecls(t *testing.T) {
 							},
 						},
 					},
-					Name: &ast.Ident{
-						Name: "WithName",
-					},
+					Name: &ast.Ident{Name: "WithName"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{
 							List: []*ast.Field{
 								{
 									Names: []*ast.Ident{
-										&ast.Ident{Name: "name"},
+										{Name: "name"},
 									},
 									Type: &ast.Ident{Name: "string"},
 								},
@@ -500,7 +402,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 								},
 								Tok: token.ASSIGN,
 								Rhs: []ast.Expr{
-									&ast.Ident{Name: "Name"},
+									&ast.Ident{Name: "name"},
 								},
 							},
 							&ast.ReturnStmt{
@@ -615,100 +517,56 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						NamePos: 7,
-						Name:    "Account",
-					},
+					Name: &ast.Ident{Name: "Account"},
 					Type: &ast.FuncType{
-						Func: 2,
-						Params: &ast.FieldList{
-							Opening: 14,
-							Closing: 15,
-						},
+						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
-							Opening: 17,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X: &ast.Ident{
-											NamePos: 18,
-											Name:    "account",
-										},
-										Sel: &ast.Ident{
-											NamePos: 26,
-											Name:    "Account",
-										},
+										X:   &ast.Ident{Name: "account"},
+										Sel: &ast.Ident{Name: "Account"},
 									},
 								},
 							},
-							Closing: 35,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 37,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 40,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
-												Fun: &ast.Ident{
-													NamePos: 47,
-													Name:    "BuildAccount",
-												},
-												Lparen: 59,
-												Rparen: 60,
+												Fun: &ast.Ident{Name: "BuildAccount"},
 											},
-											Sel: &ast.Ident{
-												NamePos: 62,
-												Name:    "Value",
-											},
+											Sel: &ast.Ident{Name: "Value"},
 										},
-										Lparen: 67,
-										Rparen: 68,
 									},
 								},
 							},
 						},
-						Rbrace: 71,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					TokPos: 74,
-					Tok:    token.TYPE,
+					Tok: token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
-							Name: &ast.Ident{
-								NamePos: 79,
-								Name:    "AccountBuilder",
-							},
+							Name: &ast.Ident{Name: "AccountBuilder"},
 							Type: &ast.StructType{
-								Struct: 94,
 								Fields: &ast.FieldList{
-									Opening: 101,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{
-													NamePos: 102,
-													Name:    "v",
-												},
+												{Name: "v"},
 											},
 											Type: &ast.SelectorExpr{
-												X: &ast.Ident{
-													NamePos: 104,
-													Name:    "account",
-												},
-												Sel: &ast.Ident{
-													NamePos: 112,
-													Name:    "Account",
-												},
+												X:   &ast.Ident{Name: "account"},
+												Sel: &ast.Ident{Name: "Account"},
 											},
 										},
 									},
-									Closing: 121,
 								},
 							},
 						},
@@ -716,9 +574,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 				},
 				// Build func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						Name: "BuildAccount",
-					},
+					Name: &ast.Ident{Name: "BuildAccount"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
@@ -753,15 +609,13 @@ func TestCreateBuilderDecls(t *testing.T) {
 							},
 						},
 					},
-					Name: &ast.Ident{
-						Name: "WithAddress",
-					},
+					Name: &ast.Ident{Name: "WithAddress"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{
 							List: []*ast.Field{
 								{
 									Names: []*ast.Ident{
-										&ast.Ident{Name: "address"},
+										{Name: "address"},
 									},
 									Type: &ast.SelectorExpr{
 										X:   &ast.Ident{Name: "common"},
@@ -792,7 +646,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 								},
 								Tok: token.ASSIGN,
 								Rhs: []ast.Expr{
-									&ast.Ident{Name: "Address"},
+									&ast.Ident{Name: "address"},
 								},
 							},
 							&ast.ReturnStmt{
@@ -907,100 +761,56 @@ func TestCreateBuilderDecls(t *testing.T) {
 			expectedDecls: []ast.Decl{
 				// Type func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						NamePos: 7,
-						Name:    "Example",
-					},
+					Name: &ast.Ident{Name: "Example"},
 					Type: &ast.FuncType{
-						Func: 2,
-						Params: &ast.FieldList{
-							Opening: 14,
-							Closing: 15,
-						},
+						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
-							Opening: 17,
 							List: []*ast.Field{
 								{
 									Type: &ast.SelectorExpr{
-										X: &ast.Ident{
-											NamePos: 18,
-											Name:    "example",
-										},
-										Sel: &ast.Ident{
-											NamePos: 26,
-											Name:    "Example",
-										},
+										X:   &ast.Ident{Name: "example"},
+										Sel: &ast.Ident{Name: "Example"},
 									},
 								},
 							},
-							Closing: 35,
 						},
 					},
 					Body: &ast.BlockStmt{
-						Lbrace: 37,
 						List: []ast.Stmt{
 							&ast.ReturnStmt{
-								Return: 40,
 								Results: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.SelectorExpr{
 											X: &ast.CallExpr{
-												Fun: &ast.Ident{
-													NamePos: 47,
-													Name:    "BuildExample",
-												},
-												Lparen: 59,
-												Rparen: 60,
+												Fun: &ast.Ident{Name: "BuildExample"},
 											},
-											Sel: &ast.Ident{
-												NamePos: 62,
-												Name:    "Value",
-											},
+											Sel: &ast.Ident{Name: "Value"},
 										},
-										Lparen: 67,
-										Rparen: 68,
 									},
 								},
 							},
 						},
-						Rbrace: 71,
 					},
 				},
 				// Builder struct
 				&ast.GenDecl{
-					TokPos: 74,
-					Tok:    token.TYPE,
+					Tok: token.TYPE,
 					Specs: []ast.Spec{
 						&ast.TypeSpec{
-							Name: &ast.Ident{
-								NamePos: 79,
-								Name:    "ExampleBuilder",
-							},
+							Name: &ast.Ident{Name: "ExampleBuilder"},
 							Type: &ast.StructType{
-								Struct: 94,
 								Fields: &ast.FieldList{
-									Opening: 101,
 									List: []*ast.Field{
 										{
 											Names: []*ast.Ident{
-												{
-													NamePos: 102,
-													Name:    "v",
-												},
+												{Name: "v"},
 											},
 											Type: &ast.SelectorExpr{
-												X: &ast.Ident{
-													NamePos: 104,
-													Name:    "example",
-												},
-												Sel: &ast.Ident{
-													NamePos: 112,
-													Name:    "Example",
-												},
+												X:   &ast.Ident{Name: "example"},
+												Sel: &ast.Ident{Name: "Example"},
 											},
 										},
 									},
-									Closing: 121,
 								},
 							},
 						},
@@ -1008,9 +818,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 				},
 				// Build func
 				&ast.FuncDecl{
-					Name: &ast.Ident{
-						Name: "BuildExample",
-					},
+					Name: &ast.Ident{Name: "BuildExample"},
 					Type: &ast.FuncType{
 						Params: &ast.FieldList{},
 						Results: &ast.FieldList{
@@ -1123,8 +931,7 @@ func TestCreateBuilderDecls(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			factory := node.NewFactory()
-			builder := New(factory)
+			builder := New()
 			decls := builder.CreateDecls(tc.pkgName, tc.typeName, tc.node)
 
 			assert.Equal(t, tc.expectedDecls, decls)
