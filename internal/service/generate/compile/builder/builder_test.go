@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateBuilderDecls(t *testing.T) {
+func TestBuilder_CreateDecls(t *testing.T) {
 	tests := []struct {
 		name          string
 		pkgName       string
@@ -109,6 +109,23 @@ func TestCreateBuilderDecls(t *testing.T) {
 								Results: []ast.Expr{
 									&ast.CompositeLit{
 										Type: &ast.Ident{Name: "RequestBuilder"},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: &ast.Ident{Name: "v"},
+												Value: &ast.CompositeLit{
+													Type: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "lookup"},
+														Sel: &ast.Ident{Name: "Request"},
+													},
+													Elts: []ast.Expr{
+														&ast.KeyValueExpr{
+															Key:   &ast.Ident{Name: "ID"},
+															Value: &ast.Ident{Name: "nil"},
+														},
+													},
+												},
+											},
+										},
 									},
 								},
 							},
@@ -350,6 +367,23 @@ func TestCreateBuilderDecls(t *testing.T) {
 								Results: []ast.Expr{
 									&ast.CompositeLit{
 										Type: &ast.Ident{Name: "ResponseBuilder"},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: &ast.Ident{Name: "v"},
+												Value: &ast.CompositeLit{
+													Type: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "lookup"},
+														Sel: &ast.Ident{Name: "Response"},
+													},
+													Elts: []ast.Expr{
+														&ast.KeyValueExpr{
+															Key:   &ast.Ident{Name: "Name"},
+															Value: &ast.Ident{Name: "nil"},
+														},
+													},
+												},
+											},
+										},
 									},
 								},
 							},
@@ -591,6 +625,22 @@ func TestCreateBuilderDecls(t *testing.T) {
 								Results: []ast.Expr{
 									&ast.CompositeLit{
 										Type: &ast.Ident{Name: "AccountBuilder"},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: &ast.Ident{Name: "v"},
+												Value: &ast.CompositeLit{Type: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "account"},
+													Sel: &ast.Ident{Name: "Account"},
+												},
+													Elts: []ast.Expr{
+														&ast.KeyValueExpr{
+															Key:   &ast.Ident{Name: "Address"},
+															Value: &ast.Ident{Name: "nil"},
+														},
+													},
+												},
+											},
+										},
 									},
 								},
 							},
@@ -835,6 +885,17 @@ func TestCreateBuilderDecls(t *testing.T) {
 								Results: []ast.Expr{
 									&ast.CompositeLit{
 										Type: &ast.Ident{Name: "ExampleBuilder"},
+										Elts: []ast.Expr{
+											&ast.KeyValueExpr{
+												Key: &ast.Ident{Name: "v"},
+												Value: &ast.CompositeLit{Type: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "example"},
+													Sel: &ast.Ident{Name: "Example"},
+												},
+													Elts: []ast.Expr{},
+												},
+											},
+										},
 									},
 								},
 							},

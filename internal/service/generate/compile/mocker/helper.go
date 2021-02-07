@@ -1,7 +1,9 @@
 package mocker
 
 import (
+	"fmt"
 	"go/ast"
+	"go/token"
 
 	"github.com/moorara/gelato/internal/service/generate/compile/namer"
 )
@@ -73,4 +75,38 @@ func createKeyValueExprList(fieldList *ast.FieldList) []ast.Expr {
 	}
 
 	return list
+}
+
+func createZeroValueExpr(typ ast.Expr) ast.Expr {
+	switch e := typ.(type) {
+	case *ast.Ident:
+		switch e.Name {
+		case "error":
+			return &ast.Ident{Name: "nil"}
+		case "bool":
+			return &ast.Ident{Name: "false"}
+		case "string":
+			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+		case "byte", "rune":
+			fallthrough
+		case "int", "int8", "int16", "int32", "int64":
+			fallthrough
+		case "uint", "uint8", "uint16", "uint32", "uint64", "uintptr":
+			return &ast.BasicLit{Kind: token.INT, Value: "0"}
+		case "float32", "float64":
+			return &ast.BasicLit{Kind: token.FLOAT, Value: "0.0"}
+		case "complex64", "complex128":
+			return &ast.BasicLit{Kind: token.IMAG, Value: "0.0i"}
+		default: // struct
+			return &ast.CompositeLit{Type: e}
+		}
+
+	case *ast.SelectorExpr:
+		return &ast.CompositeLit{Type: e}
+
+	case *ast.StarExpr, *ast.ArrayType, *ast.MapType, *ast.ChanType:
+		return &ast.Ident{Name: "nil"}
+	}
+
+	panic(fmt.Sprintf("Unknown type %T", typ))
 }

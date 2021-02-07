@@ -173,6 +173,16 @@ func TestCompiler_Compile(t *testing.T) {
 							Value: `"github.com/octocat/app/example"`,
 						},
 					},
+					&ast.ImportSpec{
+						Path: &ast.BasicLit{
+							Value: `"github.com/davecgh/go-spew/spew"`,
+						},
+					},
+					&ast.ImportSpec{
+						Path: &ast.BasicLit{
+							Value: `"github.com/moorara/acai/value"`,
+						},
+					},
 				},
 			},
 		},
