@@ -8,8 +8,6 @@ import (
 	"github.com/moorara/gelato/internal/service/generate/compile/namer"
 )
 
-// TODO: provide an option for handling unexported fields?
-
 // Builder is used for creating declarations for a struct builder.
 type Builder struct{}
 
@@ -23,25 +21,23 @@ func (b *Builder) CreateDecls(pkgName, typeName string, node *ast.StructType) []
 	decls := []ast.Decl{}
 	decls = append(decls, createFuncDecl(pkgName, typeName))
 	decls = append(decls, createBuilderStructDecl(pkgName, typeName))
-	decls = append(decls, createBuildFuncDecl(typeName))
+	decls = append(decls, createBuildFuncDecl(pkgName, typeName, node.Fields))
 
 	for _, field := range node.Fields.List {
 		if len(field.Names) > 0 {
 			for _, id := range field.Names {
 				// Only consider exported fields
 				if namer.IsExported(id.Name) {
-					decls = append(decls, createBuilderMethodDecl(typeName, field.Type, id))
+					decls = append(decls, createBuilderMethodDecl(typeName, id, field.Type))
 				}
 			}
 		} else {
 			// Embedded field
-			id := &ast.Ident{
-				Name: namer.InferName(field.Type),
-			}
+			id := &ast.Ident{Name: namer.InferName(field.Type)}
 
 			// Only consider exported fields
 			if namer.IsExported(id.Name) {
-				decls = append(decls, createBuilderMethodDecl(typeName, field.Type, id))
+				decls = append(decls, createBuilderMethodDecl(typeName, id, field.Type))
 			}
 		}
 	}
@@ -115,7 +111,28 @@ func createBuilderStructDecl(pkgName, typeName string) ast.Decl {
 	}
 }
 
-func createBuildFuncDecl(typeName string) ast.Decl {
+func createBuildFuncDecl(pkgName, typeName string, fields *ast.FieldList) ast.Decl {
+	elts := []ast.Expr{}
+
+	for _, field := range fields.List {
+		if len(field.Names) > 0 {
+			for _, id := range field.Names {
+				// Only consider exported fields
+				if namer.IsExported(id.Name) {
+					elts = append(elts, createFieldInitExpr(id, field.Type))
+				}
+			}
+		} else {
+			// Embedded field
+			id := &ast.Ident{Name: namer.InferName(field.Type)}
+
+			// Only consider exported fields
+			if namer.IsExported(id.Name) {
+				elts = append(elts, createFieldInitExpr(id, field.Type))
+			}
+		}
+	}
+
 	return &ast.FuncDecl{
 		Name: &ast.Ident{
 			Name: "Build" + typeName,
@@ -136,6 +153,18 @@ func createBuildFuncDecl(typeName string) ast.Decl {
 					Results: []ast.Expr{
 						&ast.CompositeLit{
 							Type: &ast.Ident{Name: typeName + "Builder"},
+							Elts: []ast.Expr{
+								&ast.KeyValueExpr{
+									Key: &ast.Ident{Name: "v"},
+									Value: &ast.CompositeLit{
+										Type: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: pkgName},
+											Sel: &ast.Ident{Name: typeName},
+										},
+										Elts: elts,
+									},
+								},
+							},
 						},
 					},
 				},
@@ -144,7 +173,7 @@ func createBuildFuncDecl(typeName string) ast.Decl {
 	}
 }
 
-func createBuilderMethodDecl(typeName string, typ ast.Expr, id *ast.Ident) ast.Decl {
+func createBuilderMethodDecl(typeName string, id *ast.Ident, typ ast.Expr) ast.Decl {
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
 			List: []*ast.Field{

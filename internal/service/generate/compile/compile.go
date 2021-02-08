@@ -87,6 +87,16 @@ func (c *Compiler) createFile(pkgPath, pkgName string) *ast.File {
 							Value: fmt.Sprintf("%q", pkgPath),
 						},
 					},
+					&ast.ImportSpec{
+						Path: &ast.BasicLit{
+							Value: `"github.com/davecgh/go-spew/spew"`,
+						},
+					},
+					&ast.ImportSpec{
+						Path: &ast.BasicLit{
+							Value: `"github.com/moorara/acai/value"`,
+						},
+					},
 				},
 			},
 		},

@@ -1,13 +1,15 @@
 package mocker
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 
 	"github.com/moorara/gelato/internal/service/generate/compile/namer"
 )
 
-// TODO: Handle embedde interfaces where IsMethod is used
+// TODO: Handle embedded interfaces where isMethod is used.
+// TODO: Support partial matching and assertion for inputs?
 
 // Mocker is used for creating declarations for an interface mocker.
 type Mocker struct{}
@@ -72,7 +74,18 @@ func createMockerStructDecl(typeName string) ast.Decl {
 							},
 							{
 								Names: []*ast.Ident{
-									{Name: "exps"},
+									{Name: "spew"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "spew"},
+										Sel: &ast.Ident{Name: "ConfigState"},
+									},
+								},
+							},
+							{
+								Names: []*ast.Ident{
+									{Name: "expectations"},
 								},
 								Type: &ast.StarExpr{
 									X: &ast.Ident{Name: typeName + "Expectations"},
@@ -131,7 +144,37 @@ func createMockFuncDecl(typeName string) ast.Decl {
 										Value: &ast.Ident{Name: "t"},
 									},
 									&ast.KeyValueExpr{
-										Key: &ast.Ident{Name: "exps"},
+										Key: &ast.Ident{Name: "spew"},
+										Value: &ast.UnaryExpr{
+											Op: token.AND,
+											X: &ast.CompositeLit{
+												Type: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "spew"},
+													Sel: &ast.Ident{Name: "ConfigState"},
+												},
+												Elts: []ast.Expr{
+													&ast.KeyValueExpr{
+														Key:   &ast.Ident{Name: "Indent"},
+														Value: &ast.BasicLit{Value: `"  "`},
+													},
+													&ast.KeyValueExpr{
+														Key:   &ast.Ident{Name: "DisablePointerAddresses"},
+														Value: &ast.Ident{Name: "true"},
+													},
+													&ast.KeyValueExpr{
+														Key:   &ast.Ident{Name: "DisableCapacities"},
+														Value: &ast.Ident{Name: "true"},
+													},
+													&ast.KeyValueExpr{
+														Key:   &ast.Ident{Name: "SortKeys"},
+														Value: &ast.Ident{Name: "true"},
+													},
+												},
+											},
+										},
+									},
+									&ast.KeyValueExpr{
+										Key: &ast.Ident{Name: "expectations"},
 										Value: &ast.CallExpr{
 											Fun: &ast.Ident{Name: "new"},
 											Args: []ast.Expr{
@@ -184,7 +227,7 @@ func createMockerExpectMethodDecl(typeName string) ast.Decl {
 					Results: []ast.Expr{
 						&ast.SelectorExpr{
 							X:   &ast.Ident{Name: "m"},
-							Sel: &ast.Ident{Name: "exps"},
+							Sel: &ast.Ident{Name: "expectations"},
 						},
 					},
 				},
@@ -327,10 +370,17 @@ func createMockerImplMethodDecl(pkgName, typeName string) ast.Decl {
 										},
 									},
 									&ast.KeyValueExpr{
-										Key: &ast.Ident{Name: "exps"},
+										Key: &ast.Ident{Name: "spew"},
 										Value: &ast.SelectorExpr{
 											X:   &ast.Ident{Name: "m"},
-											Sel: &ast.Ident{Name: "exps"},
+											Sel: &ast.Ident{Name: "spew"},
+										},
+									},
+									&ast.KeyValueExpr{
+										Key: &ast.Ident{Name: "expectations"},
+										Value: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "m"},
+											Sel: &ast.Ident{Name: "expectations"},
 										},
 									},
 								},
@@ -418,7 +468,7 @@ func createExpectationsMethodDecls(typeName string, methods *ast.FieldList) []as
 								Lhs: []ast.Expr{
 									&ast.Ident{Name: "expectation"},
 								},
-								Tok: token.ASSIGN,
+								Tok: token.DEFINE,
 								Rhs: []ast.Expr{
 									&ast.CallExpr{
 										Fun: &ast.Ident{Name: "new"},
@@ -487,12 +537,6 @@ func createExpectationStructDecls(method *ast.Field) []ast.Decl {
 							List: []*ast.Field{
 								{
 									Names: []*ast.Ident{
-										{Name: "isCalled"},
-									},
-									Type: &ast.Ident{Name: "bool"},
-								},
-								{
-									Names: []*ast.Ident{
 										{Name: "inputs"},
 									},
 									Type: &ast.StarExpr{
@@ -513,6 +557,14 @@ func createExpectationStructDecls(method *ast.Field) []ast.Decl {
 									},
 									Type: method.Type,
 								},
+								{
+									Names: []*ast.Ident{
+										{Name: "recorded"},
+									},
+									Type: &ast.StarExpr{
+										X: &ast.Ident{Name: unexportedName + "Inputs"},
+									},
+								},
 							},
 						},
 					},
@@ -524,9 +576,7 @@ func createExpectationStructDecls(method *ast.Field) []ast.Decl {
 			Tok: token.TYPE,
 			Specs: []ast.Spec{
 				&ast.TypeSpec{
-					Name: &ast.Ident{
-						Name: unexportedName + "Inputs",
-					},
+					Name: &ast.Ident{Name: unexportedName + "Inputs"},
 					Type: &ast.StructType{
 						Fields: inputFields,
 					},
@@ -766,7 +816,18 @@ func createImplStructDecl(typeName string) ast.Decl {
 							},
 							{
 								Names: []*ast.Ident{
-									{Name: "exps"},
+									{Name: "spew"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "spew"},
+										Sel: &ast.Ident{Name: "ConfigState"},
+									},
+								},
+							},
+							{
+								Names: []*ast.Ident{
+									{Name: "expectations"},
 								},
 								Type: &ast.StarExpr{
 									X: &ast.Ident{Name: typeName + "Expectations"},
@@ -782,11 +843,49 @@ func createImplStructDecl(typeName string) ast.Decl {
 
 func createImplMethodDecl(typeName string, method *ast.Field) ast.Decl {
 	exportedName := method.Names[0].Name
-	// unexportedName := namer.ConvertToUnexported(exportedName)
+	unexportedName := namer.ConvertToUnexported(exportedName)
 
 	// isMethod guarantees method.Type is *ast.FuncType
 	funcType := method.Type.(*ast.FuncType)
 	inputFields := normalizeFieldList(funcType.Params)
+	outputFields := normalizeFieldList(funcType.Results)
+
+	inputsAssignElts := []ast.Expr{}
+	for _, f := range inputFields.List {
+		for _, id := range f.Names {
+			inputsAssignElts = append(inputsAssignElts, &ast.KeyValueExpr{
+				Key:   &ast.Ident{Name: id.Name},
+				Value: &ast.Ident{Name: id.Name},
+			})
+		}
+	}
+
+	callbackArgs := []ast.Expr{}
+	for _, f := range inputFields.List {
+		for _, id := range f.Names {
+			callbackArgs = append(callbackArgs, &ast.Ident{Name: id.Name})
+		}
+	}
+
+	outputResults := []ast.Expr{}
+	for _, f := range outputFields.List {
+		for _, id := range f.Names {
+			outputResults = append(outputResults, &ast.SelectorExpr{
+				X: &ast.SelectorExpr{
+					X:   &ast.Ident{Name: "e"},
+					Sel: &ast.Ident{Name: "outputs"},
+				},
+				Sel: &ast.Ident{Name: id.Name},
+			})
+		}
+	}
+
+	outputZeroResults := []ast.Expr{}
+	for _, f := range outputFields.List {
+		for range f.Names {
+			outputZeroResults = append(outputZeroResults, createZeroValueExpr(f.Type))
+		}
+	}
 
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
@@ -808,11 +907,137 @@ func createImplMethodDecl(typeName string, method *ast.Field) ast.Decl {
 		},
 		Body: &ast.BlockStmt{
 			List: []ast.Stmt{
-				&ast.ReturnStmt{
-					Results: []ast.Expr{
-						&ast.Ident{Name: "nil"},
-						&ast.Ident{Name: "nil"},
+				&ast.AssignStmt{
+					Lhs: []ast.Expr{
+						&ast.Ident{Name: "inputs"},
 					},
+					Tok: token.DEFINE,
+					Rhs: []ast.Expr{
+						&ast.UnaryExpr{
+							Op: token.AND,
+							X: &ast.CompositeLit{
+								Type: &ast.Ident{Name: unexportedName + "Inputs"},
+								Elts: inputsAssignElts,
+							},
+						},
+					},
+				},
+				&ast.RangeStmt{
+					Key:   &ast.Ident{Name: "_"},
+					Value: &ast.Ident{Name: "e"},
+					Tok:   token.DEFINE,
+					X: &ast.SelectorExpr{
+						X: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: "i"},
+							Sel: &ast.Ident{Name: "expectations"},
+						},
+						Sel: &ast.Ident{Name: unexportedName + "Expectations"},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.IfStmt{
+								Cond: &ast.BinaryExpr{
+									X: &ast.BinaryExpr{
+										X: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "e"},
+											Sel: &ast.Ident{Name: "inputs"},
+										},
+										Op: token.EQL,
+										Y:  &ast.Ident{Name: "nil"},
+									},
+									Op: token.LOR,
+									Y: &ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X:   &ast.Ident{Name: "reflect"},
+											Sel: &ast.Ident{Name: "DeepEqual"},
+										},
+										Args: []ast.Expr{
+											&ast.SelectorExpr{
+												X:   &ast.Ident{Name: "e"},
+												Sel: &ast.Ident{Name: "inputs"},
+											},
+											&ast.Ident{Name: "inputs"},
+										},
+									},
+								},
+								Body: &ast.BlockStmt{
+									List: []ast.Stmt{
+										&ast.AssignStmt{
+											Lhs: []ast.Expr{
+												&ast.SelectorExpr{
+													X:   &ast.Ident{Name: "e"},
+													Sel: &ast.Ident{Name: "recorded"},
+												},
+											},
+											Tok: token.ASSIGN,
+											Rhs: []ast.Expr{
+												&ast.Ident{Name: "inputs"},
+											},
+										},
+										&ast.IfStmt{
+											Cond: &ast.BinaryExpr{
+												X: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "e"},
+													Sel: &ast.Ident{Name: "callback"},
+												},
+												Op: token.NEQ,
+												Y:  &ast.Ident{Name: "nil"},
+											},
+											Body: &ast.BlockStmt{
+												List: []ast.Stmt{
+													&ast.ReturnStmt{
+														Results: []ast.Expr{
+															&ast.CallExpr{
+																Fun: &ast.SelectorExpr{
+																	X:   &ast.Ident{Name: "e"},
+																	Sel: &ast.Ident{Name: "callback"},
+																},
+																Args: callbackArgs,
+															},
+														},
+													},
+												},
+											},
+										},
+										&ast.ReturnStmt{
+											Results: outputResults,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				&ast.ExprStmt{
+					X: &ast.CallExpr{
+						Fun: &ast.SelectorExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "i"},
+								Sel: &ast.Ident{Name: "t"},
+							},
+							Sel: &ast.Ident{Name: "Errorf"},
+						},
+						Args: []ast.Expr{
+							&ast.BasicLit{
+								Value: fmt.Sprintf(`"Expectation missing: %s method called with %%s"`, exportedName),
+							},
+							&ast.CallExpr{
+								Fun: &ast.SelectorExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "i"},
+										Sel: &ast.Ident{Name: "spew"},
+									},
+									Sel: &ast.Ident{Name: "Sdump"},
+								},
+								Args: []ast.Expr{
+									&ast.Ident{Name: "inputs"},
+								},
+							},
+						},
+					},
+				},
+				&ast.ReturnStmt{
+					Results: outputZeroResults,
 				},
 			},
 		},
