@@ -119,8 +119,13 @@ func TestBuilder_CreateDecls(t *testing.T) {
 													},
 													Elts: []ast.Expr{
 														&ast.KeyValueExpr{
-															Key:   &ast.Ident{Name: "ID"},
-															Value: &ast.Ident{Name: "nil"},
+															Key: &ast.Ident{Name: "ID"},
+															Value: &ast.CallExpr{
+																Fun: &ast.SelectorExpr{
+																	X:   &ast.Ident{Name: "value"},
+																	Sel: &ast.Ident{Name: "String"},
+																},
+															},
 														},
 													},
 												},
@@ -377,8 +382,13 @@ func TestBuilder_CreateDecls(t *testing.T) {
 													},
 													Elts: []ast.Expr{
 														&ast.KeyValueExpr{
-															Key:   &ast.Ident{Name: "Name"},
-															Value: &ast.Ident{Name: "nil"},
+															Key: &ast.Ident{Name: "Name"},
+															Value: &ast.CallExpr{
+																Fun: &ast.SelectorExpr{
+																	X:   &ast.Ident{Name: "value"},
+																	Sel: &ast.Ident{Name: "String"},
+																},
+															},
 														},
 													},
 												},
@@ -628,10 +638,11 @@ func TestBuilder_CreateDecls(t *testing.T) {
 										Elts: []ast.Expr{
 											&ast.KeyValueExpr{
 												Key: &ast.Ident{Name: "v"},
-												Value: &ast.CompositeLit{Type: &ast.SelectorExpr{
-													X:   &ast.Ident{Name: "account"},
-													Sel: &ast.Ident{Name: "Account"},
-												},
+												Value: &ast.CompositeLit{
+													Type: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "account"},
+														Sel: &ast.Ident{Name: "Account"},
+													},
 													Elts: []ast.Expr{
 														&ast.KeyValueExpr{
 															Key:   &ast.Ident{Name: "Address"},
@@ -888,10 +899,11 @@ func TestBuilder_CreateDecls(t *testing.T) {
 										Elts: []ast.Expr{
 											&ast.KeyValueExpr{
 												Key: &ast.Ident{Name: "v"},
-												Value: &ast.CompositeLit{Type: &ast.SelectorExpr{
-													X:   &ast.Ident{Name: "example"},
-													Sel: &ast.Ident{Name: "Example"},
-												},
+												Value: &ast.CompositeLit{
+													Type: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "example"},
+														Sel: &ast.Ident{Name: "Example"},
+													},
 													Elts: []ast.Expr{},
 												},
 											},
