@@ -25,8 +25,8 @@ func (m *Mocker) CreateDecls(pkgName, typeName string, node *ast.InterfaceType) 
 	decls = append(decls, createMockerStructDecl(typeName))
 	decls = append(decls, createMockFuncDecl(typeName))
 	decls = append(decls, createMockerExpectMethodDecl(typeName))
-	decls = append(decls, createMockerAssertMethodDecl(typeName))
 	decls = append(decls, createMockerImplMethodDecl(pkgName, typeName))
+	decls = append(decls, createMockerAssertMethodDecl(typeName, node.Methods))
 	decls = append(decls, createExpectationsStructDecl(typeName, node.Methods))
 	decls = append(decls, createExpectationsMethodDecls(typeName, node.Methods)...)
 
@@ -236,93 +236,6 @@ func createMockerExpectMethodDecl(typeName string) ast.Decl {
 	}
 }
 
-func createMockerAssertMethodDecl(typeName string) ast.Decl {
-	return &ast.FuncDecl{
-		Recv: &ast.FieldList{
-			List: []*ast.Field{
-				{
-					Names: []*ast.Ident{
-						{Name: "m"},
-					},
-					Type: &ast.StarExpr{
-						X: &ast.Ident{Name: typeName + "Mocker"},
-					},
-				},
-			},
-		},
-		Name: &ast.Ident{
-			Name: "Assert",
-		},
-		Type: &ast.FuncType{
-			Params: &ast.FieldList{},
-		},
-		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.AssignStmt{
-					Lhs: []ast.Expr{
-						&ast.Ident{Name: "errs"},
-					},
-					Tok: token.DEFINE,
-					Rhs: []ast.Expr{
-						&ast.CallExpr{
-							Fun: &ast.Ident{Name: "new"},
-							Args: []ast.Expr{
-								&ast.SelectorExpr{
-									X:   &ast.Ident{Name: "bytes"},
-									Sel: &ast.Ident{Name: "Buffer"},
-								},
-							},
-						},
-					},
-				},
-				// &ast.RangeStmt{ TODO: },
-				&ast.IfStmt{
-					Init: &ast.AssignStmt{
-						Lhs: []ast.Expr{
-							&ast.Ident{Name: "s"},
-						},
-						Tok: token.DEFINE,
-						Rhs: []ast.Expr{
-							&ast.CallExpr{
-								Fun: &ast.SelectorExpr{
-									X:   &ast.Ident{Name: "errs"},
-									Sel: &ast.Ident{Name: "String"},
-								},
-							},
-						},
-					},
-					Cond: &ast.BinaryExpr{
-						X:  &ast.Ident{Name: "s"},
-						Op: token.NEQ,
-						Y: &ast.BasicLit{
-							Kind:  token.STRING,
-							Value: `""`,
-						},
-					},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.ExprStmt{
-								X: &ast.CallExpr{
-									Fun: &ast.SelectorExpr{
-										X: &ast.SelectorExpr{
-											X:   &ast.Ident{Name: "m"},
-											Sel: &ast.Ident{Name: "t"},
-										},
-										Sel: &ast.Ident{Name: "Fatal"},
-									},
-									Args: []ast.Expr{
-										&ast.Ident{Name: "s"},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
 func createMockerImplMethodDecl(pkgName, typeName string) ast.Decl {
 	return &ast.FuncDecl{
 		Recv: &ast.FieldList{
@@ -389,6 +302,103 @@ func createMockerImplMethodDecl(pkgName, typeName string) ast.Decl {
 					},
 				},
 			},
+		},
+	}
+}
+
+func createMockerAssertMethodDecl(typeName string, methods *ast.FieldList) ast.Decl {
+	stmts := []ast.Stmt{}
+
+	for _, method := range methods.List {
+		if isMethod(method) {
+			exportedName := method.Names[0].Name
+			unexportedName := namer.ConvertToUnexported(exportedName)
+
+			stmts = append(stmts, &ast.RangeStmt{
+				Key:   &ast.Ident{Name: "_"},
+				Value: &ast.Ident{Name: "e"},
+				Tok:   token.DEFINE,
+				X: &ast.SelectorExpr{
+					X: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "m"},
+						Sel: &ast.Ident{Name: "expectations"},
+					},
+					Sel: &ast.Ident{Name: unexportedName + "Expectations"},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.IfStmt{
+							Cond: &ast.BinaryExpr{
+								X: &ast.SelectorExpr{
+									X:   &ast.Ident{Name: "e"},
+									Sel: &ast.Ident{Name: "recorded"},
+								},
+								Op: token.EQL,
+								Y:  &ast.Ident{Name: "nil"},
+							},
+							Body: &ast.BlockStmt{
+								List: []ast.Stmt{
+									&ast.ExprStmt{
+										X: &ast.CallExpr{
+											Fun: &ast.SelectorExpr{
+												X: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "m"},
+													Sel: &ast.Ident{Name: "t"},
+												},
+												Sel: &ast.Ident{Name: "Errorf"},
+											},
+											Args: []ast.Expr{
+												&ast.BasicLit{
+													Value: fmt.Sprintf(`"\nExpected %s method be called with %%s"`, exportedName),
+												},
+												&ast.CallExpr{
+													Fun: &ast.SelectorExpr{
+														X: &ast.SelectorExpr{
+															X:   &ast.Ident{Name: "m"},
+															Sel: &ast.Ident{Name: "spew"},
+														},
+														Sel: &ast.Ident{Name: "Sdump"},
+													},
+													Args: []ast.Expr{
+														&ast.SelectorExpr{
+															X:   &ast.Ident{Name: "e"},
+															Sel: &ast.Ident{Name: "inputs"},
+														},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+		}
+	}
+
+	return &ast.FuncDecl{
+		Recv: &ast.FieldList{
+			List: []*ast.Field{
+				{
+					Names: []*ast.Ident{
+						{Name: "m"},
+					},
+					Type: &ast.StarExpr{
+						X: &ast.Ident{Name: typeName + "Mocker"},
+					},
+				},
+			},
+		},
+		Name: &ast.Ident{
+			Name: "Assert",
+		},
+		Type: &ast.FuncType{
+			Params: &ast.FieldList{},
+		},
+		Body: &ast.BlockStmt{
+			List: stmts,
 		},
 	}
 }
@@ -1019,7 +1029,7 @@ func createImplMethodDecl(typeName string, method *ast.Field) ast.Decl {
 						},
 						Args: []ast.Expr{
 							&ast.BasicLit{
-								Value: fmt.Sprintf(`"Expectation missing: %s method called with %%s"`, exportedName),
+								Value: fmt.Sprintf(`"\nExpectation missing: %s method called with %%s"`, exportedName),
 							},
 							&ast.CallExpr{
 								Fun: &ast.SelectorExpr{

@@ -19,8 +19,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "e"},
 			typ:  &ast.Ident{Name: "error"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "e"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "e"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Error"},
+					},
+				},
 			},
 		},
 		{
@@ -28,8 +33,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "b"},
 			typ:  &ast.Ident{Name: "bool"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "b"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "b"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Bool"},
+					},
+				},
 			},
 		},
 		{
@@ -37,8 +47,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "s"},
 			typ:  &ast.Ident{Name: "string"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "s"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "s"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "String"},
+					},
+				},
 			},
 		},
 		{
@@ -46,8 +61,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "b"},
 			typ:  &ast.Ident{Name: "byte"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "b"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "b"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Byte"},
+					},
+				},
 			},
 		},
 		{
@@ -55,8 +75,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "r"},
 			typ:  &ast.Ident{Name: "rune"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "r"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "r"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Rune"},
+					},
+				},
 			},
 		},
 		{
@@ -64,8 +89,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "i"},
 			typ:  &ast.Ident{Name: "int"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "i"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "i"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Int"},
+					},
+				},
 			},
 		},
 		{
@@ -73,8 +103,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "i"},
 			typ:  &ast.Ident{Name: "int8"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "i"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "i"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Int8"},
+					},
+				},
 			},
 		},
 		{
@@ -82,8 +117,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "i"},
 			typ:  &ast.Ident{Name: "int16"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "i"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "i"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Int16"},
+					},
+				},
 			},
 		},
 		{
@@ -91,8 +131,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "i"},
 			typ:  &ast.Ident{Name: "int32"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "i"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "i"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Int32"},
+					},
+				},
 			},
 		},
 		{
@@ -100,8 +145,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "i"},
 			typ:  &ast.Ident{Name: "int64"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "i"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "i"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Int64"},
+					},
+				},
 			},
 		},
 		{
@@ -109,8 +159,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "u"},
 			typ:  &ast.Ident{Name: "uint"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "u"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "u"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Uint"},
+					},
+				},
 			},
 		},
 		{
@@ -118,8 +173,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "u"},
 			typ:  &ast.Ident{Name: "uint8"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "u"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "u"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Uint8"},
+					},
+				},
 			},
 		},
 		{
@@ -127,8 +187,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "u"},
 			typ:  &ast.Ident{Name: "uint16"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "u"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "u"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Uint16"},
+					},
+				},
 			},
 		},
 		{
@@ -136,8 +201,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "u"},
 			typ:  &ast.Ident{Name: "uint32"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "u"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "u"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Uint32"},
+					},
+				},
 			},
 		},
 		{
@@ -145,8 +215,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "u"},
 			typ:  &ast.Ident{Name: "uint64"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "u"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "u"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Uint64"},
+					},
+				},
 			},
 		},
 		{
@@ -154,8 +229,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "u"},
 			typ:  &ast.Ident{Name: "uintptr"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "u"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "u"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Uintptr"},
+					},
+				},
 			},
 		},
 		{
@@ -163,8 +243,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "f"},
 			typ:  &ast.Ident{Name: "float32"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "f"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "f"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Float32"},
+					},
+				},
 			},
 		},
 		{
@@ -172,8 +257,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "f"},
 			typ:  &ast.Ident{Name: "float64"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "f"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "f"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Float64"},
+					},
+				},
 			},
 		},
 		{
@@ -181,8 +271,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "c"},
 			typ:  &ast.Ident{Name: "complex64"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "c"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "c"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Complex64"},
+					},
+				},
 			},
 		},
 		{
@@ -190,8 +285,13 @@ func TestCreateFieldInitExpr(t *testing.T) {
 			id:   &ast.Ident{Name: "c"},
 			typ:  &ast.Ident{Name: "complex128"},
 			expectedExpr: &ast.KeyValueExpr{
-				Key:   &ast.Ident{Name: "c"},
-				Value: &ast.Ident{Name: "nil"},
+				Key: &ast.Ident{Name: "c"},
+				Value: &ast.CallExpr{
+					Fun: &ast.SelectorExpr{
+						X:   &ast.Ident{Name: "value"},
+						Sel: &ast.Ident{Name: "Complex128"},
+					},
+				},
 			},
 		},
 		{

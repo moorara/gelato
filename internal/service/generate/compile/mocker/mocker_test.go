@@ -235,91 +235,6 @@ func TestMocker_CreateDecls(t *testing.T) {
 						},
 					},
 				},
-				// Mocker Assert method
-				&ast.FuncDecl{
-					Recv: &ast.FieldList{
-						List: []*ast.Field{
-							{
-								Names: []*ast.Ident{
-									{Name: "m"},
-								},
-								Type: &ast.StarExpr{
-									X: &ast.Ident{Name: "ServiceMocker"},
-								},
-							},
-						},
-					},
-					Name: &ast.Ident{
-						Name: "Assert",
-					},
-					Type: &ast.FuncType{
-						Params: &ast.FieldList{},
-					},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.AssignStmt{
-								Lhs: []ast.Expr{
-									&ast.Ident{Name: "errs"},
-								},
-								Tok: token.DEFINE,
-								Rhs: []ast.Expr{
-									&ast.CallExpr{
-										Fun: &ast.Ident{Name: "new"},
-										Args: []ast.Expr{
-											&ast.SelectorExpr{
-												X:   &ast.Ident{Name: "bytes"},
-												Sel: &ast.Ident{Name: "Buffer"},
-											},
-										},
-									},
-								},
-							},
-							// &ast.RangeStmt{ TODO: },
-							&ast.IfStmt{
-								Init: &ast.AssignStmt{
-									Lhs: []ast.Expr{
-										&ast.Ident{Name: "s"},
-									},
-									Tok: token.DEFINE,
-									Rhs: []ast.Expr{
-										&ast.CallExpr{
-											Fun: &ast.SelectorExpr{
-												X:   &ast.Ident{Name: "errs"},
-												Sel: &ast.Ident{Name: "String"},
-											},
-										},
-									},
-								},
-								Cond: &ast.BinaryExpr{
-									X:  &ast.Ident{Name: "s"},
-									Op: token.NEQ,
-									Y: &ast.BasicLit{
-										Kind:  token.STRING,
-										Value: `""`,
-									},
-								},
-								Body: &ast.BlockStmt{
-									List: []ast.Stmt{
-										&ast.ExprStmt{
-											X: &ast.CallExpr{
-												Fun: &ast.SelectorExpr{
-													X: &ast.SelectorExpr{
-														X:   &ast.Ident{Name: "m"},
-														Sel: &ast.Ident{Name: "t"},
-													},
-													Sel: &ast.Ident{Name: "Fatal"},
-												},
-												Args: []ast.Expr{
-													&ast.Ident{Name: "s"},
-												},
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
 				// Mocker Impl method
 				&ast.FuncDecl{
 					Recv: &ast.FieldList{
@@ -378,6 +293,92 @@ func TestMocker_CreateDecls(t *testing.T) {
 													Value: &ast.SelectorExpr{
 														X:   &ast.Ident{Name: "m"},
 														Sel: &ast.Ident{Name: "expectations"},
+													},
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				// Mocker Assert method
+				&ast.FuncDecl{
+					Recv: &ast.FieldList{
+						List: []*ast.Field{
+							{
+								Names: []*ast.Ident{
+									{Name: "m"},
+								},
+								Type: &ast.StarExpr{
+									X: &ast.Ident{Name: "ServiceMocker"},
+								},
+							},
+						},
+					},
+					Name: &ast.Ident{
+						Name: "Assert",
+					},
+					Type: &ast.FuncType{
+						Params: &ast.FieldList{},
+					},
+					Body: &ast.BlockStmt{
+						List: []ast.Stmt{
+							&ast.RangeStmt{
+								Key:   &ast.Ident{Name: "_"},
+								Value: &ast.Ident{Name: "e"},
+								Tok:   token.DEFINE,
+								X: &ast.SelectorExpr{
+									X: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: "m"},
+										Sel: &ast.Ident{Name: "expectations"},
+									},
+									Sel: &ast.Ident{Name: "lookupExpectations"},
+								},
+								Body: &ast.BlockStmt{
+									List: []ast.Stmt{
+										&ast.IfStmt{
+											Cond: &ast.BinaryExpr{
+												X: &ast.SelectorExpr{
+													X:   &ast.Ident{Name: "e"},
+													Sel: &ast.Ident{Name: "recorded"},
+												},
+												Op: token.EQL,
+												Y:  &ast.Ident{Name: "nil"},
+											},
+											Body: &ast.BlockStmt{
+												List: []ast.Stmt{
+													&ast.ExprStmt{
+														X: &ast.CallExpr{
+															Fun: &ast.SelectorExpr{
+																X: &ast.SelectorExpr{
+																	X:   &ast.Ident{Name: "m"},
+																	Sel: &ast.Ident{Name: "t"},
+																},
+																Sel: &ast.Ident{Name: "Errorf"},
+															},
+															Args: []ast.Expr{
+																&ast.BasicLit{
+																	Value: `"\nExpected Lookup method be called with %s"`,
+																},
+																&ast.CallExpr{
+																	Fun: &ast.SelectorExpr{
+																		X: &ast.SelectorExpr{
+																			X:   &ast.Ident{Name: "m"},
+																			Sel: &ast.Ident{Name: "spew"},
+																		},
+																		Sel: &ast.Ident{Name: "Sdump"},
+																	},
+																	Args: []ast.Expr{
+																		&ast.SelectorExpr{
+																			X:   &ast.Ident{Name: "e"},
+																			Sel: &ast.Ident{Name: "inputs"},
+																		},
+																	},
+																},
+															},
+														},
 													},
 												},
 											},
@@ -1065,7 +1066,7 @@ func TestMocker_CreateDecls(t *testing.T) {
 										Sel: &ast.Ident{Name: "Errorf"},
 									},
 									Args: []ast.Expr{
-										&ast.BasicLit{Value: `"Expectation missing: Lookup method called with %s"`},
+										&ast.BasicLit{Value: `"\nExpectation missing: Lookup method called with %s"`},
 										&ast.CallExpr{
 											Fun: &ast.SelectorExpr{
 												X: &ast.SelectorExpr{
