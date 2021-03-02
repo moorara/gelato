@@ -10,7 +10,7 @@ require (
 	github.com/moorara/color v1.10.0
 	github.com/moorara/go-github v0.1.2
 	github.com/stretchr/testify v1.7.0
-	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a
+	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/tools v0.1.0
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )

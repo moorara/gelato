@@ -19,7 +19,8 @@ import (
 	"github.com/moorara/gelato/internal/command"
 	semvercmd "github.com/moorara/gelato/internal/command/semver"
 	"github.com/moorara/gelato/internal/log"
-	"github.com/moorara/gelato/internal/service/decorate"
+	"github.com/moorara/gelato/internal/service/compiler"
+	"github.com/moorara/gelato/internal/service/compiler/decorator"
 	"github.com/moorara/gelato/internal/service/git"
 	"github.com/moorara/gelato/internal/spec"
 	"github.com/moorara/gelato/pkg/semver"
@@ -71,8 +72,8 @@ type (
 		HEAD() (string, string, error)
 	}
 
-	decorateService interface {
-		Decorate(string) error
+	compilerService interface {
+		Compile(string, compiler.ParseOptions) error
 	}
 
 	semverCommand interface {
@@ -94,7 +95,7 @@ type Command struct {
 	spec     spec.Spec
 	services struct {
 		git       gitService
-		decorator decorateService
+		decorator compilerService
 	}
 	funcs struct {
 		goList  shell.RunnerFunc
@@ -141,7 +142,7 @@ func (c *Command) Run(args []string) int {
 	semver, _ := semvercmd.NewCommand(&cli.MockUi{})
 
 	c.services.git = git
-	c.services.decorator = decorate.New(log.Info)
+	c.services.decorator = decorator.New(log.Info)
 	c.funcs.goList = shell.Runner("go", "list", versionPath)
 	c.funcs.goBuild = shell.RunnerWith("go", "build")
 	c.commands.semver = semver
@@ -225,8 +226,12 @@ func (c *Command) run(args []string) int {
 
 	// ==============================> DECORATE <==============================
 
+	opts := compiler.ParseOptions{
+		SkipTestFiles: true,
+	}
+
 	if c.spec.Build.Decorate {
-		if err := c.services.decorator.Decorate(info.WorkingDirectory); err != nil {
+		if err := c.services.decorator.Compile(info.WorkingDirectory, opts); err != nil {
 			c.ui.Error(err.Error())
 			return command.DecorationError
 		}

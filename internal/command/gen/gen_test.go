@@ -36,13 +36,15 @@ func TestCommand_Run(t *testing.T) {
 	c := &Command{ui: new(cli.MockUi)}
 	c.Run([]string{"--undefined"})
 
-	assert.NotNil(t, c.services.generator)
+	assert.NotNil(t, c.services.builder)
+	assert.NotNil(t, c.services.mocker)
 }
 
 func TestCommand_run(t *testing.T) {
 	tests := []struct {
 		name             string
-		generate         *MockGenerateService
+		builder          *MockCompilerService
+		mocker           *MockCompilerService
 		args             []string
 		expectedExitCode int
 	}{
@@ -52,10 +54,25 @@ func TestCommand_run(t *testing.T) {
 			expectedExitCode: command.FlagError,
 		},
 		{
-			name: "GenerateFails",
-			generate: &MockGenerateService{
-				GenerateMocks: []GenerateMock{
-					{OutError: errors.New("error on generating")},
+			name: "BuilderCompileFails",
+			builder: &MockCompilerService{
+				CompileMocks: []CompileMock{
+					{OutError: errors.New("error on compiling")},
+				},
+			},
+			args:             []string{},
+			expectedExitCode: command.GenerationError,
+		},
+		{
+			name: "MockerCompileFails",
+			builder: &MockCompilerService{
+				CompileMocks: []CompileMock{
+					{OutError: nil},
+				},
+			},
+			mocker: &MockCompilerService{
+				CompileMocks: []CompileMock{
+					{OutError: errors.New("error on compiling")},
 				},
 			},
 			args:             []string{},
@@ -63,8 +80,13 @@ func TestCommand_run(t *testing.T) {
 		},
 		{
 			name: "Success",
-			generate: &MockGenerateService{
-				GenerateMocks: []GenerateMock{
+			builder: &MockCompilerService{
+				CompileMocks: []CompileMock{
+					{OutError: nil},
+				},
+			},
+			mocker: &MockCompilerService{
+				CompileMocks: []CompileMock{
 					{OutError: nil},
 				},
 			},
@@ -76,7 +98,8 @@ func TestCommand_run(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			c := &Command{ui: cli.NewMockUi()}
-			c.services.generator = tc.generate
+			c.services.builder = tc.builder
+			c.services.mocker = tc.mocker
 
 			exitCode := c.run(tc.args)
 
