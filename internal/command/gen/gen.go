@@ -9,7 +9,9 @@ import (
 
 	"github.com/moorara/gelato/internal/command"
 	"github.com/moorara/gelato/internal/log"
-	"github.com/moorara/gelato/internal/service/generate"
+	"github.com/moorara/gelato/internal/service/compiler"
+	"github.com/moorara/gelato/internal/service/compiler/builder"
+	"github.com/moorara/gelato/internal/service/compiler/mocker"
 )
 
 const (
@@ -25,15 +27,16 @@ const (
   `
 )
 
-type generateService interface {
-	Generate(string) error
+type compilerService interface {
+	Compile(string, compiler.ParseOptions) error
 }
 
 // Command is the cli.Command implementation for gen command.
 type Command struct {
 	ui       cli.Ui
 	services struct {
-		generator generateService
+		builder compilerService
+		mocker  compilerService
 	}
 	outputs struct{}
 }
@@ -58,7 +61,8 @@ func (c *Command) Help() string {
 // Run runs the actual command with the given command-line arguments.
 // This method is used as a proxy for creating dependencies and the actual command execution is delegated to the run method for testing purposes.
 func (c *Command) Run(args []string) int {
-	c.services.generator = generate.New(log.Trace)
+	c.services.builder = builder.New(log.Trace)
+	c.services.mocker = mocker.New(log.Trace)
 
 	return c.run(args)
 }
@@ -87,9 +91,18 @@ func (c *Command) run(args []string) int {
 		return command.PreflightError
 	}
 
-	// ==============================> TODO: <==============================
+	// ==============================> GENERATE CODES <==============================
 
-	if err := c.services.generator.Generate(info.WorkingDirectory); err != nil {
+	opts := compiler.ParseOptions{
+		SkipTestFiles: true,
+	}
+
+	if err := c.services.builder.Compile(info.WorkingDirectory, opts); err != nil {
+		c.ui.Error(err.Error())
+		return command.GenerationError
+	}
+
+	if err := c.services.mocker.Compile(info.WorkingDirectory, opts); err != nil {
 		c.ui.Error(err.Error())
 		return command.GenerationError
 	}

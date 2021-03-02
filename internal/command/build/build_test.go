@@ -53,7 +53,7 @@ func TestCommand_run(t *testing.T) {
 		name             string
 		spec             spec.Spec
 		git              *MockGitService
-		decorator        *MockDecorateService
+		decorator        *MockCompilerService
 		goList           shell.RunnerFunc
 		goBuild          shell.RunnerWithFunc
 		semver           *MockSemverCommand
@@ -160,9 +160,9 @@ func TestCommand_run(t *testing.T) {
 					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
 				},
 			},
-			decorator: &MockDecorateService{
-				DecorateMocks: []DecorateMock{
-					{OutError: errors.New("error on decoration")},
+			decorator: &MockCompilerService{
+				CompileMocks: []CompileMock{
+					{OutError: errors.New("error on compiling")},
 				},
 			},
 			goList: func(ctx context.Context, args ...string) (int, string, error) {
@@ -197,8 +197,8 @@ func TestCommand_run(t *testing.T) {
 					{OutHash: "7813389d2b09cdf851665b7848daa212b27e4e82", OutBranch: "main"},
 				},
 			},
-			decorator: &MockDecorateService{
-				DecorateMocks: []DecorateMock{
+			decorator: &MockCompilerService{
+				CompileMocks: []CompileMock{
 					{OutError: nil},
 				},
 			},

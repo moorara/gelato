@@ -1,6 +1,7 @@
 package build
 
 import (
+	"github.com/moorara/gelato/internal/service/compiler"
 	"github.com/moorara/gelato/pkg/semver"
 )
 
@@ -24,22 +25,24 @@ func (m *MockGitService) HEAD() (string, string, error) {
 }
 
 type (
-	DecorateMock struct {
-		InPath   string
-		OutError error
+	CompileMock struct {
+		InPath    string
+		InOptions compiler.ParseOptions
+		OutError  error
 	}
 
-	MockDecorateService struct {
-		DecorateIndex int
-		DecorateMocks []DecorateMock
+	MockCompilerService struct {
+		CompileIndex int
+		CompileMocks []CompileMock
 	}
 )
 
-func (m *MockDecorateService) Decorate(path string) error {
-	i := m.DecorateIndex
-	m.DecorateIndex++
-	m.DecorateMocks[i].InPath = path
-	return m.DecorateMocks[i].OutError
+func (m *MockCompilerService) Compile(path string, opts compiler.ParseOptions) error {
+	i := m.CompileIndex
+	m.CompileIndex++
+	m.CompileMocks[i].InPath = path
+	m.CompileMocks[i].InOptions = opts
+	return m.CompileMocks[i].OutError
 }
 
 type (

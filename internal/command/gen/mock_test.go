@@ -1,20 +1,26 @@
 package gen
 
+import (
+	"github.com/moorara/gelato/internal/service/compiler"
+)
+
 type (
-	GenerateMock struct {
-		InPath   string
-		OutError error
+	CompileMock struct {
+		InPath    string
+		InOptions compiler.ParseOptions
+		OutError  error
 	}
 
-	MockGenerateService struct {
-		GenerateIndex int
-		GenerateMocks []GenerateMock
+	MockCompilerService struct {
+		CompileIndex int
+		CompileMocks []CompileMock
 	}
 )
 
-func (m *MockGenerateService) Generate(path string) error {
-	i := m.GenerateIndex
-	m.GenerateIndex++
-	m.GenerateMocks[i].InPath = path
-	return m.GenerateMocks[i].OutError
+func (m *MockCompilerService) Compile(path string, opts compiler.ParseOptions) error {
+	i := m.CompileIndex
+	m.CompileIndex++
+	m.CompileMocks[i].InPath = path
+	m.CompileMocks[i].InOptions = opts
+	return m.CompileMocks[i].OutError
 }
