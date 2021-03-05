@@ -6,10 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"go/ast"
 	goast "go/ast"
 	goparser "go/parser"
-	"go/token"
 	gotoken "go/token"
 
 	"github.com/moorara/gelato/internal/log"
@@ -28,7 +26,7 @@ type PackageInfo struct {
 type FileInfo struct {
 	PackageInfo
 	FileName string
-	FileSet  *token.FileSet
+	FileSet  *gotoken.FileSet
 }
 
 // TypeInfo contains information about a parsed type.
@@ -47,7 +45,7 @@ type FuncInfo struct {
 	FileInfo
 	FuncName string
 	RecvName string
-	RecvType ast.Expr
+	RecvType goast.Expr
 }
 
 // IsExported determines whether or not a function is exported.
@@ -120,12 +118,12 @@ func (p *parser) Parse(path string, opts ParseOptions) error {
 		return err
 	}
 
+	// Create a new file set for each package
+	fset := gotoken.NewFileSet()
+
 	return readPackages(path, func(baseDir, relDir string) error {
 		pkgDir := filepath.Join(baseDir, relDir)
 		importPath := filepath.Join(module, relDir)
-
-		// Create a new file set for each package
-		fset := gotoken.NewFileSet()
 
 		// Parse all Go packages and files in the currecnt directory
 		p.logger.Cyan.Debugf("  Parsing directory: %s", pkgDir)
