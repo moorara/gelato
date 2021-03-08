@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"go/ast"
 	goast "go/ast"
 	goparser "go/parser"
 	gotoken "go/token"
@@ -74,9 +75,10 @@ type Consumer struct {
 
 // ParseOptions configure how Go source code files should be parsed.
 type ParseOptions struct {
-	SkipTestFiles bool
-	TypeNames     []string
-	TypeRegexp    *regexp.Regexp
+	MergePackageFiles bool
+	SkipTestFiles     bool
+	TypeNames         []string
+	TypeRegexp        *regexp.Regexp
 }
 
 func (o ParseOptions) matchType(name *goast.Ident) bool {
@@ -163,13 +165,21 @@ func (p *parser) Parse(path string, opts ParseOptions) error {
 				continue
 			}
 
-			for fileName, file := range pkg.Files {
-				if opts.SkipTestFiles && strings.HasSuffix(fileName, "_test.go") {
-					continue
-				}
-
-				if err := p.processFile(pkgInfo, fset, fileName, file, fileConsumers, opts); err != nil {
+			// Merge all file ASTs in the package and process a single file
+			if opts.MergePackageFiles {
+				mergedFile := goast.MergePackageFiles(pkg, ast.FilterImportDuplicates|goast.FilterUnassociatedComments)
+				if err := p.processFile(pkgInfo, fset, "merged.go", mergedFile, fileConsumers, opts); err != nil {
 					return err
+				}
+			} else {
+				for fileName, file := range pkg.Files {
+					if opts.SkipTestFiles && strings.HasSuffix(fileName, "_test.go") {
+						continue
+					}
+
+					if err := p.processFile(pkgInfo, fset, fileName, file, fileConsumers, opts); err != nil {
+						return err
+					}
 				}
 			}
 		}

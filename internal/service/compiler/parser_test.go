@@ -213,7 +213,68 @@ func TestParser_Parse(t *testing.T) {
 			expectedError: "",
 		},
 		{
-			name: "Success_SkipFiles",
+			name: "FilePostFails",
+			consumers: []*Consumer{
+				{
+					Name:      "tester",
+					Package:   func(*PackageInfo, *goast.Package) bool { return true },
+					FilePre:   func(*FileInfo, *goast.File) bool { return true },
+					Import:    func(*FileInfo, *goast.ImportSpec) {},
+					Struct:    func(*TypeInfo, *goast.StructType) {},
+					Interface: func(*TypeInfo, *goast.InterfaceType) {},
+					FuncType:  func(*TypeInfo, *goast.FuncType) {},
+					FuncDecl:  func(*FuncInfo, *goast.FuncType, *goast.BlockStmt) {},
+					FilePost:  func(*FileInfo, *goast.File) error { return errors.New("file error") },
+				},
+			},
+			path:          "./test/valid",
+			opts:          ParseOptions{},
+			expectedError: "file error",
+		},
+		{
+			name: "FilePostFails_MergePackageFiles",
+			consumers: []*Consumer{
+				{
+					Name:      "tester",
+					Package:   func(*PackageInfo, *goast.Package) bool { return true },
+					FilePre:   func(*FileInfo, *goast.File) bool { return true },
+					Import:    func(*FileInfo, *goast.ImportSpec) {},
+					Struct:    func(*TypeInfo, *goast.StructType) {},
+					Interface: func(*TypeInfo, *goast.InterfaceType) {},
+					FuncType:  func(*TypeInfo, *goast.FuncType) {},
+					FuncDecl:  func(*FuncInfo, *goast.FuncType, *goast.BlockStmt) {},
+					FilePost:  func(*FileInfo, *goast.File) error { return errors.New("file error") },
+				},
+			},
+			path: "./test/valid",
+			opts: ParseOptions{
+				MergePackageFiles: true,
+			},
+			expectedError: "file error",
+		},
+		{
+			name: "Success_MergePackageFiles",
+			consumers: []*Consumer{
+				{
+					Name:      "tester",
+					Package:   func(*PackageInfo, *goast.Package) bool { return true },
+					FilePre:   func(*FileInfo, *goast.File) bool { return true },
+					Import:    func(*FileInfo, *goast.ImportSpec) {},
+					Struct:    func(*TypeInfo, *goast.StructType) {},
+					Interface: func(*TypeInfo, *goast.InterfaceType) {},
+					FuncType:  func(*TypeInfo, *goast.FuncType) {},
+					FuncDecl:  func(*FuncInfo, *goast.FuncType, *goast.BlockStmt) {},
+					FilePost:  func(*FileInfo, *goast.File) error { return nil },
+				},
+			},
+			path: "./test/valid",
+			opts: ParseOptions{
+				MergePackageFiles: true,
+			},
+			expectedError: "",
+		},
+		{
+			name: "Success_SkipTestFiles",
 			consumers: []*Consumer{
 				{
 					Name:    "tester",
@@ -242,32 +303,9 @@ func TestParser_Parse(t *testing.T) {
 					FilePost:  func(*FileInfo, *goast.File) error { return nil },
 				},
 			},
-			path: "./test/valid",
-			opts: ParseOptions{
-				SkipTestFiles: true,
-			},
+			path:          "./test/valid",
+			opts:          ParseOptions{},
 			expectedError: "",
-		},
-		{
-			name: "FilePostFails",
-			consumers: []*Consumer{
-				{
-					Name:      "tester",
-					Package:   func(*PackageInfo, *goast.Package) bool { return true },
-					FilePre:   func(*FileInfo, *goast.File) bool { return true },
-					Import:    func(*FileInfo, *goast.ImportSpec) {},
-					Struct:    func(*TypeInfo, *goast.StructType) {},
-					Interface: func(*TypeInfo, *goast.InterfaceType) {},
-					FuncType:  func(*TypeInfo, *goast.FuncType) {},
-					FuncDecl:  func(*FuncInfo, *goast.FuncType, *goast.BlockStmt) {},
-					FilePost:  func(*FileInfo, *goast.File) error { return errors.New("file error") },
-				},
-			},
-			path: "./test/valid",
-			opts: ParseOptions{
-				SkipTestFiles: true,
-			},
-			expectedError: "file error",
 		},
 	}
 
