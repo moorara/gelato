@@ -3,7 +3,7 @@ module horizontal/grpc-service
 go 1.15
 
 require (
-	github.com/golang/protobuf v1.5.1
+	github.com/golang/protobuf v1.5.2
 	github.com/moorara/graceful v0.1.1
 	github.com/moorara/health v0.1.0
 	github.com/moorara/konfig v0.4.4
