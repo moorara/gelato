@@ -7,7 +7,7 @@ ARG ldflags
 RUN go build -ldflags "$ldflags"
 
 # FINAL STAGE
-FROM alpine:3.13
+FROM alpine:3.14
 EXPOSE 4000
 RUN apk add --no-cache curl ca-certificates
 HEALTHCHECK --interval=5m --timeout=3s CMD curl -f http://localhost:4000/health || exit 1
