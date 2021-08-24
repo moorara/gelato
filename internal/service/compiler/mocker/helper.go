@@ -8,29 +8,43 @@ import (
 	"github.com/moorara/gelato/internal/service/compiler"
 )
 
-func isEmbeddedInterface(method *ast.Field) bool {
-	return len(method.Names) == 0
-}
-
-func isMethod(method *ast.Field) bool {
-	if len(method.Names) == 1 {
-		if _, ok := method.Type.(*ast.FuncType); ok {
-			return true
-		}
-	}
-
-	return false
-}
-
-// normalizeFieldList clones a field list and converts embedded fields to non-embedded ones.
-func normalizeFieldList(fieldList *ast.FieldList) *ast.FieldList {
+// normalizeMethods clones a field list of methods and substitude embedded interfaces with their methods.
+func normalizeMethods(methods *ast.FieldList) *ast.FieldList {
 	new := &ast.FieldList{}
 
-	if fieldList == nil {
+	if methods == nil {
 		return new
 	}
 
-	for _, field := range fieldList.List {
+	for _, method := range methods.List {
+		// Embedded interface
+		if len(method.Names) == 0 {
+			// TODO:
+		}
+
+		// Method
+		if len(method.Names) == 1 {
+			if _, ok := method.Type.(*ast.FuncType); ok {
+				new.List = append(new.List, &ast.Field{
+					Names: method.Names,
+					Type:  method.Type,
+				})
+			}
+		}
+	}
+
+	return new
+}
+
+// normalizeFields clones a field list and converts embedded fields to non-embedded ones.
+func normalizeFields(fields *ast.FieldList) *ast.FieldList {
+	new := &ast.FieldList{}
+
+	if fields == nil {
+		return new
+	}
+
+	for _, field := range fields.List {
 		f := &ast.Field{
 			Names: field.Names,
 			Type:  field.Type,
@@ -116,5 +130,5 @@ func createZeroValueExpr(typ ast.Expr) ast.Expr {
 		return &ast.Ident{Name: "nil"}
 	}
 
-	panic(fmt.Sprintf("Unknown type %T", typ))
+	panic(fmt.Sprintf("unknown type %T", typ))
 }

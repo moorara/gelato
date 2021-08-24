@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/moorara/gelato/internal/service/compiler"
 	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/compiler"
 )
 
 const (
@@ -64,7 +64,7 @@ func (b *builder) FilePost(info *compiler.FileInfo, file *ast.File) error {
 		},
 		&ast.ImportSpec{
 			Path: &ast.BasicLit{
-				Value: `"github.com/moorara/acai/value"`,
+				Value: `"github.com/moorara/acai/factory"`,
 			},
 		},
 	)
@@ -192,6 +192,7 @@ func createBuilderStructDecl(pkgName, typeName string) ast.Decl {
 }
 
 func createBuildFuncDecl(pkgName, typeName string, fields *ast.FieldList) ast.Decl {
+	stmts := []ast.Stmt{}
 	elts := []ast.Expr{}
 
 	for _, field := range fields.List {
@@ -199,7 +200,12 @@ func createBuildFuncDecl(pkgName, typeName string, fields *ast.FieldList) ast.De
 			for _, id := range field.Names {
 				// Only consider exported fields
 				if compiler.IsExported(id.Name) {
-					elts = append(elts, createFieldInitExpr(id, field.Type))
+					s, expr := createFieldInitDefs(id, field.Type)
+					stmts = append(stmts, s...)
+					elts = append(elts, &ast.KeyValueExpr{
+						Key:   &ast.Ident{Name: id.Name},
+						Value: expr,
+					})
 				}
 			}
 		} else {
@@ -208,7 +214,12 @@ func createBuildFuncDecl(pkgName, typeName string, fields *ast.FieldList) ast.De
 
 			// Only consider exported fields
 			if compiler.IsExported(id.Name) {
-				elts = append(elts, createFieldInitExpr(id, field.Type))
+				s, expr := createFieldInitDefs(id, field.Type)
+				stmts = append(stmts, s...)
+				elts = append(elts, &ast.KeyValueExpr{
+					Key:   &ast.Ident{Name: id.Name},
+					Value: expr,
+				})
 			}
 		}
 	}
@@ -228,27 +239,25 @@ func createBuildFuncDecl(pkgName, typeName string, fields *ast.FieldList) ast.De
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: []ast.Stmt{
-				&ast.ReturnStmt{
-					Results: []ast.Expr{
-						&ast.CompositeLit{
-							Type: &ast.Ident{Name: typeName + "Builder"},
-							Elts: []ast.Expr{
-								&ast.KeyValueExpr{
-									Key: &ast.Ident{Name: "v"},
-									Value: &ast.CompositeLit{
-										Type: &ast.SelectorExpr{
-											X:   &ast.Ident{Name: pkgName},
-											Sel: &ast.Ident{Name: typeName},
-										},
-										Elts: elts,
+			List: append(stmts, &ast.ReturnStmt{
+				Results: []ast.Expr{
+					&ast.CompositeLit{
+						Type: &ast.Ident{Name: typeName + "Builder"},
+						Elts: []ast.Expr{
+							&ast.KeyValueExpr{
+								Key: &ast.Ident{Name: "v"},
+								Value: &ast.CompositeLit{
+									Type: &ast.SelectorExpr{
+										X:   &ast.Ident{Name: pkgName},
+										Sel: &ast.Ident{Name: typeName},
 									},
+									Elts: elts,
 								},
 							},
 						},
 					},
 				},
-			},
+			}),
 		},
 	}
 }

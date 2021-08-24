@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"go/ast"
 	goast "go/ast"
+	gobuild "go/build"
 	goparser "go/parser"
 	gotoken "go/token"
 
@@ -59,6 +59,11 @@ func (i *FuncInfo) IsMethod() bool {
 	return i.RecvName != "" && i.RecvType != nil
 }
 
+// Provider provides functionalities for consumers.
+type Provider interface {
+	ResolveType(typ goast.Expr) (goast.GenDecl, error)
+}
+
 // Consumer is used for processing AST nodes.
 // This is meant to be provided by downstream packages.
 type Consumer struct {
@@ -104,6 +109,7 @@ func (o ParseOptions) matchType(name *goast.Ident) bool {
 type parser struct {
 	logger    *log.ColorfulLogger
 	consumers []*Consumer
+	cache     map[string]*gobuild.Package
 }
 
 // Parse parses all Go source code files recursively from a given path.
@@ -114,6 +120,9 @@ func (p *parser) Parse(path string, opts ParseOptions) error {
 	}
 
 	p.logger.White.Infof("Parsing ...")
+
+	// Initialize the package cache
+	p.cache = make(map[string]*gobuild.Package)
 
 	module, err := getModuleName(path)
 	if err != nil {
@@ -132,6 +141,20 @@ func (p *parser) Parse(path string, opts ParseOptions) error {
 		pkgs, err := goparser.ParseDir(fset, pkgDir, nil, goparser.AllErrors)
 		if err != nil {
 			return err
+		}
+
+		if len(pkgs) == 0 {
+			return nil
+		}
+
+		// Import the package if not imported previously
+		buildPkg, exist := p.cache[importPath]
+		if !exist {
+			p.logger.Cyan.Debugf("  Importing package: %s", importPath)
+			if buildPkg, err = gobuild.Import(importPath, pkgDir, 0); err != nil {
+				return err
+			}
+			p.cache[importPath] = buildPkg
 		}
 
 		// Visit all parsed Go files in the current directory
@@ -167,7 +190,7 @@ func (p *parser) Parse(path string, opts ParseOptions) error {
 
 			// Merge all file ASTs in the package and process a single file
 			if opts.MergePackageFiles {
-				mergedFile := goast.MergePackageFiles(pkg, ast.FilterImportDuplicates|goast.FilterUnassociatedComments)
+				mergedFile := goast.MergePackageFiles(pkg, goast.FilterImportDuplicates|goast.FilterUnassociatedComments)
 				if err := p.processFile(pkgInfo, fset, "merged.go", mergedFile, fileConsumers, opts); err != nil {
 					return err
 				}
@@ -186,6 +209,10 @@ func (p *parser) Parse(path string, opts ParseOptions) error {
 
 		return nil
 	})
+}
+
+func (p *parser) resolveImport(spec *goast.ImportSpec) error {
+	return nil
 }
 
 func (p *parser) processFile(pkgInfo PackageInfo, fset *gotoken.FileSet, fileName string, file *goast.File, fileConsumers []*Consumer, opts ParseOptions) error {
@@ -221,6 +248,7 @@ func (p *parser) processFile(pkgInfo PackageInfo, fset *gotoken.FileSet, fileNam
 		// IMPORT
 		case *goast.ImportSpec:
 			p.logger.Yellow.Debugf("          ImportSpec: %s", v.Path.Value)
+			p.resolveImport(v)
 			for _, c := range declConsumers {
 				if c.Import != nil {
 					c.Import(&fileInfo, v)

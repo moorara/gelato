@@ -98,6 +98,8 @@ func (m *mocker) Import(info *compiler.FileInfo, spec *ast.ImportSpec) {
 }
 
 func (m *mocker) Interface(info *compiler.TypeInfo, node *ast.InterfaceType) {
+	node.Methods = normalizeMethods(node.Methods)
+
 	decls := []ast.Decl{}
 	decls = append(decls, createMockerStructDecl(info.TypeName))
 	decls = append(decls, createMockFuncDecl(info.TypeName))
@@ -108,20 +110,16 @@ func (m *mocker) Interface(info *compiler.TypeInfo, node *ast.InterfaceType) {
 	decls = append(decls, createExpectationsMethodDecls(info.TypeName, node.Methods)...)
 
 	for _, method := range node.Methods.List {
-		if isMethod(method) {
-			decls = append(decls, createExpectationStructDecls(method)...)
-			decls = append(decls, createExpectationWithArgsMethodDecl(method))
-			decls = append(decls, createExpectationReturnMethodDecl(method))
-			decls = append(decls, createExpectationCallMethodDecl(method))
-		}
+		decls = append(decls, createExpectationStructDecls(method)...)
+		decls = append(decls, createExpectationWithArgsMethodDecl(method))
+		decls = append(decls, createExpectationReturnMethodDecl(method))
+		decls = append(decls, createExpectationCallMethodDecl(method))
 	}
 
 	decls = append(decls, createImplStructDecl(info.TypeName))
 
 	for _, method := range node.Methods.List {
-		if isMethod(method) {
-			decls = append(decls, createImplMethodDecl(info.TypeName, method))
-		}
+		decls = append(decls, createImplMethodDecl(info.TypeName, method))
 	}
 
 	m.decls = append(m.decls, decls...)
@@ -387,60 +385,58 @@ func createMockerAssertMethodDecl(typeName string, methods *ast.FieldList) ast.D
 	stmts := []ast.Stmt{}
 
 	for _, method := range methods.List {
-		if isMethod(method) {
-			exportedName := method.Names[0].Name
-			unexportedName := compiler.ConvertToUnexported(exportedName)
+		exportedName := method.Names[0].Name
+		unexportedName := compiler.ConvertToUnexported(exportedName)
 
-			stmts = append(stmts, &ast.RangeStmt{
-				Key:   &ast.Ident{Name: "_"},
-				Value: &ast.Ident{Name: "e"},
-				Tok:   token.DEFINE,
+		stmts = append(stmts, &ast.RangeStmt{
+			Key:   &ast.Ident{Name: "_"},
+			Value: &ast.Ident{Name: "e"},
+			Tok:   token.DEFINE,
+			X: &ast.SelectorExpr{
 				X: &ast.SelectorExpr{
-					X: &ast.SelectorExpr{
-						X:   &ast.Ident{Name: "m"},
-						Sel: &ast.Ident{Name: "expectations"},
-					},
-					Sel: &ast.Ident{Name: unexportedName + "Expectations"},
+					X:   &ast.Ident{Name: "m"},
+					Sel: &ast.Ident{Name: "expectations"},
 				},
-				Body: &ast.BlockStmt{
-					List: []ast.Stmt{
-						&ast.IfStmt{
-							Cond: &ast.BinaryExpr{
-								X: &ast.SelectorExpr{
-									X:   &ast.Ident{Name: "e"},
-									Sel: &ast.Ident{Name: "recorded"},
-								},
-								Op: token.EQL,
-								Y:  &ast.Ident{Name: "nil"},
+				Sel: &ast.Ident{Name: unexportedName + "Expectations"},
+			},
+			Body: &ast.BlockStmt{
+				List: []ast.Stmt{
+					&ast.IfStmt{
+						Cond: &ast.BinaryExpr{
+							X: &ast.SelectorExpr{
+								X:   &ast.Ident{Name: "e"},
+								Sel: &ast.Ident{Name: "recorded"},
 							},
-							Body: &ast.BlockStmt{
-								List: []ast.Stmt{
-									&ast.ExprStmt{
-										X: &ast.CallExpr{
-											Fun: &ast.SelectorExpr{
-												X: &ast.SelectorExpr{
-													X:   &ast.Ident{Name: "m"},
-													Sel: &ast.Ident{Name: "t"},
-												},
-												Sel: &ast.Ident{Name: "Errorf"},
+							Op: token.EQL,
+							Y:  &ast.Ident{Name: "nil"},
+						},
+						Body: &ast.BlockStmt{
+							List: []ast.Stmt{
+								&ast.ExprStmt{
+									X: &ast.CallExpr{
+										Fun: &ast.SelectorExpr{
+											X: &ast.SelectorExpr{
+												X:   &ast.Ident{Name: "m"},
+												Sel: &ast.Ident{Name: "t"},
 											},
-											Args: []ast.Expr{
-												&ast.BasicLit{
-													Value: fmt.Sprintf(`"\nExpected %s method be called with %%s"`, exportedName),
-												},
-												&ast.CallExpr{
-													Fun: &ast.SelectorExpr{
-														X: &ast.SelectorExpr{
-															X:   &ast.Ident{Name: "m"},
-															Sel: &ast.Ident{Name: "spew"},
-														},
-														Sel: &ast.Ident{Name: "Sdump"},
+											Sel: &ast.Ident{Name: "Errorf"},
+										},
+										Args: []ast.Expr{
+											&ast.BasicLit{
+												Value: fmt.Sprintf(`"\nExpected %s method be called with %%s"`, exportedName),
+											},
+											&ast.CallExpr{
+												Fun: &ast.SelectorExpr{
+													X: &ast.SelectorExpr{
+														X:   &ast.Ident{Name: "m"},
+														Sel: &ast.Ident{Name: "spew"},
 													},
-													Args: []ast.Expr{
-														&ast.SelectorExpr{
-															X:   &ast.Ident{Name: "e"},
-															Sel: &ast.Ident{Name: "inputs"},
-														},
+													Sel: &ast.Ident{Name: "Sdump"},
+												},
+												Args: []ast.Expr{
+													&ast.SelectorExpr{
+														X:   &ast.Ident{Name: "e"},
+														Sel: &ast.Ident{Name: "inputs"},
 													},
 												},
 											},
@@ -451,8 +447,8 @@ func createMockerAssertMethodDecl(typeName string, methods *ast.FieldList) ast.D
 						},
 					},
 				},
-			})
-		}
+			},
+		})
 	}
 
 	return &ast.FuncDecl{
@@ -484,20 +480,18 @@ func createExpectationsStructDecl(typeName string, methods *ast.FieldList) ast.D
 	fields := &ast.FieldList{}
 
 	for _, method := range methods.List {
-		if isMethod(method) {
-			if methodName := method.Names[0].Name; compiler.IsExported(methodName) {
-				unexportedName := compiler.ConvertToUnexported(methodName)
-				fields.List = append(fields.List, &ast.Field{
-					Names: []*ast.Ident{
-						{Name: unexportedName + "Expectations"},
+		if methodName := method.Names[0].Name; compiler.IsExported(methodName) {
+			unexportedName := compiler.ConvertToUnexported(methodName)
+			fields.List = append(fields.List, &ast.Field{
+				Names: []*ast.Ident{
+					{Name: unexportedName + "Expectations"},
+				},
+				Type: &ast.ArrayType{
+					Elt: &ast.StarExpr{
+						X: &ast.Ident{Name: methodName + "Expectation"},
 					},
-					Type: &ast.ArrayType{
-						Elt: &ast.StarExpr{
-							X: &ast.Ident{Name: methodName + "Expectation"},
-						},
-					},
-				})
-			}
+				},
+			})
 		}
 	}
 
@@ -520,81 +514,79 @@ func createExpectationsMethodDecls(typeName string, methods *ast.FieldList) []as
 	decls := []ast.Decl{}
 
 	for _, method := range methods.List {
-		if isMethod(method) {
-			if methodName := method.Names[0].Name; compiler.IsExported(methodName) {
-				unexportedName := compiler.ConvertToUnexported(methodName)
-				decls = append(decls, &ast.FuncDecl{
-					Recv: &ast.FieldList{
+		if methodName := method.Names[0].Name; compiler.IsExported(methodName) {
+			unexportedName := compiler.ConvertToUnexported(methodName)
+			decls = append(decls, &ast.FuncDecl{
+				Recv: &ast.FieldList{
+					List: []*ast.Field{
+						{
+							Names: []*ast.Ident{
+								{Name: "e"},
+							},
+							Type: &ast.StarExpr{
+								X: &ast.Ident{Name: typeName + "Expectations"},
+							},
+						},
+					},
+				},
+				Name: &ast.Ident{Name: methodName},
+				Type: &ast.FuncType{
+					Params: &ast.FieldList{},
+					Results: &ast.FieldList{
 						List: []*ast.Field{
 							{
-								Names: []*ast.Ident{
-									{Name: "e"},
-								},
 								Type: &ast.StarExpr{
-									X: &ast.Ident{Name: typeName + "Expectations"},
+									X: &ast.Ident{Name: methodName + "Expectation"},
 								},
 							},
 						},
 					},
-					Name: &ast.Ident{Name: methodName},
-					Type: &ast.FuncType{
-						Params: &ast.FieldList{},
-						Results: &ast.FieldList{
-							List: []*ast.Field{
-								{
-									Type: &ast.StarExpr{
-										X: &ast.Ident{Name: methodName + "Expectation"},
+				},
+				Body: &ast.BlockStmt{
+					List: []ast.Stmt{
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.Ident{Name: "expectation"},
+							},
+							Tok: token.DEFINE,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.Ident{Name: "new"},
+									Args: []ast.Expr{
+										&ast.Ident{Name: methodName + "Expectation"},
 									},
 								},
 							},
 						},
-					},
-					Body: &ast.BlockStmt{
-						List: []ast.Stmt{
-							&ast.AssignStmt{
-								Lhs: []ast.Expr{
-									&ast.Ident{Name: "expectation"},
+						&ast.AssignStmt{
+							Lhs: []ast.Expr{
+								&ast.SelectorExpr{
+									X:   &ast.Ident{Name: "e"},
+									Sel: &ast.Ident{Name: unexportedName + "Expectations"},
 								},
-								Tok: token.DEFINE,
-								Rhs: []ast.Expr{
-									&ast.CallExpr{
-										Fun: &ast.Ident{Name: "new"},
-										Args: []ast.Expr{
-											&ast.Ident{Name: methodName + "Expectation"},
+							},
+							Tok: token.ASSIGN,
+							Rhs: []ast.Expr{
+								&ast.CallExpr{
+									Fun: &ast.Ident{Name: "append"},
+									Args: []ast.Expr{
+										&ast.SelectorExpr{
+											X:   &ast.Ident{Name: "e"},
+											Sel: &ast.Ident{Name: unexportedName + "Expectations"},
 										},
+										&ast.Ident{Name: "expectation"},
 									},
-								},
-							},
-							&ast.AssignStmt{
-								Lhs: []ast.Expr{
-									&ast.SelectorExpr{
-										X:   &ast.Ident{Name: "e"},
-										Sel: &ast.Ident{Name: unexportedName + "Expectations"},
-									},
-								},
-								Tok: token.ASSIGN,
-								Rhs: []ast.Expr{
-									&ast.CallExpr{
-										Fun: &ast.Ident{Name: "append"},
-										Args: []ast.Expr{
-											&ast.SelectorExpr{
-												X:   &ast.Ident{Name: "e"},
-												Sel: &ast.Ident{Name: unexportedName + "Expectations"},
-											},
-											&ast.Ident{Name: "expectation"},
-										},
-									},
-								},
-							},
-							&ast.ReturnStmt{
-								Results: []ast.Expr{
-									&ast.Ident{Name: "expectation"},
 								},
 							},
 						},
+						&ast.ReturnStmt{
+							Results: []ast.Expr{
+								&ast.Ident{Name: "expectation"},
+							},
+						},
 					},
-				})
-			}
+				},
+			})
 		}
 	}
 
@@ -605,10 +597,10 @@ func createExpectationStructDecls(method *ast.Field) []ast.Decl {
 	exportedName := method.Names[0].Name
 	unexportedName := compiler.ConvertToUnexported(exportedName)
 
-	// isMethod guarantees method.Type is *ast.FuncType
+	// method.Type is guaranteed to be *ast.FuncType
 	funcType := method.Type.(*ast.FuncType)
-	inputFields := normalizeFieldList(funcType.Params)
-	outputFields := normalizeFieldList(funcType.Results)
+	inputFields := normalizeFields(funcType.Params)
+	outputFields := normalizeFields(funcType.Results)
 
 	return []ast.Decl{
 		// Struct
@@ -691,9 +683,9 @@ func createExpectationWithArgsMethodDecl(method *ast.Field) ast.Decl {
 	exportedName := method.Names[0].Name
 	unexportedName := compiler.ConvertToUnexported(exportedName)
 
-	// isMethod guarantees method.Type is *ast.FuncType
+	// method.Type is guaranteed to be *ast.FuncType
 	funcType := method.Type.(*ast.FuncType)
-	inputFields := normalizeFieldList(funcType.Params)
+	inputFields := normalizeFields(funcType.Params)
 	keyValueList := createKeyValueExprList(funcType.Params)
 
 	return &ast.FuncDecl{
@@ -756,9 +748,9 @@ func createExpectationReturnMethodDecl(method *ast.Field) ast.Decl {
 	exportedName := method.Names[0].Name
 	unexportedName := compiler.ConvertToUnexported(exportedName)
 
-	// isMethod guarantees method.Type is *ast.FuncType
+	// method.Type is guaranteed to be *ast.FuncType
 	funcType := method.Type.(*ast.FuncType)
-	outputFields := normalizeFieldList(funcType.Results)
+	outputFields := normalizeFields(funcType.Results)
 	keyValueList := createKeyValueExprList(funcType.Results)
 
 	return &ast.FuncDecl{
@@ -932,10 +924,10 @@ func createImplMethodDecl(typeName string, method *ast.Field) ast.Decl {
 	exportedName := method.Names[0].Name
 	unexportedName := compiler.ConvertToUnexported(exportedName)
 
-	// isMethod guarantees method.Type is *ast.FuncType
+	// method.Type is guaranteed to be *ast.FuncType
 	funcType := method.Type.(*ast.FuncType)
-	inputFields := normalizeFieldList(funcType.Params)
-	outputFields := normalizeFieldList(funcType.Results)
+	inputFields := normalizeFields(funcType.Params)
+	outputFields := normalizeFields(funcType.Results)
 
 	inputsAssignElts := []ast.Expr{}
 	for _, f := range inputFields.List {

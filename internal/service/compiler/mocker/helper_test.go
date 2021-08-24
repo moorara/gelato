@@ -8,77 +8,112 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIsEmbeddedInterface(t *testing.T) {
+func TestNormalizeMethods(t *testing.T) {
 	tests := []struct {
-		name     string
-		method   *ast.Field
-		expected bool
+		name            string
+		methods         *ast.FieldList
+		expectedMethods *ast.FieldList
 	}{
 		{
-			name: "EmbeddedInterface",
-			method: &ast.Field{
-				Type: &ast.SelectorExpr{
-					X:   &ast.Ident{Name: "http"},
-					Sel: &ast.Ident{Name: "Handler"},
-				},
-			},
-			expected: true,
+			name:            "NilFieldList",
+			methods:         nil,
+			expectedMethods: &ast.FieldList{},
 		},
 		{
-			name: "Method",
-			method: &ast.Field{
-				Names: []*ast.Ident{
-					&ast.Ident{Name: "Lookup"},
+			name: "WithMethods",
+			methods: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							&ast.Ident{Name: "Lookup"},
+						},
+						Type: &ast.FuncType{
+							Params: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Type: &ast.StarExpr{
+											X: &ast.Ident{Name: "Request"},
+										},
+									},
+								},
+							},
+							Results: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Type: &ast.StarExpr{
+											X: &ast.Ident{Name: "Response"},
+										},
+									},
+									{
+										Type: &ast.Ident{Name: "error"},
+									},
+								},
+							},
+						},
+					},
 				},
-				Type: &ast.FuncType{},
 			},
-			expected: false,
+			expectedMethods: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Names: []*ast.Ident{
+							&ast.Ident{Name: "Lookup"},
+						},
+						Type: &ast.FuncType{
+							Params: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Type: &ast.StarExpr{
+											X: &ast.Ident{Name: "Request"},
+										},
+									},
+								},
+							},
+							Results: &ast.FieldList{
+								List: []*ast.Field{
+									{
+										Type: &ast.StarExpr{
+											X: &ast.Ident{Name: "Response"},
+										},
+									},
+									{
+										Type: &ast.Ident{Name: "error"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "WithEmbeddedInterface",
+			methods: &ast.FieldList{
+				List: []*ast.Field{
+					{
+						Type: &ast.SelectorExpr{
+							X:   &ast.Ident{Name: "http"},
+							Sel: &ast.Ident{Name: "Handler"},
+						},
+					},
+				},
+			},
+			expectedMethods: &ast.FieldList{
+				List: nil,
+			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, isEmbeddedInterface(tc.method))
+			methods := normalizeMethods(tc.methods)
+
+			assert.Equal(t, tc.expectedMethods, methods)
 		})
 	}
 }
 
-func TestIsMethod(t *testing.T) {
-	tests := []struct {
-		name     string
-		method   *ast.Field
-		expected bool
-	}{
-		{
-			name: "Method",
-			method: &ast.Field{
-				Names: []*ast.Ident{
-					&ast.Ident{Name: "Lookup"},
-				},
-				Type: &ast.FuncType{},
-			},
-			expected: true,
-		},
-		{
-			name: "EmbeddedInterface",
-			method: &ast.Field{
-				Type: &ast.SelectorExpr{
-					X:   &ast.Ident{Name: "http"},
-					Sel: &ast.Ident{Name: "Handler"},
-				},
-			},
-			expected: false,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.expected, isMethod(tc.method))
-		})
-	}
-}
-
-func TestNormalizeFieldList(t *testing.T) {
+func TestNormalizeFields(t *testing.T) {
 	tests := []struct {
 		name              string
 		fieldList         *ast.FieldList
@@ -187,7 +222,7 @@ func TestNormalizeFieldList(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fieldList := normalizeFieldList(tc.fieldList)
+			fieldList := normalizeFields(tc.fieldList)
 
 			assert.Equal(t, tc.expectedFieldList, fieldList)
 		})

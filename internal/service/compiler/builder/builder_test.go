@@ -8,8 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/moorara/gelato/internal/service/compiler"
 	"github.com/moorara/gelato/internal/log"
+	"github.com/moorara/gelato/internal/service/compiler"
 )
 
 func TestNew(t *testing.T) {
@@ -340,7 +340,7 @@ func TestBuilder_Struct(t *testing.T) {
 															Key: &ast.Ident{Name: "ID"},
 															Value: &ast.CallExpr{
 																Fun: &ast.SelectorExpr{
-																	X:   &ast.Ident{Name: "value"},
+																	X:   &ast.Ident{Name: "factory"},
 																	Sel: &ast.Ident{Name: "String"},
 																},
 															},
@@ -609,7 +609,7 @@ func TestBuilder_Struct(t *testing.T) {
 															Key: &ast.Ident{Name: "Name"},
 															Value: &ast.CallExpr{
 																Fun: &ast.SelectorExpr{
-																	X:   &ast.Ident{Name: "value"},
+																	X:   &ast.Ident{Name: "factory"},
 																	Sel: &ast.Ident{Name: "String"},
 																},
 															},

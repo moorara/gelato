@@ -80,6 +80,8 @@ func packageDirs(baseDir, relDir string, visit visitFunc) error {
 }
 
 func isPackageDir(name string) bool {
+	isBinDir := name == "bin"
+	isIDLDir := name == "idl"
 	startsWithDot := strings.HasPrefix(name, ".")
-	return !startsWithDot && name != "bin"
+	return !isBinDir && !isIDLDir && !startsWithDot
 }
